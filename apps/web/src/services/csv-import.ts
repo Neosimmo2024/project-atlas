@@ -1,7 +1,7 @@
 export const acceptedCsvColumns = [
-  "Prenom",
+  "Prénom",
   "Nom",
-  "Telephone",
+  "Téléphone",
   "Email",
   "Ville",
   "Code postal",
@@ -16,8 +16,8 @@ export type CsvPersonRow = Partial<Record<AcceptedCsvColumn, string>>;
 
 export function buildDeduplicationKeys(row: CsvPersonRow) {
   const email = normalize(row.Email);
-  const phone = normalizePhone(row.Telephone);
-  const identity = [row.Prenom, row.Nom, row.Ville].map(normalize).join("|");
+  const phone = normalizePhone(row["Téléphone"]);
+  const identity = [row["Prénom"], row.Nom, row.Ville].map(normalize).join("|");
   return { email: email || null, phone: phone || null, identity: identity === "||" ? null : identity };
 }
 
