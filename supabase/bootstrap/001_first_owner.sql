@@ -7,22 +7,25 @@
 -- Do not commit a real user UUID to the repository.
 --
 -- Example replacement format:
---   'YOUR_AUTH_USER_ID'::uuid
+--   bootstrap_user_id_text text := 'YOUR_AUTH_USER_ID';
 -- becomes:
---   '00000000-0000-0000-0000-000000000000'::uuid
+--   bootstrap_user_id_text text := '00000000-0000-0000-0000-000000000000';
 
 begin;
 
 do $$
 declare
-  bootstrap_user_id uuid := 'YOUR_AUTH_USER_ID'::uuid;
+  bootstrap_user_id_text text := 'YOUR_AUTH_USER_ID';
+  bootstrap_user_id uuid;
   bootstrap_tenant_name text := 'Neos Immo';
   bootstrap_tenant_id uuid;
   owner_role_id uuid;
 begin
-  if bootstrap_user_id::text = 'YOUR_AUTH_USER_ID' then
+  if bootstrap_user_id_text = 'YOUR_AUTH_USER_ID' then
     raise exception 'Replace YOUR_AUTH_USER_ID with the real auth.users.id before running this script.';
   end if;
+
+  bootstrap_user_id := bootstrap_user_id_text::uuid;
 
   if not exists (
     select 1
@@ -32,10 +35,6 @@ begin
     raise exception 'No auth.users row found for id %. Create the user in Supabase Auth first.', bootstrap_user_id;
   end if;
 
-  insert into public.tenants (name, status)
-  values (bootstrap_tenant_name, 'active')
-  on conflict do nothing;
-
   select t.id
   into bootstrap_tenant_id
   from public.tenants t
@@ -44,7 +43,9 @@ begin
   limit 1;
 
   if bootstrap_tenant_id is null then
-    raise exception 'Unable to create or find tenant %.', bootstrap_tenant_name;
+    insert into public.tenants (name, status)
+    values (bootstrap_tenant_name, 'active')
+    returning id into bootstrap_tenant_id;
   end if;
 
   select r.id
