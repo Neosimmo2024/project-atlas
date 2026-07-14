@@ -1,8 +1,11 @@
 node_modules
+.npm-cache
 .next
 out
 dist
 coverage
+*.tsbuildinfo
+start-dev-server.ps1
 .env
 .env.local
 .env.*.local

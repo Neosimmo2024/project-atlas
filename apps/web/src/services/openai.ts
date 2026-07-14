@@ -5,5 +5,7 @@ export type AiCompletionRequest = {
 };
 
 export async function runAiTask(_request: AiCompletionRequest) {
+  void _request;
+
   throw new Error("OpenAI integration is prepared but not implemented in Sprint 001.");
 }

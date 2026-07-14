@@ -6,6 +6,8 @@ export type BrevoContactPayload = {
 };
 
 export async function prepareBrevoContact(_payload: BrevoContactPayload) {
+  void _payload;
+
   return {
     prepared: true,
     sent: false,

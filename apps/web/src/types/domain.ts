@@ -58,4 +58,9 @@ export type Relationship = TenantScoped & {
   updated_at: string;
 };
 
-export type TenantContext = { tenantId: string; userId: string; role: RoleSlug };
+export type TenantContext = {
+  tenantId: string;
+  tenant: { id: string; name: string };
+  userId: string;
+  role: RoleSlug;
+};
