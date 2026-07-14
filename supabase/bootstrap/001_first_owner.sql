@@ -3,6 +3,7 @@
 -- Run this script in the Supabase SQL Editor after manually creating
 -- the first user in Supabase Auth.
 --
+-- This script creates or reuses the tenant named Neos Immo.
 -- Replace YOUR_AUTH_USER_ID with the real auth.users.id UUID of the user.
 -- Do not commit a real user UUID to the repository.
 --
