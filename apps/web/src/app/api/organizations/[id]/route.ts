@@ -12,6 +12,22 @@ function validationErrorResponse(error: { issues: { path: PropertyKey[]; message
   );
 }
 
+function apiErrorResponse(error: unknown) {
+  const message = error instanceof Error ? error.message : "Erreur inconnue.";
+  const code = typeof error === "object" && error !== null && "code" in error ? String(error.code) : null;
+  const isMissingColumn = code === "42703" || message.includes("does not exist");
+
+  return NextResponse.json(
+    {
+      error: isMissingColumn
+        ? `Schema Supabase incomplet: ${message}. Executez la migration supabase/migrations/0002_organizations_module.sql puis reessayez.`
+        : message,
+      code
+    },
+    { status: isMissingColumn ? 500 : 400 }
+  );
+}
+
 export async function GET(_request: Request, context: RouteContext) {
   const tenantContext = await getTenantContext();
   if (!tenantContext) return NextResponse.json({ error: "Tenant context not found" }, { status: 401 });
@@ -24,24 +40,28 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function PUT(request: Request, context: RouteContext) {
-  const tenantContext = await getTenantContext();
-  if (!tenantContext) return NextResponse.json({ error: "Tenant context not found" }, { status: 401 });
+  try {
+    const tenantContext = await getTenantContext();
+    if (!tenantContext) return NextResponse.json({ error: "Tenant context not found" }, { status: 401 });
 
-  const { id } = await context.params;
-  const body = await request.json();
-  const parsed = parseOrganizationInput(body);
-  if (!parsed.success) return validationErrorResponse(parsed.error);
-  if (parsed.data.parent_organization_id === id) {
-    return NextResponse.json({ error: "Validation failed", fields: [{ field: "parent_organization_id", message: "Une organisation ne peut pas etre son propre parent." }] }, { status: 400 });
+    const { id } = await context.params;
+    const body = await request.json();
+    const parsed = parseOrganizationInput(body);
+    if (!parsed.success) return validationErrorResponse(parsed.error);
+    if (parsed.data.parent_organization_id === id) {
+      return NextResponse.json({ error: "Validation failed", fields: [{ field: "parent_organization_id", message: "Une organisation ne peut pas etre son propre parent." }] }, { status: 400 });
+    }
+
+    const duplicates = await findPotentialOrganizationDuplicates(tenantContext, parsed.data, id);
+    if (duplicates.length > 0 && body.confirmDuplicate !== true) {
+      return NextResponse.json({ warning: "Potential duplicate found", duplicates }, { status: 409 });
+    }
+
+    const organization = await updateOrganization(tenantContext, id, parsed.data);
+    return NextResponse.json({ data: organization });
+  } catch (error) {
+    return apiErrorResponse(error);
   }
-
-  const duplicates = await findPotentialOrganizationDuplicates(tenantContext, parsed.data, id);
-  if (duplicates.length > 0 && body.confirmDuplicate !== true) {
-    return NextResponse.json({ warning: "Potential duplicate found", duplicates }, { status: 409 });
-  }
-
-  const organization = await updateOrganization(tenantContext, id, parsed.data);
-  return NextResponse.json({ data: organization });
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {

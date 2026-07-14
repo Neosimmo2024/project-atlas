@@ -32,6 +32,9 @@ const normalizedSiret = optionalNullableText
   .transform(normalizeSiret)
   .refine((value) => !value || value.length === 14, "Le SIRET doit contenir 14 chiffres.");
 
+const departmentCode = optionalNullableText
+  .refine((value) => !value || /^(?:\d{2}|2A|2B|97[1-6])$/i.test(value), "Le departement doit etre un code departement valide, par exemple 94.");
+
 export const organizationInputSchema = z.object({
   name: z.string().trim().min(1, "Le nom est obligatoire.").max(180, "Le nom est trop long."),
   legal_name: optionalNullableText,
@@ -41,7 +44,7 @@ export const organizationInputSchema = z.object({
   address_line2: optionalNullableText,
   postal_code: optionalNullableText,
   city: optionalNullableText,
-  department: optionalNullableText,
+  department: departmentCode,
   country: optionalNullableText,
   primary_phone: optionalNullableText.transform(normalizePhone),
   primary_email: z

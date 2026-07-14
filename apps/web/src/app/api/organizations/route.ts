@@ -10,6 +10,22 @@ function validationErrorResponse(error: { issues: { path: PropertyKey[]; message
   );
 }
 
+function apiErrorResponse(error: unknown) {
+  const message = error instanceof Error ? error.message : "Erreur inconnue.";
+  const code = typeof error === "object" && error !== null && "code" in error ? String(error.code) : null;
+  const isMissingColumn = code === "42703" || message.includes("does not exist");
+
+  return NextResponse.json(
+    {
+      error: isMissingColumn
+        ? `Schema Supabase incomplet: ${message}. Executez la migration supabase/migrations/0002_organizations_module.sql puis reessayez.`
+        : message,
+      code
+    },
+    { status: isMissingColumn ? 500 : 400 }
+  );
+}
+
 export async function GET(request: Request) {
   const context = await getTenantContext();
   if (!context) return NextResponse.json({ error: "Tenant context not found" }, { status: 401 });
@@ -26,17 +42,21 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const context = await getTenantContext();
-  if (!context) return NextResponse.json({ error: "Tenant context not found" }, { status: 401 });
-  const body = await request.json();
-  const parsed = parseOrganizationInput(body);
-  if (!parsed.success) return validationErrorResponse(parsed.error);
+  try {
+    const context = await getTenantContext();
+    if (!context) return NextResponse.json({ error: "Tenant context not found" }, { status: 401 });
+    const body = await request.json();
+    const parsed = parseOrganizationInput(body);
+    if (!parsed.success) return validationErrorResponse(parsed.error);
 
-  const duplicates = await findPotentialOrganizationDuplicates(context, parsed.data);
-  if (duplicates.length > 0 && body.confirmDuplicate !== true) {
-    return NextResponse.json({ warning: "Potential duplicate found", duplicates }, { status: 409 });
+    const duplicates = await findPotentialOrganizationDuplicates(context, parsed.data);
+    if (duplicates.length > 0 && body.confirmDuplicate !== true) {
+      return NextResponse.json({ warning: "Potential duplicate found", duplicates }, { status: 409 });
+    }
+
+    const organization = await createOrganization(context, parsed.data);
+    return NextResponse.json({ data: organization }, { status: 201 });
+  } catch (error) {
+    return apiErrorResponse(error);
   }
-
-  const organization = await createOrganization(context, parsed.data);
-  return NextResponse.json({ data: organization }, { status: 201 });
 }

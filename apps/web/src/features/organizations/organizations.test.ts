@@ -67,6 +67,25 @@ describe("organizations validation", () => {
     expect(normalizeSiren("123 456 789")).toBe("123456789");
     expect(normalizeSiret("123 456 789 00011")).toBe("12345678900011");
   });
+
+  it("accepts department code 94 and rejects postal code 94100 as a department", () => {
+    const valid = parseOrganizationInput({
+      name: "Neos Immo",
+      organization_type: "network",
+      status: "active",
+      department: "94"
+    });
+    const invalid = parseOrganizationInput({
+      name: "Neos Immo",
+      organization_type: "network",
+      status: "active",
+      department: "94100"
+    });
+
+    expect(valid.success).toBe(true);
+    expect(invalid.success).toBe(false);
+    expect(invalid.error?.issues.map((issue) => issue.message)).toContain("Le departement doit etre un code departement valide, par exemple 94.");
+  });
 });
 
 describe("organizations search", () => {

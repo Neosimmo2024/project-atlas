@@ -66,32 +66,49 @@ export function OrganizationForm({ mode, organization, parentOptions }: Organiza
     return message ? <span className="field-error">{message}</span> : null;
   }
 
+  async function readResponseBody(response: Response) {
+    const text = await response.text();
+    if (!text) return {};
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { error: text };
+    }
+  }
+
   async function submitForm(form: HTMLFormElement, confirmDuplicate = false) {
     setLoading(true);
     setError(null);
     setFieldErrors([]);
+    setDuplicates([]);
 
-    const response = await fetch(endpoint, {
-      method: mode === "create" ? "POST" : "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(formToPayload(form, confirmDuplicate))
-    });
-    const result = await response.json();
-    setLoading(false);
+    try {
+      const response = await fetch(endpoint, {
+        method: mode === "create" ? "POST" : "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(formToPayload(form, confirmDuplicate))
+      });
+      const result = await readResponseBody(response);
 
-    if (response.status === 409) {
-      setDuplicates(result.duplicates ?? []);
-      return;
+      if (response.status === 409) {
+        setDuplicates(result.duplicates ?? []);
+        return;
+      }
+
+      if (!response.ok) {
+        setFieldErrors(result.fields ?? []);
+        setError(result.error ?? "Impossible d'enregistrer l'organisation.");
+        return;
+      }
+
+      router.push(`/organizations/${result.data.id}`);
+      router.refresh();
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Erreur reseau pendant l'enregistrement de l'organisation.");
+    } finally {
+      setLoading(false);
     }
-
-    if (!response.ok) {
-      setFieldErrors(result.fields ?? []);
-      setError(result.error ?? "Impossible d'enregistrer l'organisation.");
-      return;
-    }
-
-    router.push(`/organizations/${result.data.id}`);
-    router.refresh();
   }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
