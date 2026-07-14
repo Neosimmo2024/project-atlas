@@ -31,12 +31,26 @@ export type Person = TenantScoped & {
 export type Organization = TenantScoped & {
   id: string;
   name: string;
+  legal_name: string | null;
   organization_type: string | null;
   siren: string | null;
+  siret: string | null;
+  vat_number: string | null;
   website_url: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
   city: string | null;
+  postal_code: string | null;
   department: string | null;
+  country: string | null;
+  primary_phone: string | null;
+  primary_email: string | null;
+  parent_organization_id: string | null;
+  source: string | null;
+  comments: string | null;
   status: "active" | "inactive" | "archived";
+  contact_allowed: boolean;
+  do_not_contact: boolean;
   created_at: string;
   updated_at: string;
 };
