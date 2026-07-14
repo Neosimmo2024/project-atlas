@@ -55,6 +55,7 @@ button, input, select, textarea { font: inherit; }
 .data-table { border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; background: var(--panel); }
 .table-head, .table-row { display: grid; gap: 12px; min-width: 980px; padding: 12px 14px; }
 .people-table .table-head, .people-table .table-row { grid-template-columns: repeat(9, minmax(90px, 1fr)); }
+.organizations-table .table-head, .organizations-table .table-row { grid-template-columns: repeat(12, minmax(100px, 1fr)); min-width: 1360px; }
 .table-head { border-bottom: 1px solid var(--line); color: var(--muted); font-size: 13px; font-weight: 700; }
 .table-row { border-bottom: 1px solid var(--line); }
 .table-row:last-child { border-bottom: 0; }
