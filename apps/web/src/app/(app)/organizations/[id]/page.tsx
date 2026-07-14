@@ -100,7 +100,7 @@ export default async function OrganizationDetailPage({ params }: OrganizationDet
       <section className="card stack">
         <h2>Relations liees</h2>
         {relationships.length === 0 ? <p className="muted">Aucune relation liee.</p> : relationships.map((relationship) => (
-          <p key={relationship.id}>{relationship.relationship_type} - {relationship.phase} - {relationship.status}</p>
+          <p key={relationship.id}>{relationship.relationship_type} - {relationship.pipeline_stage} - {relationship.status}</p>
         ))}
       </section>
 
