@@ -8,7 +8,10 @@
   "scripts": {
     "dev": "npm --workspace apps/web run dev",
     "build": "npm --workspace apps/web run build",
+    "e2e": "npm --workspace apps/web run e2e",
+    "integration": "npm --workspace apps/web run integration",
     "lint": "npm --workspace apps/web run lint",
+    "test": "npm --workspace apps/web run test",
     "typecheck": "npm --workspace apps/web run typecheck"
   },
   "engines": {

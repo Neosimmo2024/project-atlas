@@ -1,8 +1,8 @@
 export type RoleSlug = "owner" | "admin" | "recruiter" | "manager" | "reader";
 
 export type TenantScoped = { tenant_id: string };
-export type PersonStatus = "a_qualifier" | "qualifie" | "contacte" | "en_relation" | "non_retenu" | "archive";
-export type Priority = "basse" | "moyenne" | "haute";
+export type PersonStatus = "to_qualify" | "qualified" | "contacted" | "in_relationship" | "rejected" | "archived";
+export type Priority = "low" | "medium" | "high";
 
 export type Person = TenantScoped & {
   id: string;
@@ -45,8 +45,8 @@ export type Relationship = TenantScoped & {
   id: string;
   person_id: string;
   organization_id: string | null;
-  relationship_type: "recrutement" | "partenariat" | "prospection";
-  phase: "detection" | "qualification" | "contact" | "entretien" | "suivi" | "clos";
+  relationship_type: "recruiting" | "partnership" | "prospecting";
+  phase: "detection" | "qualification" | "contact" | "interview" | "follow_up" | "closed";
   status: "active" | "paused" | "won" | "lost" | "archived";
   owner_user_id: string | null;
   next_action: string | null;
