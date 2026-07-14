@@ -50,6 +50,15 @@ export function PersonForm({ mode, person }: PersonFormProps) {
   const [duplicates, setDuplicates] = useState<DuplicateMatch[]>([]);
   const [loading, setLoading] = useState(false);
   const endpoint = mode === "create" ? "/api/people" : `/api/people/${person?.id}`;
+  const errorsByField = fieldErrors.reduce<Record<string, string>>((acc, item) => {
+    acc[item.field] = item.message;
+    return acc;
+  }, {});
+
+  function FieldError({ name }: { name: string }) {
+    const message = errorsByField[name];
+    return message ? <span className="field-error">{message}</span> : null;
+  }
 
   async function submitForm(form: HTMLFormElement, confirmDuplicate = false) {
     setLoading(true);
@@ -110,32 +119,34 @@ export function PersonForm({ mode, person }: PersonFormProps) {
       ) : null}
 
       <div className="form-grid">
-        <label>Prenom<Input name="first_name" defaultValue={valueOrEmpty(person?.first_name) as string} /></label>
-        <label>Nom<Input name="last_name" defaultValue={valueOrEmpty(person?.last_name) as string} /></label>
-        <label>Nom d&apos;affichage<Input name="display_name" required defaultValue={person?.display_name ?? ""} /></label>
-        <label>Email<Input name="primary_email" type="email" defaultValue={valueOrEmpty(person?.primary_email) as string} /></label>
-        <label>Telephone<Input name="primary_phone" defaultValue={valueOrEmpty(person?.primary_phone) as string} /></label>
-        <label>Ville<Input name="city" defaultValue={valueOrEmpty(person?.city) as string} /></label>
-        <label>Code postal<Input name="postal_code" defaultValue={valueOrEmpty(person?.postal_code) as string} /></label>
-        <label>Departement<Input name="department" defaultValue={valueOrEmpty(person?.department) as string} /></label>
-        <label>Fonction<Input name="job_title" defaultValue={valueOrEmpty(person?.job_title) as string} /></label>
-        <label>Source<Input name="source" defaultValue={valueOrEmpty(person?.source) as string} /></label>
+        <label>Prenom<Input name="first_name" defaultValue={valueOrEmpty(person?.first_name) as string} /><FieldError name="first_name" /></label>
+        <label>Nom<Input name="last_name" defaultValue={valueOrEmpty(person?.last_name) as string} /><FieldError name="last_name" /></label>
+        <label>Nom d&apos;affichage<Input name="display_name" required defaultValue={person?.display_name ?? ""} /><FieldError name="display_name" /></label>
+        <label>Email<Input name="primary_email" type="email" defaultValue={valueOrEmpty(person?.primary_email) as string} /><FieldError name="primary_email" /></label>
+        <label>Telephone<Input name="primary_phone" defaultValue={valueOrEmpty(person?.primary_phone) as string} /><FieldError name="primary_phone" /></label>
+        <label>Ville<Input name="city" defaultValue={valueOrEmpty(person?.city) as string} /><FieldError name="city" /></label>
+        <label>Code postal<Input name="postal_code" defaultValue={valueOrEmpty(person?.postal_code) as string} /><FieldError name="postal_code" /></label>
+        <label>Departement<Input name="department" defaultValue={valueOrEmpty(person?.department) as string} /><FieldError name="department" /></label>
+        <label>Fonction<Input name="job_title" defaultValue={valueOrEmpty(person?.job_title) as string} /><FieldError name="job_title" /></label>
+        <label>Source<Input name="source" defaultValue={valueOrEmpty(person?.source) as string} /><FieldError name="source" /></label>
         <label>
           Statut
           <select className="input" name="status" defaultValue={person?.status ?? "to_qualify"}>
             {PERSON_STATUSES.map((status) => <option key={status} value={status}>{PERSON_STATUS_LABELS[status]}</option>)}
           </select>
+          <FieldError name="status" />
         </label>
         <label>
           Priorite
           <select className="input" name="priority" defaultValue={person?.priority ?? "medium"}>
             {PRIORITIES.map((priority) => <option key={priority} value={priority}>{PRIORITY_LABELS[priority]}</option>)}
           </select>
+          <FieldError name="priority" />
         </label>
-        <label>Score<Input name="talent_score" type="number" min={0} max={10} defaultValue={valueOrEmpty(person?.talent_score) as string} /></label>
+        <label>Score<Input name="talent_score" type="number" min={0} max={10} defaultValue={valueOrEmpty(person?.talent_score) as string} /><FieldError name="talent_score" /></label>
       </div>
 
-      <label>Commentaires<textarea className="input textarea" name="comments" defaultValue={valueOrEmpty(person?.comments) as string} /></label>
+      <label>Commentaires<textarea className="input textarea" name="comments" defaultValue={valueOrEmpty(person?.comments) as string} /><FieldError name="comments" /></label>
       <div className="checks">
         <label><input name="contact_allowed" type="checkbox" defaultChecked={person?.contact_allowed ?? false} /> Autorisation de contact</label>
         <label><input name="do_not_contact" type="checkbox" defaultChecked={person?.do_not_contact ?? false} /> Ne pas contacter</label>

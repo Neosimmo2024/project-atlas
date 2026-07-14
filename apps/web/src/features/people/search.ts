@@ -20,6 +20,33 @@ export function normalizeSearchValue(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase();
 }
 
+export function quotePostgrestFilterValue(value: string) {
+  return `"${value.replaceAll("\\", "\\\\").replaceAll("\"", "\\\"")}"`;
+}
+
+export function escapePostgrestLikePattern(value: string) {
+  return value.replaceAll("\\", "\\\\").replaceAll("*", "\\*");
+}
+
+export function buildPeopleSearchOrFilter(columns: string[], query: string) {
+  const pattern = quotePostgrestFilterValue(`*${escapePostgrestLikePattern(query.trim())}*`);
+  return columns.map((column) => `${column}.ilike.${pattern}`).join(",");
+}
+
+export function buildDuplicateOrFilter(input: Pick<PersonFormInput, "first_name" | "last_name" | "primary_email" | "primary_phone" | "city">) {
+  const filters: string[] = [];
+
+  if (input.primary_email) filters.push(`primary_email.eq.${quotePostgrestFilterValue(input.primary_email)}`);
+  if (input.primary_phone) filters.push(`primary_phone.eq.${quotePostgrestFilterValue(input.primary_phone)}`);
+  if (input.first_name && input.last_name && input.city) {
+    filters.push(
+      `and(first_name.eq.${quotePostgrestFilterValue(input.first_name)},last_name.eq.${quotePostgrestFilterValue(input.last_name)},city.eq.${quotePostgrestFilterValue(input.city)})`
+    );
+  }
+
+  return filters.join(",");
+}
+
 export function canDeletePeople(role: RoleSlug) {
   return role === "owner" || role === "admin";
 }

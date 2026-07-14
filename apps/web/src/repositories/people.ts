@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { canDeletePeople, findDuplicateMatches, normalizePeopleListParams, type DuplicateMatch, type PeopleSearchParams } from "@/features/people/search";
+import { buildDuplicateOrFilter, buildPeopleSearchOrFilter, canDeletePeople, findDuplicateMatches, normalizePeopleListParams, type DuplicateMatch, type PeopleSearchParams } from "@/features/people/search";
 import type { Organization, Person, Relationship, TenantContext } from "@/types/domain";
 import type { PersonFormInput } from "@/features/people/validation";
 
@@ -17,10 +17,6 @@ export type PersonDetail = {
   relationships: Relationship[];
 };
 
-function escapeLike(value: string) {
-  return value.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
-}
-
 export async function listPeople(context: TenantContext, params: PeopleSearchParams = {}): Promise<PeopleListResult> {
   const supabase = await createSupabaseServerClient();
   const normalized = normalizePeopleListParams(params);
@@ -33,17 +29,7 @@ export async function listPeople(context: TenantContext, params: PeopleSearchPar
   if (normalized.status) query = query.eq("status", normalized.status);
   if (normalized.priority) query = query.eq("priority", normalized.priority);
   if (normalized.query) {
-    const term = `%${escapeLike(normalized.query)}%`;
-    query = query.or(
-      [
-        `display_name.ilike.${term}`,
-        `first_name.ilike.${term}`,
-        `last_name.ilike.${term}`,
-        `primary_email.ilike.${term}`,
-        `primary_phone.ilike.${term}`,
-        `city.ilike.${term}`
-      ].join(",")
-    );
+    query = query.or(buildPeopleSearchOrFilter(["display_name", "first_name", "last_name", "primary_email", "primary_phone", "city"], normalized.query));
   }
 
   const { data, error, count } = await query
@@ -106,21 +92,15 @@ export async function getPersonDetail(context: TenantContext, personId: string):
 
 async function queryDuplicateCandidates(context: TenantContext, input: Pick<PersonFormInput, "first_name" | "last_name" | "primary_email" | "primary_phone" | "city">, excludePersonId?: string) {
   const supabase = await createSupabaseServerClient();
-  const filters: string[] = [];
+  const filter = buildDuplicateOrFilter(input);
 
-  if (input.primary_email) filters.push(`primary_email.eq.${input.primary_email}`);
-  if (input.primary_phone) filters.push(`primary_phone.eq.${input.primary_phone}`);
-  if (input.first_name && input.last_name && input.city) {
-    filters.push(`and(first_name.eq.${input.first_name},last_name.eq.${input.last_name},city.eq.${input.city})`);
-  }
-
-  if (filters.length === 0) return [];
+  if (!filter) return [];
 
   let query = supabase
     .from("people")
     .select("id, tenant_id, display_name, first_name, last_name, primary_email, primary_phone, city")
     .eq("tenant_id", context.tenantId)
-    .or(filters.join(","));
+    .or(filter);
 
   if (excludePersonId) query = query.neq("id", excludePersonId);
 

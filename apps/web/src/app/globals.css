@@ -64,6 +64,7 @@ button, input, select, textarea { font: inherit; }
 .form-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .textarea { min-height: 120px; resize: vertical; }
 .error-list { color: var(--danger); margin: 0; }
+.field-error { color: var(--danger); font-size: 13px; }
 .danger-zone { border-color: #f3b8b3; }
 
 @media (max-width: 760px) {

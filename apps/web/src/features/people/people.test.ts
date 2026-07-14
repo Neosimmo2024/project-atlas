@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Person } from "@/types/domain";
-import { canDeletePeople, findDuplicateMatches, normalizePeopleListParams, personMatchesSearch } from "./search";
+import { buildDuplicateOrFilter, buildPeopleSearchOrFilter, canDeletePeople, findDuplicateMatches, normalizePeopleListParams, personMatchesSearch, quotePostgrestFilterValue } from "./search";
 import { parsePersonInput } from "./validation";
 
 const basePerson: Person = {
@@ -58,6 +58,17 @@ describe("people search", () => {
   it("normalizes pagination bounds", () => {
     expect(normalizePeopleListParams({ page: -2, pageSize: 200 })).toMatchObject({ page: 1, pageSize: 50, from: 0, to: 49 });
   });
+
+  it.each(["O'Connor", "L'Haÿ-les-Roses", "Jean, Pierre", "André", "Nom (test)"])("quotes special search value %s for PostgREST filters", (value) => {
+    const filter = buildPeopleSearchOrFilter(["display_name", "city"], value);
+
+    expect(filter).toContain(`display_name.ilike."*${value}*"`);
+    expect(filter).toContain(`city.ilike."*${value}*"`);
+  });
+
+  it("escapes double quotes and backslashes in PostgREST filter values", () => {
+    expect(quotePostgrestFilterValue("ACME \"Nord\\Sud\"")).toBe("\"ACME \\\"Nord\\\\Sud\\\"\"");
+  });
 });
 
 describe("people duplicates", () => {
@@ -73,6 +84,18 @@ describe("people duplicates", () => {
 
     expect(matches).toHaveLength(1);
     expect(matches[0]?.reasons).toEqual(["email", "phone", "identity"]);
+  });
+
+  it("quotes special duplicate values for PostgREST filters", () => {
+    expect(buildDuplicateOrFilter({
+      first_name: "Jean, Pierre",
+      last_name: "O'Connor (test)",
+      primary_email: "andre.o'connor@example.com",
+      primary_phone: "+33 (0)1 02 03 04 05",
+      city: "L'Haÿ-les-Roses"
+    })).toBe(
+      "primary_email.eq.\"andre.o'connor@example.com\",primary_phone.eq.\"+33 (0)1 02 03 04 05\",and(first_name.eq.\"Jean, Pierre\",last_name.eq.\"O'Connor (test)\",city.eq.\"L'Haÿ-les-Roses\")"
+    );
   });
 });
 

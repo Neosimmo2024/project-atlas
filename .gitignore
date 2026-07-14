@@ -4,6 +4,8 @@ node_modules
 out
 dist
 coverage
+test-results
+playwright-report
 *.tsbuildinfo
 start-dev-server.ps1
 .env

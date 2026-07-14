@@ -5,11 +5,14 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "e2e": "playwright test",
+    "integration": "vitest run src/features/people/people.rls.integration.test.ts",
     "lint": "eslint .",
-    "test": "vitest run",
+    "test": "vitest run src",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@playwright/test": "^1.61.1",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.45.4",
     "next": "^15.0.0",
