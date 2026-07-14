@@ -7,6 +7,8 @@ import {
   type RelationshipDuplicateMatch,
   type RelationshipsSearchParams
 } from "@/features/relationships/search";
+import { buildOrganizationsSearchOrFilter } from "@/features/organizations/search";
+import { buildPeopleSearchOrFilter } from "@/features/people/search";
 import type { Organization, Person, Relationship, TenantContext } from "@/types/domain";
 import type { RelationshipFormInput } from "@/features/relationships/validation";
 
@@ -37,6 +39,37 @@ function mapRelationshipRow(row: Relationship & { people?: RelationshipListItem[
   };
 }
 
+async function relationshipSearchFilters(context: TenantContext, query: string) {
+  const supabase = await createSupabaseServerClient();
+  const filters = [buildRelationshipsSearchOrFilter(["relationship_type", "pipeline_stage", "status", "notes"], query)];
+
+  const [{ data: people, error: peopleError }, { data: organizations, error: organizationsError }] = await Promise.all([
+    supabase
+      .from("people")
+      .select("id")
+      .eq("tenant_id", context.tenantId)
+      .or(buildPeopleSearchOrFilter(["display_name", "first_name", "last_name", "primary_email", "primary_phone", "city"], query))
+      .limit(100),
+    supabase
+      .from("organizations")
+      .select("id")
+      .eq("tenant_id", context.tenantId)
+      .or(buildOrganizationsSearchOrFilter(["name", "city", "primary_email", "primary_phone", "siren"], query))
+      .limit(100)
+  ]);
+
+  if (peopleError) throw peopleError;
+  if (organizationsError) throw organizationsError;
+
+  const personIds = (people ?? []).map((person) => person.id as string);
+  const organizationIds = (organizations ?? []).map((organization) => organization.id as string);
+
+  if (personIds.length > 0) filters.push(`person_id.in.(${personIds.join(",")})`);
+  if (organizationIds.length > 0) filters.push(`organization_id.in.(${organizationIds.join(",")})`);
+
+  return filters.join(",");
+}
+
 export async function listRelationships(context: TenantContext, params: RelationshipsSearchParams = {}): Promise<RelationshipsListResult> {
   const supabase = await createSupabaseServerClient();
   const normalized = normalizeRelationshipsListParams(params);
@@ -50,7 +83,7 @@ export async function listRelationships(context: TenantContext, params: Relation
   if (normalized.status) query = query.eq("status", normalized.status);
   if (normalized.stage) query = query.eq("pipeline_stage", normalized.stage);
   if (normalized.query) {
-    query = query.or(buildRelationshipsSearchOrFilter(["relationship_type", "pipeline_stage", "status", "notes"], normalized.query));
+    query = query.or(await relationshipSearchFilters(context, normalized.query));
   }
 
   const { data, error, count } = await query
