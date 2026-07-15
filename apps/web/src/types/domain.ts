@@ -76,6 +76,41 @@ export type Relationship = TenantScoped & {
   updated_at: string;
 };
 
+export type InteractionType = {
+  id: string;
+  tenant_id: string | null;
+  slug: string;
+  label: string;
+  sort_order: number;
+  is_system: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Interaction = TenantScoped & {
+  id: string;
+  person_id: string | null;
+  organization_id: string | null;
+  relationship_id: string | null;
+  type_id: string;
+  title: string;
+  summary: string | null;
+  interaction_date: string;
+  duration_minutes: number | null;
+  location: string | null;
+  created_by: string | null;
+  change_reason: string | null;
+  main_obstacle: string | null;
+  timing: string | null;
+  dna_compatibility: string | null;
+  work_with_person_desire: string | null;
+  comments: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+
 export type TenantContext = {
   tenantId: string;
   tenant: { id: string; name: string };

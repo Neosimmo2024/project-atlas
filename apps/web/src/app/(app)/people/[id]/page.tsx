@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { InteractionTimelineItem } from "@/components/interactions/interaction-timeline-item";
 import { DeletePersonButton } from "@/components/people/delete-person-button";
 import { PersonForm } from "@/components/people/person-form";
 import { PERSON_STATUS_LABELS, PRIORITY_LABELS } from "@/features/people/options";
 import { canDeletePeople } from "@/features/people/search";
+import { listPersonTimelineInteractions } from "@/repositories/interactions";
 import { getPersonDetail } from "@/repositories/people";
 import { getTenantContext } from "@/repositories/tenant-context";
 
@@ -25,6 +27,7 @@ export default async function PersonDetailPage({ params }: PersonDetailPageProps
   if (!detail) notFound();
 
   const { person, organizations, relationships } = detail;
+  const timeline = await listPersonTimelineInteractions(context, person.id);
 
   return (
     <div className="page stack">
@@ -77,6 +80,13 @@ export default async function PersonDetailPage({ params }: PersonDetailPageProps
         <h2>Relations de recrutement liees</h2>
         {relationships.length === 0 ? <p className="muted">Aucune relation liee.</p> : relationships.map((relationship) => (
           <p key={relationship.id}>{relationship.relationship_type} - {relationship.pipeline_stage} - {relationship.status}</p>
+        ))}
+      </section>
+
+      <section className="card stack">
+        <h2>Timeline</h2>
+        {timeline.interactions.length === 0 ? <p className="muted">Aucune interaction liee.</p> : timeline.interactions.map((interaction) => (
+          <InteractionTimelineItem key={interaction.id} interaction={interaction} />
         ))}
       </section>
 

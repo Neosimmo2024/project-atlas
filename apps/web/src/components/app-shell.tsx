@@ -4,7 +4,8 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/people", label: "People" },
   { href: "/organizations", label: "Organizations" },
-  { href: "/relationships", label: "Relationships" }
+  { href: "/relationships", label: "Relationships" },
+  { href: "/interactions", label: "Interactions" }
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
