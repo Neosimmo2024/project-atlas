@@ -58,16 +58,20 @@ export type Organization = TenantScoped & {
 export type Relationship = TenantScoped & {
   id: string;
   person_id: string;
-  organization_id: string | null;
-  relationship_type: "recruiting" | "partnership" | "prospecting";
-  phase: "detection" | "qualification" | "contact" | "interview" | "follow_up" | "closed";
+  organization_id: string;
+  relationship_type: "recruiting" | "management" | "partnership" | "customer" | "supplier" | "referrer" | "prospecting";
+  pipeline_stage: "detection" | "qualification" | "first_contact" | "conversation" | "meeting" | "presentation" | "reflection" | "negotiation" | "signature" | "onboarding" | "development" | "ambassador" | "refusal" | "closed";
   status: "active" | "paused" | "won" | "lost" | "archived";
   owner_user_id: string | null;
-  next_action: string | null;
+  score: number | null;
+  confidence: number | null;
   next_action_at: string | null;
   started_at: string | null;
   ended_at: string | null;
+  last_interaction_at: string | null;
   notes: string | null;
+  tags: string[];
+  metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 };
