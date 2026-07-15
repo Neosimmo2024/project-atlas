@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { Button } from "@/components/ui/button";
@@ -8,10 +8,28 @@ import { Input } from "@/components/ui/input";
 
 export function LoginForm() {
   const router = useRouter();
-  const supabase = createSupabaseBrowserClient();
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function redirectActiveSession() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (mounted && session) {
+        router.replace("/dashboard");
+        router.refresh();
+      }
+    }
+
+    void redirectActiveSession();
+
+    return () => {
+      mounted = false;
+    };
+  }, [router, supabase]);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
