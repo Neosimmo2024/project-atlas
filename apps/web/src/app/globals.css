@@ -252,6 +252,7 @@ button, input, select, textarea { font: inherit; }
 .subtle-button { background: #edf5f2; color: var(--accent-strong); }
 .danger-button { background: var(--danger); }
 .error { color: var(--danger); }
+.success { border: 1px solid #a6e3c7; border-radius: 8px; background: #eefbf4; color: #067647; padding: 12px 14px; }
 .login-form-panel .error {
   margin: 0;
   border: 1px solid #fecdca;

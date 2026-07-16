@@ -4,7 +4,20 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
-export function DeleteInteractionButton({ interactionId }: { interactionId: string }) {
+type DeleteInteractionButtonProps = {
+  interactionId: string;
+  redirectTo?: string;
+};
+
+function deletedUrl(path: string) {
+  const [pathname, query = ""] = path.split("?");
+  const params = new URLSearchParams(query);
+  params.set("interactionDeleted", "1");
+  const nextQuery = params.toString();
+  return nextQuery ? `${pathname}?${nextQuery}` : pathname;
+}
+
+export function DeleteInteractionButton({ interactionId, redirectTo = "/interactions" }: DeleteInteractionButtonProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -23,8 +36,7 @@ export function DeleteInteractionButton({ interactionId }: { interactionId: stri
       return;
     }
 
-    router.push("/interactions");
-    router.refresh();
+    router.replace(deletedUrl(redirectTo));
   }
 
   return (

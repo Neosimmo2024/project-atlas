@@ -40,6 +40,7 @@ export default async function InteractionsPage({ searchParams }: InteractionsPag
         <Link className="button link-button" href="/interactions/new">Nouvelle interaction</Link>
       </header>
 
+      {valueOf(params, "interactionDeleted") === "1" ? <p className="success">Interaction supprimee.</p> : null}
       <InteractionFilters query={query} typeId={typeId} types={types} />
       <InteractionList result={result} currentParams={currentParams} />
     </div>

@@ -11,6 +11,7 @@ import { getTenantContext } from "@/repositories/tenant-context";
 
 type PersonDetailPageProps = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 function formatDate(value: string | null) {
@@ -18,8 +19,14 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
-export default async function PersonDetailPage({ params }: PersonDetailPageProps) {
+function valueOf(params: Record<string, string | string[] | undefined>, key: string) {
+  const value = params[key];
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+}
+
+export default async function PersonDetailPage({ params, searchParams }: PersonDetailPageProps) {
   const { id } = await params;
+  const query = await searchParams;
   const context = await getTenantContext();
   if (!context) notFound();
 
@@ -85,8 +92,9 @@ export default async function PersonDetailPage({ params }: PersonDetailPageProps
 
       <section className="card stack">
         <h2>Timeline</h2>
+        {valueOf(query, "interactionDeleted") === "1" ? <p className="success">Interaction supprimee.</p> : null}
         {timeline.interactions.length === 0 ? <p className="muted">Aucune interaction liee.</p> : timeline.interactions.map((interaction) => (
-          <InteractionTimelineItem key={interaction.id} interaction={interaction} />
+          <InteractionTimelineItem key={interaction.id} interaction={interaction} returnHref={`/people/${person.id}`} />
         ))}
       </section>
 

@@ -14,6 +14,7 @@ import { getTenantContext } from "@/repositories/tenant-context";
 
 type InteractionDetailPageProps = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 function formatDate(value: string | null) {
@@ -21,8 +22,21 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
-export default async function InteractionDetailPage({ params }: InteractionDetailPageProps) {
+function valueOf(params: Record<string, string | string[] | undefined>, key: string) {
+  const value = params[key];
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+}
+
+function safeReturnTo(value: string) {
+  if (value.startsWith("/people/")) return value;
+  if (value.startsWith("/organizations/")) return value;
+  if (value === "/interactions" || value.startsWith("/interactions?")) return value;
+  return "/interactions";
+}
+
+export default async function InteractionDetailPage({ params, searchParams }: InteractionDetailPageProps) {
   const { id } = await params;
+  const query = await searchParams;
   const context = await getTenantContext();
   if (!context) notFound();
 
@@ -30,6 +44,7 @@ export default async function InteractionDetailPage({ params }: InteractionDetai
   if (!detail) notFound();
 
   const { interaction, type, person, organization, relationship } = detail;
+  const returnTo = safeReturnTo(valueOf(query, "returnTo"));
   const [types, peopleOptions, organizationOptions, relationshipOptions] = await Promise.all([
     listInteractionTypes(context),
     listInteractionPeopleOptions(context),
@@ -44,7 +59,7 @@ export default async function InteractionDetailPage({ params }: InteractionDetai
           <p className="muted">Interactions</p>
           <h1>{interaction.title}</h1>
         </div>
-        <Link className="button subtle-button" href="/interactions">Retour</Link>
+        <Link className="button subtle-button" href={returnTo}>Retour</Link>
       </header>
 
       <div className="grid">
@@ -97,7 +112,7 @@ export default async function InteractionDetailPage({ params }: InteractionDetai
         <section className="card stack danger-zone">
           <h2>Suppression</h2>
           <p>Suppression logique reservee aux roles owner et admin.</p>
-          <DeleteInteractionButton interactionId={interaction.id} />
+          <DeleteInteractionButton interactionId={interaction.id} redirectTo={returnTo} />
         </section>
       ) : null}
     </div>

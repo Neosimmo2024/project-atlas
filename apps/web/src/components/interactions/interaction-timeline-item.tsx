@@ -6,11 +6,22 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
-export function InteractionTimelineItem({ interaction }: { interaction: InteractionListItem }) {
+type InteractionTimelineItemProps = {
+  interaction: InteractionListItem;
+  returnHref?: string;
+};
+
+function interactionHref(interactionId: string, returnHref?: string) {
+  if (!returnHref) return `/interactions/${interactionId}`;
+  const params = new URLSearchParams({ returnTo: returnHref });
+  return `/interactions/${interactionId}?${params.toString()}`;
+}
+
+export function InteractionTimelineItem({ interaction, returnHref }: InteractionTimelineItemProps) {
   return (
     <article className="timeline-item">
       <div>
-        <strong><Link href={`/interactions/${interaction.id}`}>{interaction.title}</Link></strong>
+        <strong><Link href={interactionHref(interaction.id, returnHref)}>{interaction.title}</Link></strong>
         <p className="muted">{interaction.type?.label ?? "Interaction"} - {formatDate(interaction.interaction_date)}</p>
       </div>
       <p>{interaction.summary ?? interaction.comments ?? "Aucun detail."}</p>
