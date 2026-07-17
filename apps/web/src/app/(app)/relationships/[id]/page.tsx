@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { DeleteRelationshipButton } from "@/components/relationships/delete-relationship-button";
 import { RelationshipForm } from "@/components/relationships/relationship-form";
 import { TaskCard } from "@/components/tasks/task-card";
+import { TimelineFilters, normalizeTimelineCategory } from "@/components/timeline/timeline-filters";
+import { TimelineList } from "@/components/timeline/timeline-list";
 import {
   RELATIONSHIP_PIPELINE_STAGE_LABELS,
   RELATIONSHIP_STATUS_LABELS,
@@ -12,9 +14,11 @@ import { canDeleteRelationships } from "@/features/relationships/search";
 import { getRelationshipDetail, listRelationshipOrganizationOptions, listRelationshipPeopleOptions } from "@/repositories/relationships";
 import { listRelationshipTasks } from "@/repositories/tasks";
 import { getTenantContext } from "@/repositories/tenant-context";
+import { listTimelineEvents } from "@/repositories/timeline-events";
 
 type RelationshipDetailPageProps = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 function formatDate(value: string | null) {
@@ -22,8 +26,14 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
-export default async function RelationshipDetailPage({ params }: RelationshipDetailPageProps) {
+function valueOf(params: Record<string, string | string[] | undefined>, key: string) {
+  const value = params[key];
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+}
+
+export default async function RelationshipDetailPage({ params, searchParams }: RelationshipDetailPageProps) {
   const { id } = await params;
+  const query = await searchParams;
   const context = await getTenantContext();
   if (!context) notFound();
 
@@ -31,9 +41,12 @@ export default async function RelationshipDetailPage({ params }: RelationshipDet
   if (!detail) notFound();
 
   const { relationship, person, organization } = detail;
-  const [peopleOptions, organizationOptions, tasks] = await Promise.all([
+  const timelineCategory = normalizeTimelineCategory(valueOf(query, "timelineCategory"));
+  const timelinePage = Number(valueOf(query, "timelinePage") || 1);
+  const [peopleOptions, organizationOptions, chronology, tasks] = await Promise.all([
     listRelationshipPeopleOptions(context),
     listRelationshipOrganizationOptions(context),
+    listTimelineEvents(context, { relationshipId: relationship.id, category: timelineCategory, page: timelinePage, pageSize: 10 }),
     listRelationshipTasks(context, relationship.id)
   ]);
 
@@ -85,6 +98,14 @@ export default async function RelationshipDetailPage({ params }: RelationshipDet
       <section className="card stack">
         <h2>Metadata</h2>
         <pre className="code-block">{JSON.stringify(relationship.metadata ?? {}, null, 2)}</pre>
+      </section>
+
+      <section className="card stack">
+        <div className="page-header">
+          <h2>Chronologie</h2>
+          <TimelineFilters category={timelineCategory} hiddenFields={{}} />
+        </div>
+        <TimelineList result={chronology} basePath={`/relationships/${relationship.id}`} category={timelineCategory} />
       </section>
 
       <section className="card stack">

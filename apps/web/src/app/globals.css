@@ -287,6 +287,27 @@ button, input, select, textarea { font: inherit; }
 .interaction-meta { display: flex; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: 13px; }
 .interaction-meta span { border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
 .timeline-item { border-left: 3px solid var(--accent); display: grid; gap: 6px; padding: 4px 0 4px 12px; }
+.chronology-filters { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
+.chronology-list { display: grid; gap: 14px; }
+.chronology-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 12px;
+  border-left: 1px solid var(--line);
+  padding: 4px 0 18px 0;
+}
+.chronology-item h3 { margin: 4px 0 0; font-size: 16px; }
+.chronology-marker {
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  margin-top: 5px;
+  border: 2px solid var(--panel);
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px rgba(20, 108, 95, 0.18);
+}
 
 @media (max-width: 760px) {
   .shell { grid-template-columns: 1fr; }

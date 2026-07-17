@@ -11,6 +11,7 @@ import { buildOrganizationsSearchOrFilter } from "@/features/organizations/searc
 import { buildPeopleSearchOrFilter } from "@/features/people/search";
 import type { Organization, Person, Relationship, TenantContext } from "@/types/domain";
 import type { RelationshipFormInput } from "@/features/relationships/validation";
+import { recordOrganizationUnlinked, recordRelationshipCreated } from "@/services/timeline-service";
 
 export type RelationshipListItem = Relationship & {
   person: Pick<Person, "id" | "display_name" | "primary_email" | "primary_phone" | "city"> | null;
@@ -221,7 +222,9 @@ export async function createRelationship(context: TenantContext, input: Relation
     .single();
 
   if (error) throw error;
-  return data as Relationship;
+  const relationship = data as Relationship;
+  await recordRelationshipCreated(context, relationship);
+  return relationship;
 }
 
 export async function updateRelationship(context: TenantContext, relationshipId: string, input: RelationshipFormInput) {
@@ -245,6 +248,15 @@ export async function deleteRelationship(context: TenantContext, relationshipId:
   }
 
   const supabase = await createSupabaseServerClient();
+  const { data: relationship, error: readError } = await supabase
+    .from("relationships")
+    .select("*")
+    .eq("tenant_id", context.tenantId)
+    .eq("id", relationshipId)
+    .maybeSingle();
+
+  if (readError) throw readError;
+
   const { error } = await supabase
     .from("relationships")
     .delete()
@@ -252,5 +264,6 @@ export async function deleteRelationship(context: TenantContext, relationshipId:
     .eq("id", relationshipId);
 
   if (error) throw error;
+  if (relationship) await recordOrganizationUnlinked(context, relationship as Relationship);
   return { allowed: true, deleted: true };
 }

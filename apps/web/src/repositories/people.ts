@@ -2,6 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { buildDuplicateOrFilter, buildPeopleSearchOrFilter, canDeletePeople, findDuplicateMatches, normalizePeopleListParams, type DuplicateMatch, type PeopleSearchParams } from "@/features/people/search";
 import type { Organization, Person, Relationship, TenantContext } from "@/types/domain";
 import type { PersonFormInput } from "@/features/people/validation";
+import { recordPersonCreated } from "@/services/timeline-service";
 
 export type PeopleListResult = {
   people: Person[];
@@ -123,7 +124,9 @@ export async function createPerson(context: TenantContext, input: PersonFormInpu
     .single();
 
   if (error) throw error;
-  return data as Person;
+  const person = data as Person;
+  await recordPersonCreated(context, person);
+  return person;
 }
 
 export async function updatePerson(context: TenantContext, personId: string, input: PersonFormInput) {

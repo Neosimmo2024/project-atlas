@@ -7,6 +7,21 @@ export type TaskStatus = "todo" | "in_progress" | "waiting" | "completed" | "can
 export type TaskPriority = "low" | "normal" | "high" | "critical";
 export type TaskSourceType = "manual" | "person" | "organization" | "relationship" | "interaction";
 export type TaskDueFilter = "overdue" | "today" | "week";
+export type TimelineEventType =
+  | "person_created"
+  | "organization_created"
+  | "relationship_created"
+  | "interaction_created"
+  | "interaction_updated"
+  | "task_created"
+  | "task_completed"
+  | "task_reopened"
+  | "task_updated"
+  | "task_deleted"
+  | "organization_linked"
+  | "organization_unlinked";
+export type TimelineSourceType = "person" | "organization" | "relationship" | "interaction" | "task";
+export type TimelineVisibility = "tenant";
 
 export type Person = TenantScoped & {
   id: string;
@@ -136,6 +151,27 @@ export type Task = TenantScoped & {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+};
+
+export type TimelineEvent = TenantScoped & {
+  id: string;
+  event_type: TimelineEventType;
+  title: string;
+  description: string | null;
+  occurred_at: string;
+  created_at: string;
+  created_by: string | null;
+  person_id: string | null;
+  organization_id: string | null;
+  relationship_id: string | null;
+  interaction_id: string | null;
+  task_id: string | null;
+  source_type: TimelineSourceType;
+  source_id: string;
+  metadata: Record<string, unknown>;
+  visibility: TimelineVisibility;
+  deleted_at: string | null;
+  idempotency_key: string;
 };
 
 export type TenantContext = {
