@@ -1,4 +1,4 @@
-import type { Interaction, InteractionType, Organization, Person, Relationship } from "@/types/domain";
+import type { Interaction, InteractionType, Organization, Person, Relationship, Task } from "@/types/domain";
 
 type Timestamped = { id: string; tenant_id: string; created_at: string; updated_at: string };
 type Row<T> = T & Record<string, unknown>;
@@ -80,6 +80,37 @@ export type Database = {
             foreignKeyName: "interactions_type_id_fkey";
             columns: ["type_id"];
             referencedRelation: "interaction_types";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      tasks: {
+        Row: Row<Task>;
+        Insert: Insert<Task>;
+        Update: Update<Task>;
+        Relationships: [
+          {
+            foreignKeyName: "tasks_person_id_fkey";
+            columns: ["person_id"];
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tasks_organization_id_fkey";
+            columns: ["organization_id"];
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tasks_relationship_id_fkey";
+            columns: ["relationship_id"];
+            referencedRelation: "relationships";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tasks_interaction_id_fkey";
+            columns: ["interaction_id"];
+            referencedRelation: "interactions";
             referencedColumns: ["id"];
           }
         ];

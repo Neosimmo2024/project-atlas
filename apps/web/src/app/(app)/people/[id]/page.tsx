@@ -3,10 +3,12 @@ import { notFound } from "next/navigation";
 import { InteractionTimelineItem } from "@/components/interactions/interaction-timeline-item";
 import { DeletePersonButton } from "@/components/people/delete-person-button";
 import { PersonForm } from "@/components/people/person-form";
+import { TaskCard } from "@/components/tasks/task-card";
 import { PERSON_STATUS_LABELS, PRIORITY_LABELS } from "@/features/people/options";
 import { canDeletePeople } from "@/features/people/search";
 import { listPersonTimelineInteractions } from "@/repositories/interactions";
 import { getPersonDetail } from "@/repositories/people";
+import { listPersonTasks } from "@/repositories/tasks";
 import { getTenantContext } from "@/repositories/tenant-context";
 
 type PersonDetailPageProps = {
@@ -34,7 +36,10 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
   if (!detail) notFound();
 
   const { person, organizations, relationships } = detail;
-  const timeline = await listPersonTimelineInteractions(context, person.id);
+  const [timeline, tasks] = await Promise.all([
+    listPersonTimelineInteractions(context, person.id),
+    listPersonTasks(context, person.id)
+  ]);
 
   return (
     <div className="page stack">
@@ -96,6 +101,15 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
         {timeline.interactions.length === 0 ? <p className="muted">Aucune interaction liee.</p> : timeline.interactions.map((interaction) => (
           <InteractionTimelineItem key={interaction.id} interaction={interaction} returnHref={`/people/${person.id}`} />
         ))}
+      </section>
+
+      <section className="card stack">
+        <div className="page-header">
+          <h2>Taches liees</h2>
+          <Link className="button subtle-button" href={`/tasks/new?sourceType=person&sourceId=${person.id}&personId=${person.id}`}>Nouvelle tache</Link>
+        </div>
+        {valueOf(query, "taskDeleted") === "1" ? <p className="success">Tache supprimee.</p> : null}
+        {tasks.tasks.length === 0 ? <p className="muted">Aucune tache liee.</p> : tasks.tasks.map((task) => <TaskCard key={task.id} task={task} />)}
       </section>
 
       <section className="card stack">

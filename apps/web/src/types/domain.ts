@@ -3,6 +3,10 @@ export type RoleSlug = "owner" | "admin" | "recruiter" | "manager" | "reader";
 export type TenantScoped = { tenant_id: string };
 export type PersonStatus = "to_qualify" | "qualified" | "contacted" | "in_relationship" | "rejected" | "archived";
 export type Priority = "low" | "medium" | "high";
+export type TaskStatus = "todo" | "in_progress" | "waiting" | "completed" | "cancelled";
+export type TaskPriority = "low" | "normal" | "high" | "critical";
+export type TaskSourceType = "manual" | "person" | "organization" | "relationship" | "interaction";
+export type TaskDueFilter = "overdue" | "today" | "week";
 
 export type Person = TenantScoped & {
   id: string;
@@ -105,6 +109,29 @@ export type Interaction = TenantScoped & {
   dna_compatibility: string | null;
   work_with_person_desire: string | null;
   comments: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+
+export type Task = TenantScoped & {
+  id: string;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  due_at: string | null;
+  completed_at: string | null;
+  assigned_to: string | null;
+  created_by: string | null;
+  person_id: string | null;
+  organization_id: string | null;
+  relationship_id: string | null;
+  interaction_id: string | null;
+  source_type: TaskSourceType | null;
+  source_id: string | null;
+  reason: string | null;
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;

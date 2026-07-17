@@ -3,10 +3,12 @@ import { notFound } from "next/navigation";
 import { InteractionTimelineItem } from "@/components/interactions/interaction-timeline-item";
 import { DeleteOrganizationButton } from "@/components/organizations/delete-organization-button";
 import { OrganizationForm } from "@/components/organizations/organization-form";
+import { TaskCard } from "@/components/tasks/task-card";
 import { ORGANIZATION_STATUS_LABELS, ORGANIZATION_TYPE_LABELS } from "@/features/organizations/options";
 import { canDeleteOrganizations } from "@/features/organizations/search";
 import { listOrganizationTimelineInteractions } from "@/repositories/interactions";
 import { getOrganizationDetail, listParentOrganizationOptions } from "@/repositories/organizations";
+import { listOrganizationTasks } from "@/repositories/tasks";
 import { getTenantContext } from "@/repositories/tenant-context";
 
 type OrganizationDetailPageProps = {
@@ -34,8 +36,11 @@ export default async function OrganizationDetailPage({ params, searchParams }: O
   if (!detail) notFound();
 
   const { organization, parent, children, people, relationships } = detail;
-  const parentOptions = await listParentOrganizationOptions(context, organization.id);
-  const timeline = await listOrganizationTimelineInteractions(context, organization.id);
+  const [parentOptions, timeline, tasks] = await Promise.all([
+    listParentOrganizationOptions(context, organization.id),
+    listOrganizationTimelineInteractions(context, organization.id),
+    listOrganizationTasks(context, organization.id)
+  ]);
   const typeLabel = organization.organization_type ? ORGANIZATION_TYPE_LABELS[organization.organization_type as keyof typeof ORGANIZATION_TYPE_LABELS] ?? organization.organization_type : "-";
 
   return (
@@ -120,6 +125,15 @@ export default async function OrganizationDetailPage({ params, searchParams }: O
         {timeline.interactions.length === 0 ? <p className="muted">Aucune interaction liee.</p> : timeline.interactions.map((interaction) => (
           <InteractionTimelineItem key={interaction.id} interaction={interaction} returnHref={`/organizations/${organization.id}`} />
         ))}
+      </section>
+
+      <section className="card stack">
+        <div className="page-header">
+          <h2>Taches liees</h2>
+          <Link className="button subtle-button" href={`/tasks/new?sourceType=organization&sourceId=${organization.id}&organizationId=${organization.id}`}>Nouvelle tache</Link>
+        </div>
+        {valueOf(query, "taskDeleted") === "1" ? <p className="success">Tache supprimee.</p> : null}
+        {tasks.tasks.length === 0 ? <p className="muted">Aucune tache liee.</p> : tasks.tasks.map((task) => <TaskCard key={task.id} task={task} />)}
       </section>
 
       <section className="card stack">

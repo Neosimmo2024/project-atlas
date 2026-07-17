@@ -280,9 +280,10 @@ button, input, select, textarea { font: inherit; }
 .field-error { color: var(--danger); font-size: 13px; }
 .danger-zone { border-color: #f3b8b3; }
 .code-block { overflow: auto; border: 1px solid var(--line); border-radius: 6px; background: #f7f7f4; padding: 12px; }
-.interaction-list { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
-.interaction-card { color: inherit; }
-.interaction-card h2 { margin: 4px 0 0; }
+.interaction-list, .task-list { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.interaction-card, .task-card { color: inherit; }
+.interaction-card h2, .task-card h2 { margin: 4px 0 0; }
+.task-overdue { border-color: #f3b8b3; }
 .interaction-meta { display: flex; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: 13px; }
 .interaction-meta span { border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
 .timeline-item { border-left: 3px solid var(--accent); display: grid; gap: 6px; padding: 4px 0 4px 12px; }

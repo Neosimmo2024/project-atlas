@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DeleteRelationshipButton } from "@/components/relationships/delete-relationship-button";
 import { RelationshipForm } from "@/components/relationships/relationship-form";
+import { TaskCard } from "@/components/tasks/task-card";
 import {
   RELATIONSHIP_PIPELINE_STAGE_LABELS,
   RELATIONSHIP_STATUS_LABELS,
@@ -9,6 +10,7 @@ import {
 } from "@/features/relationships/options";
 import { canDeleteRelationships } from "@/features/relationships/search";
 import { getRelationshipDetail, listRelationshipOrganizationOptions, listRelationshipPeopleOptions } from "@/repositories/relationships";
+import { listRelationshipTasks } from "@/repositories/tasks";
 import { getTenantContext } from "@/repositories/tenant-context";
 
 type RelationshipDetailPageProps = {
@@ -29,9 +31,10 @@ export default async function RelationshipDetailPage({ params }: RelationshipDet
   if (!detail) notFound();
 
   const { relationship, person, organization } = detail;
-  const [peopleOptions, organizationOptions] = await Promise.all([
+  const [peopleOptions, organizationOptions, tasks] = await Promise.all([
     listRelationshipPeopleOptions(context),
-    listRelationshipOrganizationOptions(context)
+    listRelationshipOrganizationOptions(context),
+    listRelationshipTasks(context, relationship.id)
   ]);
 
   return (
@@ -82,6 +85,14 @@ export default async function RelationshipDetailPage({ params }: RelationshipDet
       <section className="card stack">
         <h2>Metadata</h2>
         <pre className="code-block">{JSON.stringify(relationship.metadata ?? {}, null, 2)}</pre>
+      </section>
+
+      <section className="card stack">
+        <div className="page-header">
+          <h2>Taches liees</h2>
+          <Link className="button subtle-button" href={`/tasks/new?sourceType=relationship&sourceId=${relationship.id}&relationshipId=${relationship.id}`}>Nouvelle tache</Link>
+        </div>
+        {tasks.tasks.length === 0 ? <p className="muted">Aucune tache liee.</p> : tasks.tasks.map((task) => <TaskCard key={task.id} task={task} />)}
       </section>
 
       <section className="card stack">
