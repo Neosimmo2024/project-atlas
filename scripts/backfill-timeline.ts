@@ -21,6 +21,18 @@ const supabase = createClient<Database>(supabaseUrl, backfillKey, {
   auth: { persistSession: false }
 });
 
+async function assertBackfillCanReadData() {
+  if (!backfillKey.startsWith("sb_publishable_")) return;
+
+  const { data: sessionResult } = await supabase.auth.getSession();
+  if (sessionResult.session) return;
+
+  throw new Error(
+    "SUPABASE_TIMELINE_BACKFILL_KEY is a publishable key without an authenticated Supabase session. " +
+      "Use a local privileged backfill key, or extend the script with an explicit local Auth login before running the backfill."
+  );
+}
+
 async function readTable<T>(table: "people" | "organizations" | "relationships" | "interactions" | "tasks") {
   const { data, error } = await supabase.from(table).select("*");
   if (error) throw error;
@@ -38,6 +50,8 @@ async function upsertEvents(events: BackfillTimelineEventInput[]) {
 }
 
 async function main() {
+  await assertBackfillCanReadData();
+
   const [people, organizations, relationships, interactions, tasks] = await Promise.all([
     readTable<Person>("people"),
     readTable<Organization>("organizations"),
