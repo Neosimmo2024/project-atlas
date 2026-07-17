@@ -1,4 +1,4 @@
-import type { Organization, Person, Relationship } from "@/types/domain";
+import type { Interaction, InteractionType, Organization, Person, Relationship } from "@/types/domain";
 
 type Timestamped = { id: string; tenant_id: string; created_at: string; updated_at: string };
 type Row<T> = T & Record<string, unknown>;
@@ -52,6 +52,38 @@ export type Database = {
       };
       people: { Row: Row<Person>; Insert: Insert<Person>; Update: Update<Person>; Relationships: NoRelationships };
       organizations: { Row: Row<Organization>; Insert: Insert<Organization>; Update: Update<Organization>; Relationships: NoRelationships };
+      interaction_types: { Row: Row<InteractionType>; Insert: Partial<InteractionType>; Update: Partial<InteractionType>; Relationships: NoRelationships };
+      interactions: {
+        Row: Row<Interaction>;
+        Insert: Insert<Interaction>;
+        Update: Update<Interaction>;
+        Relationships: [
+          {
+            foreignKeyName: "interactions_person_id_fkey";
+            columns: ["person_id"];
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "interactions_organization_id_fkey";
+            columns: ["organization_id"];
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "interactions_relationship_id_fkey";
+            columns: ["relationship_id"];
+            referencedRelation: "relationships";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "interactions_type_id_fkey";
+            columns: ["type_id"];
+            referencedRelation: "interaction_types";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       relationships: {
         Row: Row<Relationship>;
         Insert: Insert<Relationship>;

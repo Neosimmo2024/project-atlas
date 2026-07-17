@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { readResponseMessage } from "@/lib/http/response-message";
 
 export function DeletePersonButton({ personId }: { personId: string }) {
   const router = useRouter();
@@ -14,17 +15,22 @@ export function DeletePersonButton({ personId }: { personId: string }) {
 
     setLoading(true);
     setError(null);
-    const response = await fetch(`/api/people/${personId}`, { method: "DELETE" });
-    const result = await response.json();
-    setLoading(false);
 
-    if (!response.ok) {
-      setError(result.error ?? "Suppression impossible.");
-      return;
+    try {
+      const response = await fetch(`/api/people/${personId}`, { method: "DELETE" });
+
+      if (!response.ok) {
+        setError(await readResponseMessage(response, "Suppression impossible."));
+        return;
+      }
+
+      router.push("/people");
+      router.refresh();
+    } catch {
+      setError("Erreur reseau pendant la suppression de la personne.");
+    } finally {
+      setLoading(false);
     }
-
-    router.push("/people");
-    router.refresh();
   }
 
   return (

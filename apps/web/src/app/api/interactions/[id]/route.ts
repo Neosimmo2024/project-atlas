@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { parseOrganizationInput } from "@/features/organizations/validation";
-import { deleteOrganization, findPotentialOrganizationDuplicates, getOrganizationDetail, updateOrganization } from "@/repositories/organizations";
+import { parseInteractionInput } from "@/features/interactions/validation";
+import { deleteInteraction, updateInteraction } from "@/repositories/interactions";
 import { getTenantContext } from "@/repositories/tenant-context";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -20,23 +20,12 @@ function apiErrorResponse(error: unknown) {
   return NextResponse.json(
     {
       error: isMissingColumn
-        ? `Schema Supabase incomplet: ${message}. Executez la migration supabase/migrations/0002_organizations_module.sql puis reessayez.`
+        ? `Schema Supabase incomplet: ${message}. Executez la migration supabase/migrations/0004_interactions_module.sql puis reessayez.`
         : message,
       code
     },
     { status: isMissingColumn ? 500 : 400 }
   );
-}
-
-export async function GET(_request: Request, context: RouteContext) {
-  const tenantContext = await getTenantContext();
-  if (!tenantContext) return NextResponse.json({ error: "Tenant context not found" }, { status: 401 });
-
-  const { id } = await context.params;
-  const detail = await getOrganizationDetail(tenantContext, id);
-  if (!detail) return NextResponse.json({ error: "Organization not found" }, { status: 404 });
-
-  return NextResponse.json({ data: detail });
 }
 
 export async function PUT(request: Request, context: RouteContext) {
@@ -46,19 +35,11 @@ export async function PUT(request: Request, context: RouteContext) {
 
     const { id } = await context.params;
     const body = await request.json();
-    const parsed = parseOrganizationInput(body);
+    const parsed = parseInteractionInput(body);
     if (!parsed.success) return validationErrorResponse(parsed.error);
-    if (parsed.data.parent_organization_id === id) {
-      return NextResponse.json({ error: "Validation failed", fields: [{ field: "parent_organization_id", message: "Une organisation ne peut pas etre son propre parent." }] }, { status: 400 });
-    }
 
-    const duplicates = await findPotentialOrganizationDuplicates(tenantContext, parsed.data, id);
-    if (duplicates.length > 0 && body.confirmDuplicate !== true) {
-      return NextResponse.json({ warning: "Potential duplicate found", duplicates }, { status: 409 });
-    }
-
-    const organization = await updateOrganization(tenantContext, id, parsed.data);
-    return NextResponse.json({ data: organization });
+    const interaction = await updateInteraction(tenantContext, id, parsed.data);
+    return NextResponse.json({ data: interaction });
   } catch (error) {
     return apiErrorResponse(error);
   }
@@ -70,8 +51,8 @@ export async function DELETE(_request: Request, context: RouteContext) {
     if (!tenantContext) return NextResponse.json({ error: "Tenant context not found" }, { status: 401 });
 
     const { id } = await context.params;
-    const result = await deleteOrganization(tenantContext, id);
-    if (!result.allowed) return NextResponse.json({ error: "Only owner and admin roles can delete organizations." }, { status: 403 });
+    const result = await deleteInteraction(tenantContext, id);
+    if (!result.allowed) return NextResponse.json({ error: "Only owner and admin roles can delete interactions." }, { status: 403 });
 
     return NextResponse.json({ deleted: true });
   } catch (error) {

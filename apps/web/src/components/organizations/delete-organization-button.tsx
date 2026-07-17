@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { readResponseMessage } from "@/lib/http/response-message";
 
 export function DeleteOrganizationButton({ organizationId }: { organizationId: string }) {
   const router = useRouter();
@@ -14,17 +15,22 @@ export function DeleteOrganizationButton({ organizationId }: { organizationId: s
 
     setLoading(true);
     setError(null);
-    const response = await fetch(`/api/organizations/${organizationId}`, { method: "DELETE" });
-    const result = await response.json();
-    setLoading(false);
 
-    if (!response.ok) {
-      setError(result.error ?? "Suppression impossible.");
-      return;
+    try {
+      const response = await fetch(`/api/organizations/${organizationId}`, { method: "DELETE" });
+
+      if (!response.ok) {
+        setError(await readResponseMessage(response, "Suppression impossible."));
+        return;
+      }
+
+      router.push("/organizations");
+      router.refresh();
+    } catch {
+      setError("Erreur reseau pendant la suppression de l'organisation.");
+    } finally {
+      setLoading(false);
     }
-
-    router.push("/organizations");
-    router.refresh();
   }
 
   return (

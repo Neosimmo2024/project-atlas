@@ -1,14 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { InteractionTimelineItem } from "@/components/interactions/interaction-timeline-item";
 import { DeleteOrganizationButton } from "@/components/organizations/delete-organization-button";
 import { OrganizationForm } from "@/components/organizations/organization-form";
 import { ORGANIZATION_STATUS_LABELS, ORGANIZATION_TYPE_LABELS } from "@/features/organizations/options";
 import { canDeleteOrganizations } from "@/features/organizations/search";
+import { listOrganizationTimelineInteractions } from "@/repositories/interactions";
 import { getOrganizationDetail, listParentOrganizationOptions } from "@/repositories/organizations";
 import { getTenantContext } from "@/repositories/tenant-context";
 
 type OrganizationDetailPageProps = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 function formatDate(value: string | null) {
@@ -16,8 +19,14 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
-export default async function OrganizationDetailPage({ params }: OrganizationDetailPageProps) {
+function valueOf(params: Record<string, string | string[] | undefined>, key: string) {
+  const value = params[key];
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+}
+
+export default async function OrganizationDetailPage({ params, searchParams }: OrganizationDetailPageProps) {
   const { id } = await params;
+  const query = await searchParams;
   const context = await getTenantContext();
   if (!context) notFound();
 
@@ -26,6 +35,7 @@ export default async function OrganizationDetailPage({ params }: OrganizationDet
 
   const { organization, parent, children, people, relationships } = detail;
   const parentOptions = await listParentOrganizationOptions(context, organization.id);
+  const timeline = await listOrganizationTimelineInteractions(context, organization.id);
   const typeLabel = organization.organization_type ? ORGANIZATION_TYPE_LABELS[organization.organization_type as keyof typeof ORGANIZATION_TYPE_LABELS] ?? organization.organization_type : "-";
 
   return (
@@ -101,6 +111,14 @@ export default async function OrganizationDetailPage({ params }: OrganizationDet
         <h2>Relations liees</h2>
         {relationships.length === 0 ? <p className="muted">Aucune relation liee.</p> : relationships.map((relationship) => (
           <p key={relationship.id}>{relationship.relationship_type} - {relationship.pipeline_stage} - {relationship.status}</p>
+        ))}
+      </section>
+
+      <section className="card stack">
+        <h2>Timeline</h2>
+        {valueOf(query, "interactionDeleted") === "1" ? <p className="success">Interaction supprimee.</p> : null}
+        {timeline.interactions.length === 0 ? <p className="muted">Aucune interaction liee.</p> : timeline.interactions.map((interaction) => (
+          <InteractionTimelineItem key={interaction.id} interaction={interaction} returnHref={`/organizations/${organization.id}`} />
         ))}
       </section>
 
