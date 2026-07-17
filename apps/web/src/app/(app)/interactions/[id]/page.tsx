@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DeleteInteractionButton } from "@/components/interactions/delete-interaction-button";
 import { InteractionForm } from "@/components/interactions/interaction-form";
+import { TaskCard } from "@/components/tasks/task-card";
 import { canDeleteInteractions } from "@/features/interactions/search";
 import {
   getInteractionDetail,
@@ -10,6 +11,7 @@ import {
   listInteractionRelationshipOptions,
   listInteractionTypes
 } from "@/repositories/interactions";
+import { listInteractionTasks } from "@/repositories/tasks";
 import { getTenantContext } from "@/repositories/tenant-context";
 
 type InteractionDetailPageProps = {
@@ -45,11 +47,12 @@ export default async function InteractionDetailPage({ params, searchParams }: In
 
   const { interaction, type, person, organization, relationship } = detail;
   const returnTo = safeReturnTo(valueOf(query, "returnTo"));
-  const [types, peopleOptions, organizationOptions, relationshipOptions] = await Promise.all([
+  const [types, peopleOptions, organizationOptions, relationshipOptions, tasks] = await Promise.all([
     listInteractionTypes(context),
     listInteractionPeopleOptions(context),
     listInteractionOrganizationOptions(context),
-    listInteractionRelationshipOptions(context)
+    listInteractionRelationshipOptions(context),
+    listInteractionTasks(context, interaction.id)
   ]);
 
   return (
@@ -101,6 +104,14 @@ export default async function InteractionDetailPage({ params, searchParams }: In
       <section className="card stack">
         <h2>Metadata</h2>
         <pre className="code-block">{JSON.stringify(interaction.metadata ?? {}, null, 2)}</pre>
+      </section>
+
+      <section className="card stack">
+        <div className="page-header">
+          <h2>Taches liees</h2>
+          <Link className="button subtle-button" href={`/tasks/new?sourceType=interaction&sourceId=${interaction.id}&interactionId=${interaction.id}`}>Nouvelle tache</Link>
+        </div>
+        {tasks.tasks.length === 0 ? <p className="muted">Aucune tache liee.</p> : tasks.tasks.map((task) => <TaskCard key={task.id} task={task} />)}
       </section>
 
       <section className="card stack">
