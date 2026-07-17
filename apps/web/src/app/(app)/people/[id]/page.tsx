@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { InteractionTimelineItem } from "@/components/interactions/interaction-timeline-item";
 import { DeletePersonButton } from "@/components/people/delete-person-button";
 import { PersonForm } from "@/components/people/person-form";
 import { TaskCard } from "@/components/tasks/task-card";
+import { TimelineFilters, normalizeTimelineCategory } from "@/components/timeline/timeline-filters";
+import { TimelineList } from "@/components/timeline/timeline-list";
 import { PERSON_STATUS_LABELS, PRIORITY_LABELS } from "@/features/people/options";
 import { canDeletePeople } from "@/features/people/search";
-import { listPersonTimelineInteractions } from "@/repositories/interactions";
 import { getPersonDetail } from "@/repositories/people";
 import { listPersonTasks } from "@/repositories/tasks";
 import { getTenantContext } from "@/repositories/tenant-context";
+import { listTimelineEvents } from "@/repositories/timeline-events";
 
 type PersonDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -36,8 +37,10 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
   if (!detail) notFound();
 
   const { person, organizations, relationships } = detail;
-  const [timeline, tasks] = await Promise.all([
-    listPersonTimelineInteractions(context, person.id),
+  const timelineCategory = normalizeTimelineCategory(valueOf(query, "timelineCategory"));
+  const timelinePage = Number(valueOf(query, "timelinePage") || 1);
+  const [chronology, tasks] = await Promise.all([
+    listTimelineEvents(context, { personId: person.id, category: timelineCategory, page: timelinePage, pageSize: 10 }),
     listPersonTasks(context, person.id)
   ]);
 
@@ -96,11 +99,12 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
       </section>
 
       <section className="card stack">
-        <h2>Timeline</h2>
+        <div className="page-header">
+          <h2>Chronologie</h2>
+          <TimelineFilters category={timelineCategory} hiddenFields={{}} />
+        </div>
         {valueOf(query, "interactionDeleted") === "1" ? <p className="success">Interaction supprimee.</p> : null}
-        {timeline.interactions.length === 0 ? <p className="muted">Aucune interaction liee.</p> : timeline.interactions.map((interaction) => (
-          <InteractionTimelineItem key={interaction.id} interaction={interaction} returnHref={`/people/${person.id}`} />
-        ))}
+        <TimelineList result={chronology} basePath={`/people/${person.id}`} category={timelineCategory} />
       </section>
 
       <section className="card stack">

@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { InteractionTimelineItem } from "@/components/interactions/interaction-timeline-item";
 import { DeleteOrganizationButton } from "@/components/organizations/delete-organization-button";
 import { OrganizationForm } from "@/components/organizations/organization-form";
 import { TaskCard } from "@/components/tasks/task-card";
+import { TimelineFilters, normalizeTimelineCategory } from "@/components/timeline/timeline-filters";
+import { TimelineList } from "@/components/timeline/timeline-list";
 import { ORGANIZATION_STATUS_LABELS, ORGANIZATION_TYPE_LABELS } from "@/features/organizations/options";
 import { canDeleteOrganizations } from "@/features/organizations/search";
-import { listOrganizationTimelineInteractions } from "@/repositories/interactions";
 import { getOrganizationDetail, listParentOrganizationOptions } from "@/repositories/organizations";
 import { listOrganizationTasks } from "@/repositories/tasks";
 import { getTenantContext } from "@/repositories/tenant-context";
+import { listTimelineEvents } from "@/repositories/timeline-events";
 
 type OrganizationDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -36,9 +37,11 @@ export default async function OrganizationDetailPage({ params, searchParams }: O
   if (!detail) notFound();
 
   const { organization, parent, children, people, relationships } = detail;
-  const [parentOptions, timeline, tasks] = await Promise.all([
+  const timelineCategory = normalizeTimelineCategory(valueOf(query, "timelineCategory"));
+  const timelinePage = Number(valueOf(query, "timelinePage") || 1);
+  const [parentOptions, chronology, tasks] = await Promise.all([
     listParentOrganizationOptions(context, organization.id),
-    listOrganizationTimelineInteractions(context, organization.id),
+    listTimelineEvents(context, { organizationId: organization.id, category: timelineCategory, page: timelinePage, pageSize: 10 }),
     listOrganizationTasks(context, organization.id)
   ]);
   const typeLabel = organization.organization_type ? ORGANIZATION_TYPE_LABELS[organization.organization_type as keyof typeof ORGANIZATION_TYPE_LABELS] ?? organization.organization_type : "-";
@@ -120,11 +123,12 @@ export default async function OrganizationDetailPage({ params, searchParams }: O
       </section>
 
       <section className="card stack">
-        <h2>Timeline</h2>
+        <div className="page-header">
+          <h2>Chronologie</h2>
+          <TimelineFilters category={timelineCategory} hiddenFields={{}} />
+        </div>
         {valueOf(query, "interactionDeleted") === "1" ? <p className="success">Interaction supprimee.</p> : null}
-        {timeline.interactions.length === 0 ? <p className="muted">Aucune interaction liee.</p> : timeline.interactions.map((interaction) => (
-          <InteractionTimelineItem key={interaction.id} interaction={interaction} returnHref={`/organizations/${organization.id}`} />
-        ))}
+        <TimelineList result={chronology} basePath={`/organizations/${organization.id}`} category={timelineCategory} />
       </section>
 
       <section className="card stack">

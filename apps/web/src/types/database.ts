@@ -1,4 +1,4 @@
-import type { Interaction, InteractionType, Organization, Person, Relationship, Task } from "@/types/domain";
+import type { Interaction, InteractionType, Organization, Person, Relationship, Task, TimelineEvent } from "@/types/domain";
 
 type Timestamped = { id: string; tenant_id: string; created_at: string; updated_at: string };
 type Row<T> = T & Record<string, unknown>;
@@ -6,6 +6,9 @@ type Insert<T extends Timestamped> = Partial<Omit<T, "id" | "tenant_id" | "creat
   Pick<T, "tenant_id"> &
   Partial<Pick<T, "id">>;
 type Update<T extends Timestamped> = Partial<Insert<T>>;
+type TimelineEventInsert = Partial<Omit<TimelineEvent, "id" | "tenant_id" | "created_at">> &
+  Pick<TimelineEvent, "tenant_id" | "event_type" | "title" | "source_type" | "source_id" | "idempotency_key"> &
+  Partial<Pick<TimelineEvent, "id">>;
 type NoRelationships = [];
 type TenantRow = {
   id: string;
@@ -111,6 +114,43 @@ export type Database = {
             foreignKeyName: "tasks_interaction_id_fkey";
             columns: ["interaction_id"];
             referencedRelation: "interactions";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      timeline_events: {
+        Row: Row<TimelineEvent>;
+        Insert: TimelineEventInsert;
+        Update: Partial<TimelineEventInsert>;
+        Relationships: [
+          {
+            foreignKeyName: "timeline_events_person_id_fkey";
+            columns: ["person_id"];
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "timeline_events_organization_id_fkey";
+            columns: ["organization_id"];
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "timeline_events_relationship_id_fkey";
+            columns: ["relationship_id"];
+            referencedRelation: "relationships";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "timeline_events_interaction_id_fkey";
+            columns: ["interaction_id"];
+            referencedRelation: "interactions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "timeline_events_task_id_fkey";
+            columns: ["task_id"];
+            referencedRelation: "tasks";
             referencedColumns: ["id"];
           }
         ];

@@ -4,6 +4,7 @@ import { buildRelationshipsSearchOrFilter } from "@/features/relationships/searc
 import { buildInteractionsSearchOrFilter, canDeleteInteractions, normalizeInteractionsListParams, type InteractionsSearchParams } from "@/features/interactions/search";
 import type { InteractionFormInput } from "@/features/interactions/validation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { recordInteractionCreated, recordInteractionUpdated } from "@/services/timeline-service";
 import type { Interaction, InteractionType, Organization, Person, Relationship, TenantContext } from "@/types/domain";
 
 export type InteractionListItem = Interaction & {
@@ -262,12 +263,6 @@ async function assertInteractionReferencesBelongToTenant(context: TenantContext,
   }
 }
 
-async function recordInteractionTimelineEvent(context: TenantContext, interaction: Interaction) {
-  void context;
-  void interaction;
-  // Prepared integration point for the future universal timeline/event engine.
-}
-
 export async function createInteraction(context: TenantContext, input: InteractionFormInput) {
   await assertInteractionReferencesBelongToTenant(context, input);
   const supabase = await createSupabaseServerClient();
@@ -279,7 +274,7 @@ export async function createInteraction(context: TenantContext, input: Interacti
 
   if (error) throw error;
   const interaction = data as Interaction;
-  await recordInteractionTimelineEvent(context, interaction);
+  await recordInteractionCreated(context, interaction);
   return interaction;
 }
 
@@ -296,7 +291,9 @@ export async function updateInteraction(context: TenantContext, interactionId: s
     .single();
 
   if (error) throw error;
-  return data as Interaction;
+  const interaction = data as Interaction;
+  await recordInteractionUpdated(context, interaction);
+  return interaction;
 }
 
 export async function deleteInteraction(context: TenantContext, interactionId: string) {

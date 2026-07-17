@@ -10,6 +10,7 @@ import {
 } from "@/features/organizations/search";
 import type { Organization, Person, Relationship, TenantContext } from "@/types/domain";
 import type { OrganizationFormInput } from "@/features/organizations/validation";
+import { recordOrganizationCreated } from "@/services/timeline-service";
 
 export type OrganizationsListResult = {
   organizations: Organization[];
@@ -186,7 +187,9 @@ export async function createOrganization(context: TenantContext, input: Organiza
     .single();
 
   if (error) throw error;
-  return data as Organization;
+  const organization = data as Organization;
+  await recordOrganizationCreated(context, organization);
+  return organization;
 }
 
 export async function updateOrganization(context: TenantContext, organizationId: string, input: OrganizationFormInput) {

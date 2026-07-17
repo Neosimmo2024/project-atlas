@@ -1,6 +1,7 @@
 import { buildTasksSearchOrFilter, canDeleteTasks, normalizeTasksListParams, type TasksSearchParams } from "@/features/tasks/search";
 import type { TaskFormInput } from "@/features/tasks/validation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { recordTaskChanged, recordTaskDeleted } from "@/services/timeline-service";
 import type { Interaction, Organization, Person, Relationship, Task, TenantContext } from "@/types/domain";
 
 export type TaskListItem = Task & {
@@ -222,12 +223,24 @@ export async function createTask(context: TenantContext, input: TaskFormInput) {
     .single();
 
   if (error) throw error;
-  return data as Task;
+  const task = data as Task;
+  await recordTaskChanged(context, task);
+  return task;
 }
 
 export async function updateTask(context: TenantContext, taskId: string, input: TaskFormInput) {
   await assertTaskReferencesBelongToTenant(context, input);
   const supabase = await createSupabaseServerClient();
+  const { data: previous, error: previousError } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("tenant_id", context.tenantId)
+    .eq("id", taskId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (previousError) throw previousError;
+
   const { data, error } = await supabase
     .from("tasks")
     .update(taskPayload(input))
@@ -238,7 +251,9 @@ export async function updateTask(context: TenantContext, taskId: string, input: 
     .single();
 
   if (error) throw error;
-  return data as Task;
+  const task = data as Task;
+  await recordTaskChanged(context, task, previous as Task | null);
+  return task;
 }
 
 export async function deleteTask(context: TenantContext, taskId: string) {
@@ -247,6 +262,16 @@ export async function deleteTask(context: TenantContext, taskId: string) {
   }
 
   const supabase = await createSupabaseServerClient();
+  const { data: task, error: taskError } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("tenant_id", context.tenantId)
+    .eq("id", taskId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (taskError) throw taskError;
+
   const { error } = await supabase
     .from("tasks")
     .update({ deleted_at: new Date().toISOString() })
@@ -255,6 +280,7 @@ export async function deleteTask(context: TenantContext, taskId: string) {
     .is("deleted_at", null);
 
   if (error) throw error;
+  if (task) await recordTaskDeleted(context, task as Task);
   return { allowed: true, deleted: true };
 }
 

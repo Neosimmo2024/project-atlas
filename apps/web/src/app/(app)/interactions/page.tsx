@@ -34,7 +34,7 @@ export default async function InteractionsPage({ searchParams }: InteractionsPag
     <div className="page stack">
       <header className="page-header">
         <div>
-          <p className="muted">Timeline universelle</p>
+          <p className="muted">Chronologie des echanges</p>
           <h1>Interactions</h1>
         </div>
         <Link className="button link-button" href="/interactions/new">Nouvelle interaction</Link>
