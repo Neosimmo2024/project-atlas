@@ -26,6 +26,7 @@ export type TimelineListItem = TimelineEvent & {
   relationship: Pick<Relationship, "id" | "relationship_type" | "pipeline_stage"> | null;
   interaction: Pick<Interaction, "id" | "title"> | null;
   task: Pick<Task, "id" | "title" | "status"> | null;
+  author: { id: string; name: string } | null;
 };
 
 export type TimelineListResult = {
@@ -51,8 +52,34 @@ function mapTimelineRow(row: TimelineJoinedRow): TimelineListItem {
     organization: row.organizations ?? null,
     relationship: row.relationships ?? null,
     interaction: row.interactions ?? null,
-    task: row.tasks ?? null
+    task: row.tasks ?? null,
+    author: null
   };
+}
+
+async function attachTimelineAuthors(context: TenantContext, events: TimelineListItem[]) {
+  const creatorIds = [...new Set(events.map((event) => event.created_by).filter(Boolean))] as string[];
+  if (creatorIds.length === 0) return events;
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, full_name, email")
+    .in("id", creatorIds);
+
+  if (error) throw error;
+
+  const profiles = new Map(
+    (data ?? []).map((profile) => {
+      const typedProfile = profile as { id: string; full_name: string | null; email: string | null };
+      return [typedProfile.id, { id: typedProfile.id, name: typedProfile.full_name || typedProfile.email || "" }];
+    })
+  );
+
+  return events.map((event) => ({
+    ...event,
+    author: event.created_by ? profiles.get(event.created_by) ?? null : null
+  }));
 }
 
 export async function listTimelineEvents(context: TenantContext, params: TimelineSearchParams = {}): Promise<TimelineListResult> {
@@ -81,8 +108,10 @@ export async function listTimelineEvents(context: TenantContext, params: Timelin
   if (error) throw error;
 
   const total = count ?? 0;
+  const events = await attachTimelineAuthors(context, ((data ?? []) as TimelineJoinedRow[]).map(mapTimelineRow));
+
   return {
-    events: ((data ?? []) as TimelineJoinedRow[]).map(mapTimelineRow),
+    events,
     total,
     page: normalized.page,
     pageSize: normalized.pageSize,

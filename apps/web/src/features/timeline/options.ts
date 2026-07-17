@@ -1,24 +1,24 @@
 import type { TimelineEventType } from "@/types/domain";
 
 export const TIMELINE_EVENT_LABELS: Record<TimelineEventType, string> = {
-  person_created: "Personne creee",
-  organization_created: "Organisation creee",
-  relationship_created: "Relation creee",
-  interaction_created: "Echange cree",
-  interaction_updated: "Echange modifie",
-  task_created: "Tache creee",
-  task_completed: "Tache terminee",
-  task_reopened: "Tache rouverte",
-  task_updated: "Tache modifiee",
-  task_deleted: "Tache supprimee",
-  organization_linked: "Organisation liee",
-  organization_unlinked: "Organisation dissociee"
+  person_created: "Personne créée",
+  organization_created: "Organisation créée",
+  relationship_created: "Relation créée",
+  interaction_created: "Échange créé",
+  interaction_updated: "Échange modifié",
+  task_created: "Tâche créée",
+  task_completed: "Tâche terminée",
+  task_reopened: "Tâche rouverte",
+  task_updated: "Tâche modifiée",
+  task_deleted: "Tâche supprimée",
+  organization_linked: "Organisation liée",
+  organization_unlinked: "Organisation dissociée"
 };
 
 export const TIMELINE_FILTER_LABELS = {
   all: "Tous",
-  interactions: "Echanges",
-  tasks: "Taches",
+  interactions: "Échanges",
+  tasks: "Tâches",
   relationships: "Relations",
   organizations: "Organisations"
 } as const;
