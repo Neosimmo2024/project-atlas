@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { readResponseMessage } from "@/lib/http/response-message";
 
 type DeleteInteractionButtonProps = {
   interactionId: string;
@@ -27,16 +28,21 @@ export function DeleteInteractionButton({ interactionId, redirectTo = "/interact
 
     setLoading(true);
     setError(null);
-    const response = await fetch(`/api/interactions/${interactionId}`, { method: "DELETE" });
-    const result = await response.json();
-    setLoading(false);
 
-    if (!response.ok) {
-      setError(result.error ?? "Suppression impossible.");
-      return;
+    try {
+      const response = await fetch(`/api/interactions/${interactionId}`, { method: "DELETE" });
+
+      if (!response.ok) {
+        setError(await readResponseMessage(response, "Suppression impossible."));
+        return;
+      }
+
+      router.replace(deletedUrl(redirectTo));
+    } catch {
+      setError("Erreur reseau pendant la suppression de l'interaction.");
+    } finally {
+      setLoading(false);
     }
-
-    router.replace(deletedUrl(redirectTo));
   }
 
   return (

@@ -46,12 +46,16 @@ export async function PUT(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const tenantContext = await getTenantContext();
-  if (!tenantContext) return NextResponse.json({ error: "Tenant context not found" }, { status: 401 });
+  try {
+    const tenantContext = await getTenantContext();
+    if (!tenantContext) return NextResponse.json({ error: "Tenant context not found" }, { status: 401 });
 
-  const { id } = await context.params;
-  const result = await deleteInteraction(tenantContext, id);
-  if (!result.allowed) return NextResponse.json({ error: "Only owner and admin roles can delete interactions." }, { status: 403 });
+    const { id } = await context.params;
+    const result = await deleteInteraction(tenantContext, id);
+    if (!result.allowed) return NextResponse.json({ error: "Only owner and admin roles can delete interactions." }, { status: 403 });
 
-  return NextResponse.json({ deleted: true });
+    return NextResponse.json({ deleted: true });
+  } catch (error) {
+    return apiErrorResponse(error);
+  }
 }
