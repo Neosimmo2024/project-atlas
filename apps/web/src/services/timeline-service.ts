@@ -86,7 +86,7 @@ export async function recordRelationshipCreated(context: TenantContext, relation
     }),
     recordTimelineEvent(context, {
       event_type: "organization_linked",
-      title: "Organisation liee",
+      title: "Organisation liée",
       description: `Relation ${relationship.relationship_type}`,
       occurred_at: relationship.created_at,
       ...subject,
@@ -100,7 +100,7 @@ export async function recordRelationshipCreated(context: TenantContext, relation
 export async function recordOrganizationUnlinked(context: TenantContext, relationship: Relationship) {
   await recordTimelineEvent(context, {
     event_type: "organization_unlinked",
-    title: "Organisation dissociee",
+    title: "Organisation dissociée",
     description: `Relation ${relationship.relationship_type}`,
     occurred_at: new Date().toISOString(),
     person_id: relationship.person_id,

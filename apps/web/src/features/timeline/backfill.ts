@@ -72,7 +72,7 @@ export function buildRelationshipBackfillEvents(relationship: Relationship): Bac
     },
     {
       ...baseEvent(relationship, "organization_linked", "relationship"),
-      title: "Organisation liee",
+      title: "Organisation liée",
       description: `Relation ${relationship.relationship_type}`,
       occurred_at: relationship.created_at,
       person_id: relationship.person_id,

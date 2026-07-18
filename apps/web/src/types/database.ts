@@ -43,6 +43,14 @@ type RoleRow = {
   created_at: string;
   updated_at: string;
 } & Record<string, unknown>;
+type ProfileRow = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  avatar_url: string | null;
+  created_at: string;
+  updated_at: string;
+} & Record<string, unknown>;
 
 export type Database = {
   public: {
@@ -53,6 +61,7 @@ export type Database = {
         Update: Partial<TenantInsert>;
         Relationships: NoRelationships;
       };
+      profiles: { Row: ProfileRow; Insert: Partial<ProfileRow>; Update: Partial<ProfileRow>; Relationships: NoRelationships };
       people: { Row: Row<Person>; Insert: Insert<Person>; Update: Update<Person>; Relationships: NoRelationships };
       organizations: { Row: Row<Organization>; Insert: Insert<Organization>; Update: Update<Organization>; Relationships: NoRelationships };
       interaction_types: { Row: Row<InteractionType>; Insert: Partial<InteractionType>; Update: Partial<InteractionType>; Relationships: NoRelationships };

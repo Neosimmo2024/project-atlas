@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { TimelineEmptyState } from "./timeline-empty-state";
 import { TimelineItem } from "./timeline-item";
+import { shouldShowTimelinePagination } from "@/features/timeline/pagination";
 import type { TimelineListResult } from "@/repositories/timeline-events";
 
 type TimelineListProps = {
@@ -20,13 +21,15 @@ export function TimelineList({ result, basePath, category }: TimelineListProps) 
       <div className="chronology-list">
         {result.events.map((event) => <TimelineItem key={event.id} event={event} />)}
       </div>
-      <div className="pagination">
-        <span className="muted">Page {result.page} / {result.pageCount} - {result.total} evenement(s)</span>
-        <div>
-          <Link className="button subtle-button" aria-disabled={result.page <= 1} href={previousHref}>Precedent</Link>
-          <Link className="button subtle-button" aria-disabled={result.page >= result.pageCount} href={nextHref}>Suivant</Link>
+      {shouldShowTimelinePagination(result.pageCount) ? (
+        <div className="pagination">
+          <span className="muted">Page {result.page} / {result.pageCount} - {result.total} événement(s)</span>
+          <div>
+            <Link className="button subtle-button" aria-disabled={result.page <= 1} href={previousHref}>Précédent</Link>
+            <Link className="button subtle-button" aria-disabled={result.page >= result.pageCount} href={nextHref}>Suivant</Link>
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

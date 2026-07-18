@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildInteractionBackfillEvent, buildPersonBackfillEvent, buildRelationshipBackfillEvents, buildTaskBackfillEvent } from "./backfill";
 import { TIMELINE_EVENT_LABELS } from "./options";
+import { shouldShowTimelinePagination } from "./pagination";
 import { normalizeTimelineListParams, timelineEventTypesForCategory } from "./search";
 import type { Interaction, Person, Relationship, Task } from "@/types/domain";
 
@@ -8,8 +9,10 @@ const now = "2026-01-01T10:00:00Z";
 
 describe("timeline helpers", () => {
   it("maps French event labels", () => {
-    expect(TIMELINE_EVENT_LABELS.interaction_created).toBe("Echange cree");
-    expect(TIMELINE_EVENT_LABELS.task_completed).toBe("Tache terminee");
+    expect(TIMELINE_EVENT_LABELS.interaction_created).toBe("Échange créé");
+    expect(TIMELINE_EVENT_LABELS.organization_linked).toBe("Organisation liée");
+    expect(TIMELINE_EVENT_LABELS.relationship_created).toBe("Relation créée");
+    expect(TIMELINE_EVENT_LABELS.task_completed).toBe("Tâche terminée");
   });
 
   it("normalizes pagination and category filters", () => {
@@ -22,6 +25,11 @@ describe("timeline helpers", () => {
 
   it("falls back to all events for unknown categories", () => {
     expect(timelineEventTypesForCategory("unknown")).toEqual([]);
+  });
+
+  it("hides pagination when there is only one chronology page", () => {
+    expect(shouldShowTimelinePagination(1)).toBe(false);
+    expect(shouldShowTimelinePagination(2)).toBe(true);
   });
 
   it("builds backfill events with stable idempotency keys", () => {
