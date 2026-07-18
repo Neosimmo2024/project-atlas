@@ -225,6 +225,15 @@ describe("action plan engine", () => {
     expect(plan({ tasks: [followUpTask], relationships: [rel] }).filter((item) => item.sourceType === "relationship_recommendation")).toEqual([]);
   });
 
+  it("keeps open tasks linked to inactive relationships without creating relationship recommendations", () => {
+    const rel = relationship({ id: "paused-relationship", status: "paused", last_interaction_at: "2026-06-01T12:00:00Z" });
+    const relationshipTask = task({ id: "paused-relationship-task", relationship_id: rel.id, organization_id: null, title: "Faire le point" });
+    const items = plan({ tasks: [relationshipTask], relationships: [rel] });
+
+    expect(items.map((item) => item.sourceId)).toEqual(["paused-relationship-task"]);
+    expect(items.some((item) => item.sourceType === "relationship_recommendation")).toBe(false);
+  });
+
   it("applies recommendation decisions", () => {
     const rel = relationship({ last_interaction_at: "2026-06-01T12:00:00Z" });
 

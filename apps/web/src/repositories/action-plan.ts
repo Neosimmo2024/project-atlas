@@ -48,7 +48,7 @@ export async function getActionPlanForUser(context: TenantContext, request: Acti
     .select("*")
     .eq("tenant_id", context.tenantId)
     .eq("organization_id", request.organizationId)
-    .eq("status", "active"));
+    .order("id", { ascending: true }));
 
   const relationshipIds = typedRelationships.map((relationship) => relationship.id);
 
@@ -64,13 +64,14 @@ export async function getActionPlanForUser(context: TenantContext, request: Acti
     : tasksQuery.eq("organization_id", request.organizationId);
 
   const [tasks, decisions, interactions] = await Promise.all([
-    fetchAllPages<Task>(tasksQuery),
+    fetchAllPages<Task>(tasksQuery.order("id", { ascending: true })),
     fetchAllPages<ActionPlanDecision>(supabase
       .from("action_plan_decisions")
       .select("*")
       .eq("tenant_id", context.tenantId)
       .eq("organization_id", request.organizationId)
-      .eq("user_id", context.userId)),
+      .eq("user_id", context.userId)
+      .order("id", { ascending: true })),
     relationshipIds.length > 0
       ? fetchAllPages<Interaction>(supabase
         .from("interactions")
@@ -78,7 +79,8 @@ export async function getActionPlanForUser(context: TenantContext, request: Acti
         .eq("tenant_id", context.tenantId)
         .is("deleted_at", null)
         .in("relationship_id", relationshipIds)
-        .order("interaction_date", { ascending: false }))
+        .order("interaction_date", { ascending: false })
+        .order("id", { ascending: true }))
       : Promise.resolve([] as Interaction[])
   ]);
 
