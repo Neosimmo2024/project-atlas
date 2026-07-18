@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PROJECT_STAGE_LABELS, PROJECT_STATUS_LABELS, PROJECT_TYPE_LABELS } from "@/features/projects/options";
+import { FilterBar, SearchInput } from "@/components/ui";
 import type { ProjectOwnerOption } from "@/repositories/projects";
 import type { ProjectStage, ProjectStatus, ProjectType } from "@/types/domain";
 
@@ -23,8 +24,8 @@ type ProjectFiltersProps = {
 
 export function ProjectFilters(props: ProjectFiltersProps) {
   return (
-    <form className="filters" action="/projects">
-      <label>Recherche<input className="input" name="query" defaultValue={props.query} placeholder="Titre, description, note" /></label>
+    <FilterBar action="/projects">
+      <label>Recherche<SearchInput name="query" defaultValue={props.query} placeholder="Titre, description, note" /></label>
       <label>
         Statut
         <select className="input" name="status" defaultValue={props.status}>
@@ -65,6 +66,6 @@ export function ProjectFilters(props: ProjectFiltersProps) {
       </details>
       <button className="button" type="submit">Filtrer</button>
       <Link className="button subtle-button" href="/projects">Reinitialiser</Link>
-    </form>
+    </FilterBar>
   );
 }

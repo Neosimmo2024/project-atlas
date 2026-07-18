@@ -5,6 +5,7 @@ import { ProjectForm } from "@/components/projects/project-form";
 import { ProjectNextAction } from "@/components/projects/project-next-action";
 import { ProjectTabs } from "@/components/projects/project-tabs";
 import { formatDate, projectSignals, projectStageLabel, projectStatusLabel, projectTypeLabel } from "@/components/projects/project-utils";
+import { EntityHeader, EntitySummary, PageSection } from "@/components/ui";
 import {
   getProjectDetail,
   listProjectOrganizationOptions,
@@ -54,34 +55,26 @@ export default async function ProjectDetailPage({ params, searchParams }: Projec
 
   return (
     <div className="page stack">
-      <header className="page-header">
-        <div>
-          <p className="muted">Projet</p>
-          <h1>{project.title}</h1>
-          <p className="muted">{projectTypeLabel(project.project_type)} - {projectStatusLabel(project.status)} - {projectStageLabel(project.stage)}</p>
-        </div>
-        <Link className="button subtle-button" href="/projects">Retour</Link>
-      </header>
+      <EntityHeader eyebrow="Projet" title={project.title} meta={`${projectTypeLabel(project.project_type)} - ${projectStatusLabel(project.status)} - ${projectStageLabel(project.stage)}`} actions={<Link className="button subtle-button" href="/projects">Retour</Link>} />
 
       {valueOf(query, "toast") ? <p className="success" aria-live="polite">{valueOf(query, "toast")}</p> : null}
       {valueOf(query, "projectSaved") === "1" ? <p className="success" aria-live="polite">Projet cree.</p> : null}
       {signals.length > 0 ? <div className="tag-list">{signals.map((signal) => <span className="tag" key={signal}>{signal}</span>)}</div> : null}
 
-      <section className="card stack">
-        <div className="grid">
+      <PageSection>
+        <EntitySummary>
           <p><strong>Responsable</strong><br />{project.owner_user_id}</p>
           <p><strong>Personne</strong><br />{detail.person ? <Link href={`/people/${detail.person.id}`}>{detail.person.display_name}</Link> : "-"}</p>
           <p><strong>Organisation</strong><br />{detail.organization ? <Link href={`/organizations/${detail.organization.id}`}>{detail.organization.name}</Link> : "-"}</p>
           <p><strong>Cloture prevue</strong><br />{formatDate(project.expected_close_at)}</p>
-        </div>
+        </EntitySummary>
         <ProjectActions project={project} />
-      </section>
+      </PageSection>
 
       <ProjectNextAction detail={detail} task={nextTask} />
       <ProjectTabs detail={detail} tasks={tasks} interactions={interactions} chronology={chronology} tab={tab} timelineCategory={timelineCategory} />
 
-      <section className="card stack">
-        <h2>Modifier</h2>
+      <PageSection title="Modifier">
         <ProjectForm
           mode="edit"
           project={project}
@@ -91,7 +84,7 @@ export default async function ProjectDetailPage({ params, searchParams }: Projec
           ownerOptions={ownerOptions}
           currentUserId={context.userId}
         />
-      </section>
+      </PageSection>
     </div>
   );
 }

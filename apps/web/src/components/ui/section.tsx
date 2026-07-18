@@ -23,3 +23,5 @@ export function Section({ title, description, actions, children, ...props }: Sec
     </Card>
   );
 }
+
+export const PageSection = Section;

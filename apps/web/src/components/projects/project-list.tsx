@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
 import { ProjectCard } from "./project-card";
+import { Pagination } from "@/components/ui";
 import type { ProjectsListResult } from "@/repositories/projects";
 
 type ProjectListProps = {
@@ -29,14 +30,7 @@ export function ProjectList({ result, currentParams, hasFilters }: ProjectListPr
       <div className="task-list">
         {result.projects.map((project) => <ProjectCard key={project.id} project={project} />)}
       </div>
-      <nav className="pagination" aria-label="Pagination Projets">
-        <span>{result.total} resultat(s)</span>
-        <div>
-          {result.page > 1 ? <Link className="button subtle-button" href={projectsUrl(currentParams, result.page - 1)}>Precedent</Link> : null}
-          <span>Page {result.page} / {result.pageCount}</span>
-          {result.page < result.pageCount ? <Link className="button subtle-button" href={projectsUrl(currentParams, result.page + 1)}>Suivant</Link> : null}
-        </div>
-      </nav>
+      <Pagination page={result.page} pageCount={result.pageCount} total={result.total} hrefForPage={(page) => projectsUrl(currentParams, page)} label="Pagination Projets" />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { TaskCard } from "@/components/tasks/task-card";
 import { TimelineFilters, normalizeTimelineCategory } from "@/components/timeline/timeline-filters";
 import { TimelineList } from "@/components/timeline/timeline-list";
 import { formatDate, formatMoney, projectStageLabel, projectStatusLabel, projectTypeLabel } from "./project-utils";
+import { EntityTabs } from "@/components/ui";
 import type { InteractionsListResult } from "@/repositories/interactions";
 import type { ProjectDetail } from "@/repositories/projects";
 import type { TasksListResult } from "@/repositories/tasks";
@@ -30,12 +31,12 @@ export function ProjectTabs({ detail, tasks, interactions, chronology, tab, time
 
   return (
     <section className="card stack">
-      <nav className="tabs" aria-label="Onglets Projet">
+      <EntityTabs label="Onglets Projet">
         <Link className={current === "overview" ? "active" : ""} href={tabHref(project.id, "overview")}>Vue ensemble</Link>
         <Link className={current === "tasks" ? "active" : ""} href={tabHref(project.id, "tasks")}>Taches</Link>
         <Link className={current === "interactions" ? "active" : ""} href={tabHref(project.id, "interactions")}>Echanges</Link>
         <Link className={current === "history" ? "active" : ""} href={tabHref(project.id, "history")}>Historique</Link>
-      </nav>
+      </EntityTabs>
 
       {current === "overview" ? (
         <div className="stack">

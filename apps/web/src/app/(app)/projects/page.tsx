@@ -3,6 +3,7 @@ import { EmptyState } from "@/components/empty-state";
 import { ProjectFilters } from "@/components/projects/project-filters";
 import { ProjectKpis } from "@/components/projects/project-kpis";
 import { ProjectList } from "@/components/projects/project-list";
+import { PageHeader } from "@/components/ui";
 import { listProjectOwnerOptions, listProjects } from "@/repositories/projects";
 import { getTenantContext } from "@/repositories/tenant-context";
 
@@ -53,14 +54,7 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
 
     return (
       <div className="page stack">
-        <header className="page-header">
-          <div>
-            <p className="muted">Projets</p>
-            <h1>Projets</h1>
-            <p className="muted">Suivez vos demarches, leur avancement et la prochaine action a realiser.</p>
-          </div>
-          <Link className="button link-button" href="/projects/new">Nouveau Projet</Link>
-        </header>
+        <PageHeader eyebrow="Projets" title="Projets" subtitle="Suivez vos demarches, leur avancement et la prochaine action a realiser." actions={<Link className="button link-button" href="/projects/new">Nouveau Projet</Link>} />
         <ProjectKpis projects={kpis.projects} />
         <ProjectFilters query={query} status={status} stage={stage} type={type} ownerId={ownerId} organizationId={organizationId} personId={personId} relationshipId={relationshipId} expectedClose={expectedClose} includeArchived={includeArchived} ownerOptions={ownerOptions} />
         <ProjectList result={result} currentParams={currentParams} hasFilters={hasFilters} />
@@ -69,13 +63,7 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
   } catch (error) {
     return (
       <div className="page stack">
-        <header className="page-header">
-          <div>
-            <p className="muted">Projets</p>
-            <h1>Projets</h1>
-          </div>
-          <Link className="button link-button" href="/projects/new">Nouveau Projet</Link>
-        </header>
+        <PageHeader eyebrow="Projets" title="Projets" actions={<Link className="button link-button" href="/projects/new">Nouveau Projet</Link>} />
         <EmptyState
           title={isMissingMigration(error) ? "La base de donnees des Projets n'est pas encore configuree." : "Impossible de charger les Projets."}
           body=""

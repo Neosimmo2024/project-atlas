@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ProjectForm } from "@/components/projects/project-form";
+import { PageHeader, PageSection } from "@/components/ui";
 import {
   listProjectOrganizationOptions,
   listProjectOwnerOptions,
@@ -37,14 +38,8 @@ export default async function NewProjectPage({ searchParams }: NewProjectPagePro
 
   return (
     <div className="page stack">
-      <header className="page-header">
-        <div>
-          <p className="muted">Projets</p>
-          <h1>Nouveau Projet</h1>
-        </div>
-        <Link className="button subtle-button" href="/projects">Retour</Link>
-      </header>
-      <section className="card stack">
+      <PageHeader eyebrow="Projets" title="Nouveau Projet" actions={<Link className="button subtle-button" href="/projects">Retour</Link>} />
+      <PageSection>
         <ProjectForm
           mode="create"
           defaults={defaults}
@@ -54,7 +49,7 @@ export default async function NewProjectPage({ searchParams }: NewProjectPagePro
           ownerOptions={ownerOptions}
           currentUserId={context?.userId ?? ""}
         />
-      </section>
+      </PageSection>
     </div>
   );
 }
