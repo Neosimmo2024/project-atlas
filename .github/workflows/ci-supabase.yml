@@ -196,6 +196,27 @@ jobs:
           SQL
           sleep 5
 
+      - name: Restart local Supabase after migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase stop
+          supabase start
+          supabase status -o env > supabase-status.env
+          set -a
+          source supabase-status.env
+          set +a
+          echo "::add-mask::$ANON_KEY"
+          echo "::add-mask::$SERVICE_ROLE_KEY"
+          echo "::add-mask::$DB_URL"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$ANON_KEY"
+            echo "QA_SUPABASE_URL=$API_URL"
+            echo "QA_SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "QA_DB_URL=$DB_URL"
+          } >> "$GITHUB_ENV"
+
       - name: Verify PostgREST schema cache
         run: node scripts/verify-supabase-qa.mjs
 
