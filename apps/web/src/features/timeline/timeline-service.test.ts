@@ -36,6 +36,9 @@ function task(status: Task["status"], updatedAt = "2026-01-01T10:00:00Z"): Task 
     source_id: "person-1",
     reason: null,
     metadata: {},
+    snoozed_until: null,
+    snooze_count: 0,
+    last_snoozed_at: null,
     created_at: "2026-01-01T09:00:00Z",
     updated_at: updatedAt,
     deleted_at: null

@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "e2e": "playwright test",
-    "integration": "vitest run src/features/people/people.rls.integration.test.ts src/features/organizations/organizations.rls.integration.test.ts src/features/relationships/relationships.rls.integration.test.ts src/features/interactions/interactions.rls.integration.test.ts src/features/tasks/tasks.rls.integration.test.ts src/features/timeline/timeline.rls.integration.test.ts",
+    "integration": "vitest run src/features/people/people.rls.integration.test.ts src/features/organizations/organizations.rls.integration.test.ts src/features/relationships/relationships.rls.integration.test.ts src/features/interactions/interactions.rls.integration.test.ts src/features/tasks/tasks.rls.integration.test.ts src/features/timeline/timeline.rls.integration.test.ts src/features/action-plan/action-plan.rls.integration.test.ts",
     "lint": "eslint .",
     "test": "vitest run src",
     "typecheck": "tsc --noEmit"

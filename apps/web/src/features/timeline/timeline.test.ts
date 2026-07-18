@@ -130,6 +130,9 @@ describe("timeline helpers", () => {
       source_id: "interaction-1",
       reason: null,
       metadata: {},
+      snoozed_until: null,
+      snooze_count: 0,
+      last_snoozed_at: null,
       created_at: now,
       updated_at: now,
       deleted_at: null
