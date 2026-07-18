@@ -1,5 +1,6 @@
 import { buildProjectsSearchOrFilter, normalizeProjectsListParams, type ProjectsSearchParams } from "@/features/projects/search";
-import type { ProjectArchiveInput, ProjectFormInput, ProjectLoseInput, ProjectWinInput } from "@/features/projects/validation";
+import type { ProjectArchiveInput, ProjectFormInput, ProjectLoseInput, ProjectPatchInput, ProjectWinInput } from "@/features/projects/validation";
+import { ApiError } from "@/lib/api-errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   recordProjectArchived,
@@ -56,6 +57,12 @@ type ProjectJoinedRow = Project & {
 
 type PagedQuery<T> = {
   range: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown; count?: number | null }>;
+};
+
+type ProjectReferenceInput = {
+  person_id?: string | null;
+  organization_id?: string | null;
+  relationship_id?: string | null;
 };
 
 async function fetchAllPages<T>(query: PagedQuery<T>) {
@@ -230,7 +237,7 @@ async function assertOwnerBelongsToTenant(context: TenantContext, ownerUserId: s
   if (!data) throw new Error("Le responsable du Projet est introuvable pour ce tenant.");
 }
 
-async function normalizeProjectReferences(context: TenantContext, input: ProjectFormInput) {
+async function normalizeProjectReferences(context: TenantContext, input: ProjectReferenceInput) {
   const supabase = await createSupabaseServerClient();
   const refs = {
     person_id: input.person_id ?? null,
@@ -268,6 +275,18 @@ async function normalizeProjectReferences(context: TenantContext, input: Project
   ]);
 
   return refs;
+}
+
+function notFoundProjectError() {
+  return new ApiError("Projet introuvable", 404, "PROJECT_NOT_FOUND");
+}
+
+function transitionConflict(message: string) {
+  return new ApiError(message, 409, "PROJECT_TRANSITION_CONFLICT");
+}
+
+function hasOwnField<T extends object, K extends PropertyKey>(input: T, field: K): input is T & Record<K, unknown> {
+  return Object.prototype.hasOwnProperty.call(input, field);
 }
 
 function projectPayload(context: TenantContext, input: ProjectFormInput, refs: { person_id: string | null; organization_id: string | null; relationship_id: string | null }) {
@@ -397,6 +416,61 @@ export async function updateProject(context: TenantContext, projectId: string, i
   return project;
 }
 
+export async function patchProject(context: TenantContext, projectId: string, input: ProjectPatchInput) {
+  const supabase = await createSupabaseServerClient();
+  const { data: previous, error: previousError } = await supabase.from("projects").select("*").eq("tenant_id", context.tenantId).eq("id", projectId).maybeSingle();
+  if (previousError) throw previousError;
+  if (!previous) throw notFoundProjectError();
+
+  const previousProject = previous as Project;
+  const updates: Partial<Project> = {};
+
+  if (hasOwnField(input, "title")) updates.title = input.title;
+  if (hasOwnField(input, "short_description")) updates.short_description = input.short_description;
+  if (hasOwnField(input, "project_type")) updates.project_type = input.project_type;
+  if (hasOwnField(input, "stage")) updates.stage = input.stage;
+  if (hasOwnField(input, "estimated_value")) updates.estimated_value = input.estimated_value;
+  if (hasOwnField(input, "currency")) updates.currency = input.currency;
+  if (hasOwnField(input, "expected_close_at")) updates.expected_close_at = input.expected_close_at;
+  if (hasOwnField(input, "closing_note")) updates.closing_note = input.closing_note;
+  if (hasOwnField(input, "metadata")) updates.metadata = input.metadata;
+
+  const referenceInput: ProjectReferenceInput = {};
+  for (const field of ["person_id", "organization_id", "relationship_id"] as const) {
+    if (hasOwnField(input, field)) referenceInput[field] = input[field];
+  }
+
+  if (Object.keys(referenceInput).length > 0) {
+    const refs = await normalizeProjectReferences(context, {
+      person_id: hasOwnField(input, "person_id") ? input.person_id : previousProject.person_id,
+      organization_id: hasOwnField(input, "organization_id") ? input.organization_id : previousProject.organization_id,
+      relationship_id: hasOwnField(input, "relationship_id") ? input.relationship_id : previousProject.relationship_id
+    });
+    for (const field of ["person_id", "organization_id", "relationship_id"] as const) {
+      if (hasOwnField(input, field)) updates[field] = refs[field];
+    }
+  }
+
+  if (hasOwnField(input, "owner_user_id")) {
+    const ownerUserId = input.owner_user_id ?? context.userId;
+    await assertOwnerBelongsToTenant(context, ownerUserId);
+    updates.owner_user_id = ownerUserId;
+  }
+
+  const { data, error } = await supabase
+    .from("projects")
+    .update(updates)
+    .eq("tenant_id", context.tenantId)
+    .eq("id", projectId)
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  const project = data as Project;
+  await recordProjectUpdated(context, project, previousProject);
+  return project;
+}
+
 async function updateProjectStatus(context: TenantContext, projectId: string, values: Partial<Project>) {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
@@ -410,7 +484,24 @@ async function updateProjectStatus(context: TenantContext, projectId: string, va
   return data as Project;
 }
 
+async function getProjectForTransition(context: TenantContext, projectId: string) {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.from("projects").select("*").eq("tenant_id", context.tenantId).eq("id", projectId).maybeSingle();
+  if (error) throw error;
+  if (!data) throw notFoundProjectError();
+  return data as Project;
+}
+
+function describeClosedProject(project: Project, target: "won" | "lost") {
+  if (project.status === "won") {
+    return target === "won" ? "Ce Projet est deja gagne." : "Ce Projet doit etre rouvert avant de pouvoir etre marque comme perdu.";
+  }
+  return target === "lost" ? "Ce Projet est deja perdu." : "Ce Projet doit etre rouvert avant de pouvoir etre marque comme gagne.";
+}
+
 export async function winProject(context: TenantContext, projectId: string, input: ProjectWinInput) {
+  const previous = await getProjectForTransition(context, projectId);
+  if (previous.status !== "open") throw transitionConflict(describeClosedProject(previous, "won"));
   const project = await updateProjectStatus(context, projectId, {
     status: "won",
     won_at: input.wonAt ?? new Date().toISOString(),
@@ -424,6 +515,8 @@ export async function winProject(context: TenantContext, projectId: string, inpu
 }
 
 export async function loseProject(context: TenantContext, projectId: string, input: ProjectLoseInput) {
+  const previous = await getProjectForTransition(context, projectId);
+  if (previous.status !== "open") throw transitionConflict(describeClosedProject(previous, "lost"));
   const project = await updateProjectStatus(context, projectId, {
     status: "lost",
     lost_at: input.lostAt ?? new Date().toISOString(),
@@ -437,6 +530,8 @@ export async function loseProject(context: TenantContext, projectId: string, inp
 }
 
 export async function reopenProject(context: TenantContext, projectId: string) {
+  const previous = await getProjectForTransition(context, projectId);
+  if (previous.status === "open") throw transitionConflict("Ce Projet est deja ouvert.");
   const project = await updateProjectStatus(context, projectId, {
     status: "open",
     won_at: null,
@@ -449,6 +544,8 @@ export async function reopenProject(context: TenantContext, projectId: string) {
 }
 
 export async function archiveProject(context: TenantContext, projectId: string, input: ProjectArchiveInput) {
+  const previous = await getProjectForTransition(context, projectId);
+  if (previous.archived_at) throw transitionConflict("Ce Projet est deja archive.");
   const project = await updateProjectStatus(context, projectId, {
     archived_at: input.archivedAt ?? new Date().toISOString(),
     closing_note: input.note ?? null
@@ -458,6 +555,8 @@ export async function archiveProject(context: TenantContext, projectId: string, 
 }
 
 export async function reactivateProject(context: TenantContext, projectId: string) {
+  const previous = await getProjectForTransition(context, projectId);
+  if (!previous.archived_at) throw transitionConflict("Ce Projet n'est pas archive.");
   const project = await updateProjectStatus(context, projectId, {
     archived_at: null
   });

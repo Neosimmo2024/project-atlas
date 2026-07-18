@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "@/lib/api-errors";
 import type { Project, TenantContext } from "@/types/domain";
 
 const mocks = vi.hoisted(() => ({
@@ -8,9 +9,9 @@ const mocks = vi.hoisted(() => ({
   getTenantContextMock: vi.fn(),
   listProjectsMock: vi.fn(),
   loseProjectMock: vi.fn(),
+  patchProjectMock: vi.fn(),
   reactivateProjectMock: vi.fn(),
   reopenProjectMock: vi.fn(),
-  updateProjectMock: vi.fn(),
   winProjectMock: vi.fn()
 }));
 
@@ -20,9 +21,9 @@ vi.mock("@/repositories/projects", () => ({
   getProjectDetail: mocks.getProjectDetailMock,
   listProjects: mocks.listProjectsMock,
   loseProject: mocks.loseProjectMock,
+  patchProject: mocks.patchProjectMock,
   reactivateProject: mocks.reactivateProjectMock,
   reopenProject: mocks.reopenProjectMock,
-  updateProject: mocks.updateProjectMock,
   winProject: mocks.winProjectMock
 }));
 
@@ -96,20 +97,48 @@ describe("projects API", () => {
     expect(mocks.createProjectMock).toHaveBeenCalledWith(context, expect.not.objectContaining({ tenant_id: expect.anything() }));
   });
 
-  it("gets and patches project detail", async () => {
+  it("gets and patches project detail with a single partial field", async () => {
     const route = await import("../../app/api/projects/[id]/route");
     mocks.getProjectDetailMock.mockResolvedValue({ project, person: null, organization: null, relationship: null, nextAction: null, lastActivityAt: project.created_at });
-    mocks.updateProjectMock.mockResolvedValue({ ...project, stage: "proposal" });
+    mocks.patchProjectMock.mockResolvedValue({ ...project, stage: "proposal" });
 
     const getResponse = await route.GET(new Request("http://localhost/api/projects/11111111-1111-4111-8111-111111111111"), { params: Promise.resolve({ id: project.id }) });
     const patchResponse = await route.PATCH(new Request("http://localhost/api/projects/11111111-1111-4111-8111-111111111111", {
       method: "PATCH",
-      body: JSON.stringify({ title: "Projet test", project_type: "recruitment", status: "open", stage: "proposal" })
+      body: JSON.stringify({ stage: "proposal" })
     }), { params: Promise.resolve({ id: project.id }) });
 
     expect(getResponse.status).toBe(200);
     expect(patchResponse.status).toBe(200);
-    expect(mocks.updateProjectMock).toHaveBeenCalledWith(context, project.id, expect.objectContaining({ stage: "proposal" }));
+    expect(mocks.patchProjectMock).toHaveBeenCalledWith(context, project.id, expect.objectContaining({ stage: "proposal" }));
+  });
+
+  it("rejects empty patches and transition fields in PATCH", async () => {
+    const route = await import("../../app/api/projects/[id]/route");
+
+    const emptyResponse = await route.PATCH(new Request("http://localhost/api/projects/11111111-1111-4111-8111-111111111111", {
+      method: "PATCH",
+      body: JSON.stringify({})
+    }), { params: Promise.resolve({ id: project.id }) });
+    const forbiddenResponse = await route.PATCH(new Request("http://localhost/api/projects/11111111-1111-4111-8111-111111111111", {
+      method: "PATCH",
+      body: JSON.stringify({ status: "won", final_value: "12000.00", won_at: "2026-07-18T08:00:00Z", lost_at: null, loss_reason: null, archived_at: null })
+    }), { params: Promise.resolve({ id: project.id }) });
+
+    expect(emptyResponse.status).toBe(400);
+    expect(forbiddenResponse.status).toBe(400);
+    expect(mocks.patchProjectMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 for business transition conflicts", async () => {
+    const win = await import("../../app/api/projects/[id]/win/route");
+    mocks.winProjectMock.mockRejectedValue(new ApiError("Ce Projet est deja gagne.", 409, "PROJECT_TRANSITION_CONFLICT"));
+
+    const response = await win.POST(new Request("http://localhost", { method: "POST", body: JSON.stringify({ finalValue: "12000.00" }) }), { params: Promise.resolve({ id: project.id }) });
+    const body = await response.json() as { error: string; code: string };
+
+    expect(response.status).toBe(409);
+    expect(body).toEqual({ error: "Ce Projet est deja gagne.", code: "PROJECT_TRANSITION_CONFLICT" });
   });
 
   it("runs win, lose, reopen, archive, and reactivate transitions", async () => {

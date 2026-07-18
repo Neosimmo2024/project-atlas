@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { parseProjectLoseInput } from "@/features/projects/validation";
+import { isApiError } from "@/lib/api-errors";
 import { getTenantContext } from "@/repositories/tenant-context";
 import { loseProject } from "@/repositories/projects";
 
@@ -17,6 +18,7 @@ export async function POST(request: Request, { params }: ProjectRouteParams) {
     const project = await loseProject(context, id, parsed.data);
     return NextResponse.json({ data: project });
   } catch (error) {
+    if (isApiError(error)) return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
     const message = error instanceof Error ? error.message : "Erreur inconnue.";
     return NextResponse.json({ error: message }, { status: 400 });
   }

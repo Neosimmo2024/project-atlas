@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { calculateProjectNextAction } from "@/repositories/projects";
-import { parseProjectInput, parseProjectLoseInput } from "./validation";
+import { parseProjectInput, parseProjectLoseInput, parseProjectPatchInput } from "./validation";
 import type { Task } from "@/types/domain";
 
 function task(overrides: Partial<Task> = {}): Task {
@@ -57,6 +57,38 @@ describe("projects foundation", () => {
 
     expect(parsed.success).toBe(false);
     if (!parsed.success) expect(parsed.error.issues[0]?.path).toEqual(["note"]);
+  });
+
+  it("accepts partial patches and explicit null deletion for optional fields", () => {
+    const stageOnly = parseProjectPatchInput({ stage: "proposal" });
+    const ownerOnly = parseProjectPatchInput({ owner_user_id: "11111111-1111-4111-8111-111111111111" });
+    const clearOptional = parseProjectPatchInput({ short_description: null, expected_close_at: null });
+
+    expect(stageOnly.success).toBe(true);
+    expect(ownerOnly.success).toBe(true);
+    expect(clearOptional.success).toBe(true);
+    if (clearOptional.success) {
+      expect(clearOptional.data.short_description).toBeNull();
+      expect(clearOptional.data.expected_close_at).toBeNull();
+    }
+  });
+
+  it("rejects empty patches and transition-only fields", () => {
+    const empty = parseProjectPatchInput({});
+    const forbidden = parseProjectPatchInput({
+      status: "won",
+      final_value: "12000.00",
+      won_at: "2026-07-18T08:00:00Z",
+      lost_at: null,
+      loss_reason: null,
+      archived_at: null
+    });
+
+    expect(empty.success).toBe(false);
+    expect(forbidden.success).toBe(false);
+    if (!forbidden.success) {
+      expect(forbidden.error.issues.map((issue) => issue.path.join("."))).toEqual(expect.arrayContaining(["status", "final_value", "won_at", "lost_at", "loss_reason", "archived_at"]));
+    }
   });
 
   it("calculates next action using overdue, today, next due, then priority without due date", () => {
