@@ -1,8 +1,9 @@
-export function EmptyState({ title, body }: { title: string; body: string }) {
+export function EmptyState({ title, body, action }: { title: string; body: string; action?: React.ReactNode }) {
   return (
     <div className="empty-state">
       <h2>{title}</h2>
-      <p>{body}</p>
+      {body ? <p>{body}</p> : null}
+      {action}
     </div>
   );
 }

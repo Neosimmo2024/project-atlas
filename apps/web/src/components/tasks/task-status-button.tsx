@@ -24,6 +24,7 @@ function taskToPayload(task: Task, nextStatus: TaskStatus) {
     organization_id: task.organization_id ?? "",
     relationship_id: task.relationship_id ?? "",
     interaction_id: task.interaction_id ?? "",
+    project_id: task.project_id ?? "",
     source_type: task.source_type,
     source_id: task.source_id ?? "",
     reason: task.reason ?? "",

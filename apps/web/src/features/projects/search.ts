@@ -9,6 +9,8 @@ export type ProjectsSearchParams = {
   type?: string;
   status?: string;
   stage?: string;
+  expectedClose?: string;
+  action?: string;
   includeArchived?: string | boolean;
   page?: number;
   pageSize?: number;
@@ -33,6 +35,8 @@ export function normalizeProjectsListParams(params: ProjectsSearchParams) {
     type: params.type?.trim() || "",
     status: params.status?.trim() || "",
     stage: params.stage?.trim() || "",
+    expectedClose: params.expectedClose?.trim() || "",
+    action: params.action?.trim() || "",
     includeArchived,
     page,
     pageSize,

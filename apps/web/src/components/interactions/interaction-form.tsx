@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { Interaction, InteractionType, Organization, Person, Relationship } from "@/types/domain";
+import type { Interaction, InteractionType, Organization, Person, Project, Relationship } from "@/types/domain";
 
 type FieldError = { field: string; message: string };
 
@@ -15,6 +15,8 @@ type InteractionFormProps = {
   peopleOptions: Pick<Person, "id" | "display_name">[];
   organizationOptions: Pick<Organization, "id" | "name">[];
   relationshipOptions: Pick<Relationship, "id" | "relationship_type" | "pipeline_stage" | "status">[];
+  projectOptions?: Pick<Project, "id" | "title">[];
+  defaults?: Partial<Pick<Interaction, "person_id" | "organization_id" | "relationship_id" | "project_id" | "interaction_date">>;
 };
 
 function valueOrEmpty(value: string | number | Record<string, unknown> | null | undefined) {
@@ -35,6 +37,7 @@ function formToPayload(form: HTMLFormElement) {
     person_id: String(data.get("person_id") ?? ""),
     organization_id: String(data.get("organization_id") ?? ""),
     relationship_id: String(data.get("relationship_id") ?? ""),
+    project_id: String(data.get("project_id") ?? ""),
     type_id: String(data.get("type_id") ?? ""),
     title: String(data.get("title") ?? ""),
     summary: String(data.get("summary") ?? ""),
@@ -51,7 +54,7 @@ function formToPayload(form: HTMLFormElement) {
   };
 }
 
-export function InteractionForm({ mode, interaction, types, peopleOptions, organizationOptions, relationshipOptions }: InteractionFormProps) {
+export function InteractionForm({ mode, interaction, types, peopleOptions, organizationOptions, relationshipOptions, projectOptions = [], defaults }: InteractionFormProps) {
   const router = useRouter();
   const [fieldErrors, setFieldErrors] = useState<FieldError[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -121,12 +124,12 @@ export function InteractionForm({ mode, interaction, types, peopleOptions, organ
           <FieldError name="type_id" />
         </label>
         <label>Titre<Input name="title" required defaultValue={interaction?.title ?? ""} /><FieldError name="title" /></label>
-        <label>Date<Input name="interaction_date" type="datetime-local" required defaultValue={toDateTimeLocal(interaction?.interaction_date) || new Date().toISOString().slice(0, 16)} /><FieldError name="interaction_date" /></label>
+        <label>Date<Input name="interaction_date" type="datetime-local" required defaultValue={toDateTimeLocal(interaction?.interaction_date ?? defaults?.interaction_date) || new Date().toISOString().slice(0, 16)} /><FieldError name="interaction_date" /></label>
         <label>Duree minutes<Input name="duration_minutes" type="number" min={0} max={1440} defaultValue={valueOrEmpty(interaction?.duration_minutes) as string} /><FieldError name="duration_minutes" /></label>
         <label>Lieu<Input name="location" defaultValue={valueOrEmpty(interaction?.location) as string} /><FieldError name="location" /></label>
         <label>
           Personne
-          <select className="input" name="person_id" defaultValue={interaction?.person_id ?? ""}>
+          <select className="input" name="person_id" defaultValue={interaction?.person_id ?? defaults?.person_id ?? ""}>
             <option value="">Aucune personne</option>
             {peopleOptions.map((person) => <option key={person.id} value={person.id}>{person.display_name}</option>)}
           </select>
@@ -134,7 +137,7 @@ export function InteractionForm({ mode, interaction, types, peopleOptions, organ
         </label>
         <label>
           Organisation
-          <select className="input" name="organization_id" defaultValue={interaction?.organization_id ?? ""}>
+          <select className="input" name="organization_id" defaultValue={interaction?.organization_id ?? defaults?.organization_id ?? ""}>
             <option value="">Aucune organisation</option>
             {organizationOptions.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}
           </select>
@@ -142,13 +145,21 @@ export function InteractionForm({ mode, interaction, types, peopleOptions, organ
         </label>
         <label>
           Relation
-          <select className="input" name="relationship_id" defaultValue={interaction?.relationship_id ?? ""}>
+          <select className="input" name="relationship_id" defaultValue={interaction?.relationship_id ?? defaults?.relationship_id ?? ""}>
             <option value="">Aucune relation</option>
             {relationshipOptions.map((relationship) => (
               <option key={relationship.id} value={relationship.id}>{relationship.relationship_type} - {relationship.pipeline_stage}</option>
             ))}
           </select>
           <FieldError name="relationship_id" />
+        </label>
+        <label>
+          Projet
+          <select className="input" name="project_id" defaultValue={interaction?.project_id ?? defaults?.project_id ?? ""}>
+            <option value="">Aucun projet</option>
+            {projectOptions.map((project) => <option key={project.id} value={project.id}>{project.title}</option>)}
+          </select>
+          <FieldError name="project_id" />
         </label>
       </div>
 

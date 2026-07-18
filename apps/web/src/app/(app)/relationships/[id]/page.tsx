@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DeleteRelationshipButton } from "@/components/relationships/delete-relationship-button";
 import { RelationshipForm } from "@/components/relationships/relationship-form";
+import { ContextProjects } from "@/components/projects/context-projects";
 import { TaskCard } from "@/components/tasks/task-card";
 import { TimelineFilters, normalizeTimelineCategory } from "@/components/timeline/timeline-filters";
 import { TimelineList } from "@/components/timeline/timeline-list";
@@ -12,6 +13,7 @@ import {
 } from "@/features/relationships/options";
 import { canDeleteRelationships } from "@/features/relationships/search";
 import { getRelationshipDetail, listRelationshipOrganizationOptions, listRelationshipPeopleOptions } from "@/repositories/relationships";
+import { listContextProjects } from "@/repositories/projects";
 import { listRelationshipTasks } from "@/repositories/tasks";
 import { getTenantContext } from "@/repositories/tenant-context";
 import { listTimelineEvents } from "@/repositories/timeline-events";
@@ -43,11 +45,12 @@ export default async function RelationshipDetailPage({ params, searchParams }: R
   const { relationship, person, organization } = detail;
   const timelineCategory = normalizeTimelineCategory(valueOf(query, "timelineCategory"));
   const timelinePage = Number(valueOf(query, "timelinePage") || 1);
-  const [peopleOptions, organizationOptions, chronology, tasks] = await Promise.all([
+  const [peopleOptions, organizationOptions, chronology, tasks, projects] = await Promise.all([
     listRelationshipPeopleOptions(context),
     listRelationshipOrganizationOptions(context),
     listTimelineEvents(context, { relationshipId: relationship.id, category: timelineCategory, page: timelinePage, pageSize: 10 }),
-    listRelationshipTasks(context, relationship.id)
+    listRelationshipTasks(context, relationship.id),
+    listContextProjects(context, { relationshipId: relationship.id })
   ]);
 
   return (
@@ -99,6 +102,8 @@ export default async function RelationshipDetailPage({ params, searchParams }: R
         <h2>Metadata</h2>
         <pre className="code-block">{JSON.stringify(relationship.metadata ?? {}, null, 2)}</pre>
       </section>
+
+      <ContextProjects result={projects} newHref={`/projects/new?relationshipId=${relationship.id}`} allHref={`/projects?relationshipId=${relationship.id}`} />
 
       <section className="card stack">
         <div className="page-header">

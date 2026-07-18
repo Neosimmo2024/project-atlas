@@ -143,6 +143,20 @@ export async function listInteractionRelationshipOptions(context: TenantContext)
   return (data ?? []) as Pick<Relationship, "id" | "relationship_type" | "pipeline_stage" | "status">[];
 }
 
+export async function listInteractionProjectOptions(context: TenantContext): Promise<Pick<Project, "id" | "title">[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("projects")
+    .select("id, title")
+    .eq("tenant_id", context.tenantId)
+    .is("archived_at", null)
+    .order("updated_at", { ascending: false })
+    .limit(200);
+
+  if (error) throw error;
+  return (data ?? []) as Pick<Project, "id" | "title">[];
+}
+
 export async function listInteractions(context: TenantContext, params: InteractionsSearchParams = {}): Promise<InteractionsListResult> {
   const supabase = await createSupabaseServerClient();
   const normalized = normalizeInteractionsListParams(params);
@@ -340,4 +354,8 @@ export async function listPersonTimelineInteractions(context: TenantContext, per
 
 export async function listOrganizationTimelineInteractions(context: TenantContext, organizationId: string) {
   return listInteractions(context, { organizationId, page: 1, pageSize: 10 });
+}
+
+export async function listProjectInteractions(context: TenantContext, projectId: string) {
+  return listInteractions(context, { projectId, page: 1, pageSize: 10 });
 }

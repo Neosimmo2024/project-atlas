@@ -112,6 +112,20 @@ export async function listTaskInteractionOptions(context: TenantContext): Promis
   return (data ?? []) as Pick<Interaction, "id" | "title">[];
 }
 
+export async function listTaskProjectOptions(context: TenantContext): Promise<Pick<Project, "id" | "title">[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("projects")
+    .select("id, title")
+    .eq("tenant_id", context.tenantId)
+    .is("archived_at", null)
+    .order("updated_at", { ascending: false })
+    .limit(200);
+
+  if (error) throw error;
+  return (data ?? []) as Pick<Project, "id" | "title">[];
+}
+
 export async function listTasks(context: TenantContext, params: TasksSearchParams = {}): Promise<TasksListResult> {
   const supabase = await createSupabaseServerClient();
   const normalized = normalizeTasksListParams(params);

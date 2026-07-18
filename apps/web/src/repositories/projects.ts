@@ -33,6 +33,9 @@ export type ProjectDetail = {
   lastActivityAt: string;
 };
 
+export type ProjectRelationshipOption = Pick<Relationship, "id" | "relationship_type" | "pipeline_stage" | "person_id" | "organization_id">;
+export type ProjectOwnerOption = { id: string; name: string };
+
 export type ProjectsListResult = {
   projects: ProjectListItem[];
   total: number;
@@ -331,20 +334,27 @@ export async function listProjects(context: TenantContext, params: ProjectsSearc
   if (normalized.type) query = query.eq("project_type", normalized.type);
   if (normalized.status) query = query.eq("status", normalized.status);
   if (normalized.stage) query = query.eq("stage", normalized.stage);
+  if (normalized.expectedClose) query = query.lte("expected_close_at", normalized.expectedClose);
   if (normalized.query) query = query.or(buildProjectsSearchOrFilter(["title", "short_description", "closing_note"], normalized.query));
 
-  const { rows, total } = await fetchAllPages<ProjectJoinedRow>(query.order("id", { ascending: true }));
+  const { rows } = await fetchAllPages<ProjectJoinedRow>(query.order("id", { ascending: true }));
   const projects = rows.map(mapProjectRow);
   const { tasks, lastEvents } = await listProjectActivityInputs(context, projects.map((project) => project.id));
-  const sorted = sortProjects(enrichProjects(context, projects, tasks, lastEvents));
+  const enriched = enrichProjects(context, projects, tasks, lastEvents);
+  const filtered = normalized.action === "overdue"
+    ? enriched.filter((project) => project.nextAction?.reason === "overdue")
+    : normalized.action === "none"
+      ? enriched.filter((project) => project.status === "open" && !project.nextAction)
+      : enriched;
+  const sorted = sortProjects(filtered);
   const paged = sorted.slice(normalized.from, normalized.to + 1);
 
   return {
     projects: paged,
-    total,
+    total: filtered.length,
     page: normalized.page,
     pageSize: normalized.pageSize,
-    pageCount: Math.max(Math.ceil(total / normalized.pageSize), 1)
+    pageCount: Math.max(Math.ceil(filtered.length / normalized.pageSize), 1)
   };
 }
 
@@ -374,6 +384,67 @@ export async function getProjectDetail(context: TenantContext, projectId: string
     nextAction,
     lastActivityAt: lastEvents.get(typed.id) ?? typed.created_at
   };
+}
+
+export async function listProjectPeopleOptions(context: TenantContext): Promise<Pick<Person, "id" | "display_name">[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("people")
+    .select("id, display_name")
+    .eq("tenant_id", context.tenantId)
+    .order("display_name", { ascending: true })
+    .limit(200);
+
+  if (error) throw error;
+  return (data ?? []) as Pick<Person, "id" | "display_name">[];
+}
+
+export async function listProjectOrganizationOptions(context: TenantContext): Promise<Pick<Organization, "id" | "name">[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("organizations")
+    .select("id, name")
+    .eq("tenant_id", context.tenantId)
+    .is("deleted_at", null)
+    .order("name", { ascending: true })
+    .limit(200);
+
+  if (error) throw error;
+  return (data ?? []) as Pick<Organization, "id" | "name">[];
+}
+
+export async function listProjectRelationshipOptions(context: TenantContext): Promise<ProjectRelationshipOption[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("relationships")
+    .select("id, relationship_type, pipeline_stage, person_id, organization_id")
+    .eq("tenant_id", context.tenantId)
+    .order("updated_at", { ascending: false })
+    .limit(200);
+
+  if (error) throw error;
+  return (data ?? []) as ProjectRelationshipOption[];
+}
+
+export async function listProjectOwnerOptions(context: TenantContext): Promise<ProjectOwnerOption[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("tenant_users")
+    .select("user_id")
+    .eq("tenant_id", context.tenantId)
+    .eq("status", "active")
+    .order("created_at", { ascending: true })
+    .limit(200);
+
+  if (error) throw error;
+  return (data ?? []).map((row) => {
+    const typed = row as { user_id: string };
+    return { id: typed.user_id, name: typed.user_id === context.userId ? "Utilisateur courant" : typed.user_id };
+  });
+}
+
+export async function listContextProjects(context: TenantContext, params: Pick<ProjectsSearchParams, "personId" | "organizationId" | "relationshipId">) {
+  return listProjects(context, { ...params, status: "open", includeArchived: false, page: 1, pageSize: 5 });
 }
 
 export async function createProject(context: TenantContext, input: ProjectFormInput) {
