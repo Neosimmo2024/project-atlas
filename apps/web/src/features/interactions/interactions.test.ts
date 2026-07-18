@@ -9,6 +9,7 @@ const baseInteraction: Interaction = {
   person_id: "11111111-1111-4111-8111-111111111111",
   organization_id: null,
   relationship_id: null,
+  project_id: null,
   type_id: "22222222-2222-4222-8222-222222222222",
   title: "Appel de qualification",
   summary: "Conversation avec André",
@@ -37,7 +38,7 @@ describe("interactions validation", () => {
     expect(result.error?.issues.map((issue) => issue.message)).toContain("Le type d'interaction est obligatoire.");
     expect(result.error?.issues.map((issue) => issue.message)).toContain("La date de l'interaction est obligatoire.");
     expect(result.error?.issues.map((issue) => issue.message)).toContain("La duree doit etre comprise entre 0 et 1440 minutes.");
-    expect(result.error?.issues.map((issue) => issue.message)).toContain("Selectionnez au moins une personne, une organisation ou une relation.");
+    expect(result.error?.issues.map((issue) => issue.message)).toContain("Selectionnez au moins une personne, une organisation, une relation ou un projet.");
   });
 
   it("normalizes nullable fields and metadata", () => {

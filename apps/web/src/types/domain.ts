@@ -5,8 +5,12 @@ export type PersonStatus = "to_qualify" | "qualified" | "contacted" | "in_relati
 export type Priority = "low" | "medium" | "high";
 export type TaskStatus = "todo" | "in_progress" | "waiting" | "completed" | "cancelled";
 export type TaskPriority = "low" | "normal" | "high" | "critical";
-export type TaskSourceType = "manual" | "person" | "organization" | "relationship" | "interaction";
+export type TaskSourceType = "manual" | "person" | "organization" | "relationship" | "interaction" | "project";
 export type TaskDueFilter = "overdue" | "today" | "week";
+export type ProjectType = "recruitment" | "property_sale" | "rental_management" | "partnership" | "training" | "referral" | "other";
+export type ProjectStatus = "open" | "won" | "lost";
+export type ProjectStage = "new" | "qualification" | "proposal" | "decision";
+export type ProjectLossReason = "price" | "competition" | "abandoned" | "too_long" | "no_response" | "bad_qualification" | "conditions_rejected" | "other";
 export type ActionPlanSourceType = "task" | "relationship_recommendation";
 export type ActionPlanCategory = "critical" | "priority" | "opportunity" | "to_schedule";
 export type ActionPlanPrimaryAction = "complete" | "snooze" | "schedule" | "open" | "create_task" | "add_interaction";
@@ -34,8 +38,21 @@ export type TimelineEventType =
   | "task_updated"
   | "task_deleted"
   | "organization_linked"
-  | "organization_unlinked";
-export type TimelineSourceType = "person" | "organization" | "relationship" | "interaction" | "task";
+  | "organization_unlinked"
+  | "project_created"
+  | "project_stage_changed"
+  | "project_owner_changed"
+  | "project_estimated_value_changed"
+  | "project_expected_close_changed"
+  | "project_won"
+  | "project_lost"
+  | "project_reopened"
+  | "project_archived"
+  | "project_reactivated"
+  | "project_task_created"
+  | "project_task_completed"
+  | "project_interaction_created";
+export type TimelineSourceType = "person" | "organization" | "relationship" | "interaction" | "task" | "project";
 export type TimelineVisibility = "tenant";
 
 export type Person = TenantScoped & {
@@ -126,6 +143,7 @@ export type Interaction = TenantScoped & {
   person_id: string | null;
   organization_id: string | null;
   relationship_id: string | null;
+  project_id?: string | null;
   type_id: string;
   title: string;
   summary: string | null;
@@ -159,6 +177,7 @@ export type Task = TenantScoped & {
   organization_id: string | null;
   relationship_id: string | null;
   interaction_id: string | null;
+  project_id?: string | null;
   source_type: TaskSourceType | null;
   source_id: string | null;
   reason: string | null;
@@ -169,6 +188,32 @@ export type Task = TenantScoped & {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+};
+
+export type Project = TenantScoped & {
+  id: string;
+  title: string;
+  short_description: string | null;
+  project_type: ProjectType;
+  status: ProjectStatus;
+  stage: ProjectStage;
+  owner_user_id: string;
+  created_by: string | null;
+  organization_id: string | null;
+  person_id: string | null;
+  relationship_id: string | null;
+  estimated_value: string | null;
+  final_value: string | null;
+  currency: string;
+  expected_close_at: string | null;
+  won_at: string | null;
+  lost_at: string | null;
+  loss_reason: ProjectLossReason | null;
+  closing_note: string | null;
+  archived_at: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
 };
 
 export type ActionPlanDecision = TenantScoped & {
@@ -222,6 +267,7 @@ export type TimelineEvent = TenantScoped & {
   relationship_id: string | null;
   interaction_id: string | null;
   task_id: string | null;
+  project_id?: string | null;
   source_type: TimelineSourceType;
   source_id: string;
   metadata: Record<string, unknown>;

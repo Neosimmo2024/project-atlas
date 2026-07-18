@@ -36,6 +36,7 @@ export async function GET(request: Request) {
     personId: url.searchParams.get("personId") ?? "",
     organizationId: url.searchParams.get("organizationId") ?? "",
     relationshipId: url.searchParams.get("relationshipId") ?? "",
+    projectId: url.searchParams.get("projectId") ?? "",
     page: Number(url.searchParams.get("page") ?? 1),
     pageSize: Number(url.searchParams.get("pageSize") ?? 10)
   });

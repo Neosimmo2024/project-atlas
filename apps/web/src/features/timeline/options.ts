@@ -12,7 +12,20 @@ export const TIMELINE_EVENT_LABELS: Record<TimelineEventType, string> = {
   task_updated: "Tâche modifiée",
   task_deleted: "Tâche supprimée",
   organization_linked: "Organisation liée",
-  organization_unlinked: "Organisation dissociée"
+  organization_unlinked: "Organisation dissociée",
+  project_created: "Projet créé",
+  project_stage_changed: "Étape de Projet modifiée",
+  project_owner_changed: "Responsable du Projet modifié",
+  project_estimated_value_changed: "Valeur estimée modifiée",
+  project_expected_close_changed: "Date de clôture prévue modifiée",
+  project_won: "Projet gagné",
+  project_lost: "Projet perdu",
+  project_reopened: "Projet rouvert",
+  project_archived: "Projet archivé",
+  project_reactivated: "Projet réactivé",
+  project_task_created: "Tâche créée dans le Projet",
+  project_task_completed: "Tâche terminée dans le Projet",
+  project_interaction_created: "Échange ajouté dans le Projet"
 };
 
 export const TIMELINE_FILTER_LABELS = {
@@ -20,14 +33,27 @@ export const TIMELINE_FILTER_LABELS = {
   interactions: "Échanges",
   tasks: "Tâches",
   relationships: "Relations",
-  organizations: "Organisations"
+  organizations: "Organisations",
+  projects: "Projets"
 } as const;
 
 export type TimelineFilterCategory = keyof typeof TIMELINE_FILTER_LABELS;
 
 export const TIMELINE_EVENT_CATEGORIES: Record<Exclude<TimelineFilterCategory, "all">, TimelineEventType[]> = {
-  interactions: ["interaction_created", "interaction_updated"],
-  tasks: ["task_created", "task_completed", "task_reopened", "task_updated", "task_deleted"],
+  interactions: ["interaction_created", "interaction_updated", "project_interaction_created"],
+  tasks: ["task_created", "task_completed", "task_reopened", "task_updated", "task_deleted", "project_task_created", "project_task_completed"],
   relationships: ["relationship_created"],
-  organizations: ["organization_created", "organization_linked", "organization_unlinked"]
+  organizations: ["organization_created", "organization_linked", "organization_unlinked"],
+  projects: [
+    "project_created",
+    "project_stage_changed",
+    "project_owner_changed",
+    "project_estimated_value_changed",
+    "project_expected_close_changed",
+    "project_won",
+    "project_lost",
+    "project_reopened",
+    "project_archived",
+    "project_reactivated"
+  ]
 };

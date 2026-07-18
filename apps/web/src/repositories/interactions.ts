@@ -5,13 +5,14 @@ import { buildInteractionsSearchOrFilter, canDeleteInteractions, normalizeIntera
 import type { InteractionFormInput } from "@/features/interactions/validation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { recordInteractionCreated, recordInteractionUpdated } from "@/services/timeline-service";
-import type { Interaction, InteractionType, Organization, Person, Relationship, TenantContext } from "@/types/domain";
+import type { Interaction, InteractionType, Organization, Person, Project, Relationship, TenantContext } from "@/types/domain";
 
 export type InteractionListItem = Interaction & {
   type: Pick<InteractionType, "id" | "slug" | "label"> | null;
   person: Pick<Person, "id" | "display_name" | "primary_email" | "primary_phone" | "city"> | null;
   organization: Pick<Organization, "id" | "name" | "city" | "primary_email" | "primary_phone"> | null;
   relationship: Pick<Relationship, "id" | "relationship_type" | "pipeline_stage" | "status"> | null;
+  project: Pick<Project, "id" | "title" | "status" | "stage"> | null;
 };
 
 export type InteractionsListResult = {
@@ -28,6 +29,7 @@ export type InteractionDetail = {
   person: Person | null;
   organization: Organization | null;
   relationship: Relationship | null;
+  project: Project | null;
 };
 
 type InteractionJoinedRow = Interaction & {
@@ -35,6 +37,7 @@ type InteractionJoinedRow = Interaction & {
   people?: InteractionListItem["person"];
   organizations?: InteractionListItem["organization"];
   relationships?: InteractionListItem["relationship"];
+  projects?: InteractionListItem["project"];
 };
 
 function mapInteractionRow(row: InteractionJoinedRow): InteractionListItem {
@@ -43,7 +46,8 @@ function mapInteractionRow(row: InteractionJoinedRow): InteractionListItem {
     type: row.interaction_types ?? null,
     person: row.people ?? null,
     organization: row.organizations ?? null,
-    relationship: row.relationships ?? null
+    relationship: row.relationships ?? null,
+    project: row.projects ?? null
   };
 }
 
@@ -145,7 +149,7 @@ export async function listInteractions(context: TenantContext, params: Interacti
 
   let query = supabase
     .from("interactions")
-    .select("*, interaction_types(id, slug, label), people(id, display_name, primary_email, primary_phone, city), organizations(id, name, city, primary_email, primary_phone), relationships(id, relationship_type, pipeline_stage, status)", { count: "exact" })
+    .select("*, interaction_types(id, slug, label), people(id, display_name, primary_email, primary_phone, city), organizations(id, name, city, primary_email, primary_phone), relationships(id, relationship_type, pipeline_stage, status), projects(id, title, status, stage)", { count: "exact" })
     .eq("tenant_id", context.tenantId)
     .is("deleted_at", null);
 
@@ -153,6 +157,7 @@ export async function listInteractions(context: TenantContext, params: Interacti
   if (normalized.personId) query = query.eq("person_id", normalized.personId);
   if (normalized.organizationId) query = query.eq("organization_id", normalized.organizationId);
   if (normalized.relationshipId) query = query.eq("relationship_id", normalized.relationshipId);
+  if (normalized.projectId) query = query.eq("project_id", normalized.projectId);
   if (normalized.query) query = query.or(await interactionSearchFilters(context, normalized.query));
 
   const { data, error, count } = await query
@@ -185,7 +190,7 @@ export async function getInteractionDetail(context: TenantContext, interactionId
   if (!interaction) return null;
 
   const typedInteraction = interaction as Interaction;
-  const [{ data: type, error: typeError }, { data: person, error: personError }, { data: organization, error: organizationError }, { data: relationship, error: relationshipError }] = await Promise.all([
+  const [{ data: type, error: typeError }, { data: person, error: personError }, { data: organization, error: organizationError }, { data: relationship, error: relationshipError }, { data: project, error: projectError }] = await Promise.all([
     supabase
       .from("interaction_types")
       .select("*")
@@ -199,6 +204,9 @@ export async function getInteractionDetail(context: TenantContext, interactionId
       : Promise.resolve({ data: null, error: null }),
     typedInteraction.relationship_id
       ? supabase.from("relationships").select("*").eq("tenant_id", context.tenantId).eq("id", typedInteraction.relationship_id).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    typedInteraction.project_id
+      ? supabase.from("projects").select("*").eq("tenant_id", context.tenantId).eq("id", typedInteraction.project_id).maybeSingle()
       : Promise.resolve({ data: null, error: null })
   ]);
 
@@ -206,13 +214,15 @@ export async function getInteractionDetail(context: TenantContext, interactionId
   if (personError) throw personError;
   if (organizationError) throw organizationError;
   if (relationshipError) throw relationshipError;
+  if (projectError) throw projectError;
 
   return {
     interaction: typedInteraction,
     type: type as InteractionType | null,
     person: person as Person | null,
     organization: organization as Organization | null,
-    relationship: relationship as Relationship | null
+    relationship: relationship as Relationship | null,
+    project: project as Project | null
   };
 }
 
@@ -260,6 +270,17 @@ async function assertInteractionReferencesBelongToTenant(context: TenantContext,
       .maybeSingle();
     if (relationshipError) throw relationshipError;
     if (!relationship) throw new Error("La relation selectionnee est introuvable pour ce tenant.");
+  }
+
+  if (input.project_id) {
+    const { data: project, error: projectError } = await supabase
+      .from("projects")
+      .select("id")
+      .eq("tenant_id", context.tenantId)
+      .eq("id", input.project_id)
+      .maybeSingle();
+    if (projectError) throw projectError;
+    if (!project) throw new Error("Le projet selectionne est introuvable pour ce tenant.");
   }
 }
 

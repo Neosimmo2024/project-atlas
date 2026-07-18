@@ -1,6 +1,6 @@
 import { normalizeTimelineListParams, type TimelineSearchParams } from "@/features/timeline/search";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { Interaction, Organization, Person, Relationship, Task, TenantContext, TimelineEvent, TimelineEventType, TimelineSourceType } from "@/types/domain";
+import type { Interaction, Organization, Person, Project, Relationship, Task, TenantContext, TimelineEvent, TimelineEventType, TimelineSourceType } from "@/types/domain";
 
 export type TimelineEventInput = {
   event_type: TimelineEventType;
@@ -13,6 +13,7 @@ export type TimelineEventInput = {
   relationship_id?: string | null;
   interaction_id?: string | null;
   task_id?: string | null;
+  project_id?: string | null;
   source_type: TimelineSourceType;
   source_id: string;
   metadata?: Record<string, unknown>;
@@ -26,6 +27,7 @@ export type TimelineListItem = TimelineEvent & {
   relationship: Pick<Relationship, "id" | "relationship_type" | "pipeline_stage"> | null;
   interaction: Pick<Interaction, "id" | "title"> | null;
   task: Pick<Task, "id" | "title" | "status"> | null;
+  project: Pick<Project, "id" | "title" | "status" | "stage"> | null;
   author: { id: string; name: string } | null;
 };
 
@@ -43,6 +45,7 @@ type TimelineJoinedRow = TimelineEvent & {
   relationships?: TimelineListItem["relationship"];
   interactions?: TimelineListItem["interaction"];
   tasks?: TimelineListItem["task"];
+  projects?: TimelineListItem["project"];
 };
 
 function mapTimelineRow(row: TimelineJoinedRow): TimelineListItem {
@@ -53,6 +56,7 @@ function mapTimelineRow(row: TimelineJoinedRow): TimelineListItem {
     relationship: row.relationships ?? null,
     interaction: row.interactions ?? null,
     task: row.tasks ?? null,
+    project: row.projects ?? null,
     author: null
   };
 }
@@ -88,13 +92,14 @@ export async function listTimelineEvents(context: TenantContext, params: Timelin
 
   let query = supabase
     .from("timeline_events")
-    .select("*, people(id, display_name), organizations(id, name), relationships(id, relationship_type, pipeline_stage), interactions(id, title), tasks(id, title, status)", { count: "exact" })
+    .select("*, people(id, display_name), organizations(id, name), relationships(id, relationship_type, pipeline_stage), interactions(id, title), tasks(id, title, status), projects(id, title, status, stage)", { count: "exact" })
     .eq("tenant_id", context.tenantId)
     .is("deleted_at", null);
 
   if (normalized.personId) query = query.eq("person_id", normalized.personId);
   if (normalized.organizationId) query = query.eq("organization_id", normalized.organizationId);
   if (normalized.relationshipId) query = query.eq("relationship_id", normalized.relationshipId);
+  if (normalized.projectId) query = query.eq("project_id", normalized.projectId);
   if (normalized.eventType) query = query.eq("event_type", normalized.eventType);
   if (normalized.eventTypes.length > 0) query = query.in("event_type", normalized.eventTypes);
   if (normalized.dateFrom) query = query.gte("occurred_at", normalized.dateFrom);

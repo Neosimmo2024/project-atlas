@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const taskStatuses = ["todo", "in_progress", "waiting", "completed", "cancelled"] as const;
 const taskPriorities = ["low", "normal", "high", "critical"] as const;
-const sourceTypes = ["manual", "person", "organization", "relationship", "interaction"] as const;
+const sourceTypes = ["manual", "person", "organization", "relationship", "interaction", "project"] as const;
 
 const nullableText = z
   .string()
@@ -51,6 +51,7 @@ export const taskInputSchema = z.object({
   organization_id: optionalNullableUuid,
   relationship_id: optionalNullableUuid,
   interaction_id: optionalNullableUuid,
+  project_id: optionalNullableUuid,
   source_type: z.enum(sourceTypes, "La source est invalide.").nullable().optional(),
   source_id: optionalNullableUuid,
   reason: optionalNullableText,
