@@ -13,6 +13,7 @@ Le moteur est deterministe, testable sans React et n'utilise pas d'IA en V1.
 - Configuration des scores : `apps/web/src/features/action-plan/config.ts`.
 - Repository serveur : `apps/web/src/repositories/action-plan.ts`.
 - API minimale : `GET /api/action-plan`.
+- Interface V1 : `apps/web/src/app/(app)/action-plan/page.tsx`.
 
 Le repository valide toujours l'organisation demandee dans le tenant courant avant de charger les donnees. Les taches sont filtrees en base sur l'organisation demandee et sur les relations actives de cette organisation ; le resultat ne depend pas d'une limite globale de tenant appliquee avant le filtrage metier. Les interactions liees aux relations actives sont aussi chargees sans limite arbitraire afin de determiner correctement le dernier echange.
 
@@ -175,18 +176,31 @@ Chaque item contient :
 - Le `organizationId` fourni a l'API est toujours valide cote serveur dans le tenant courant.
 - Une decision ne peut pas referencer une organisation d'un autre tenant, meme si le navigateur envoie un couple `tenant_id` / `organization_id` incoherent.
 
+## Interface V1
+
+La page `/action-plan` affiche le Plan d'action pour une organisation selectionnee.
+
+Elle permet :
+
+- selectionner une organisation du tenant courant ;
+- visualiser les actions triees par criticite et score ;
+- comprendre les raisons de priorisation ;
+- ouvrir la tache ou la relation source ;
+- creer une tache ou ajouter un echange depuis une recommandation de relation.
+
+La fiche organisation expose un lien direct vers `/action-plan?organizationId=<id>`.
+
 ## Limites V1
 
-- Pas d'interface React dediee.
 - Pas de mutations UI pour terminer ou reporter.
 - Pas de creation automatique de taches depuis recommandations.
+- Pas d'ecriture de decision utilisateur depuis l'interface Action Plan.
 - Pas d'evenement de Chronologie artificiel pour les recommandations.
 - Pas de personnalisation utilisateur des seuils.
 - Pas d'IA.
 
 ## Evolutions V2
 
-- Page "Mon Plan d'action".
 - Mutations utilisateur : terminer, reporter, convertir en tache.
 - Explications visuelles des raisons.
 - Preferences de score par tenant ou utilisateur.

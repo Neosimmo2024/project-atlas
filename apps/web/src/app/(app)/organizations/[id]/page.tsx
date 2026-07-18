@@ -53,7 +53,10 @@ export default async function OrganizationDetailPage({ params, searchParams }: O
           <p className="muted">Organizations</p>
           <h1>{organization.name}</h1>
         </div>
-        <Link className="button subtle-button" href="/organizations">Retour</Link>
+        <div className="actions">
+          <Link className="button subtle-button" href={`/action-plan?organizationId=${organization.id}`}>Plan d&apos;action</Link>
+          <Link className="button subtle-button" href="/organizations">Retour</Link>
+        </div>
       </header>
 
       <div className="grid">

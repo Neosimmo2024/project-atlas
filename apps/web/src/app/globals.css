@@ -286,6 +286,37 @@ button, input, select, textarea { font: inherit; }
 .task-overdue { border-color: #f3b8b3; }
 .interaction-meta { display: flex; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: 13px; }
 .interaction-meta span { border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+.action-plan-filters { grid-template-columns: minmax(260px, 1fr) auto; }
+.action-plan-list { display: grid; gap: 14px; }
+.action-plan-card { border-left: 4px solid var(--accent); }
+.action-plan-critical { border-left-color: var(--danger); }
+.action-plan-priority { border-left-color: #d97706; }
+.action-plan-opportunity { border-left-color: var(--accent); }
+.action-plan-to_schedule { border-left-color: #475467; }
+.action-plan-card-header { align-items: flex-start; display: flex; gap: 16px; justify-content: space-between; }
+.action-plan-card-header h2 { margin: 4px 0 0; font-size: 20px; }
+.action-plan-type { margin: 0; color: var(--accent-strong); font-size: 13px; font-weight: 800; text-transform: uppercase; }
+.action-plan-score {
+  display: inline-flex;
+  min-width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #edf5f2;
+  color: var(--accent-strong);
+  font-size: 18px;
+}
+.action-plan-reasons { display: flex; flex-wrap: wrap; gap: 8px; }
+.action-plan-reasons span,
+.action-plan-count {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fbfcfb;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 5px 8px;
+}
 .timeline-item { border-left: 3px solid var(--accent); display: grid; gap: 6px; padding: 4px 0 4px 12px; }
 .chronology-filters { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
 .chronology-list { display: grid; gap: 14px; }
