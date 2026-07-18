@@ -7,6 +7,21 @@ export type TaskStatus = "todo" | "in_progress" | "waiting" | "completed" | "can
 export type TaskPriority = "low" | "normal" | "high" | "critical";
 export type TaskSourceType = "manual" | "person" | "organization" | "relationship" | "interaction";
 export type TaskDueFilter = "overdue" | "today" | "week";
+export type ActionPlanSourceType = "task" | "relationship_recommendation";
+export type ActionPlanCategory = "critical" | "priority" | "opportunity" | "to_schedule";
+export type ActionPlanPrimaryAction = "complete" | "snooze" | "schedule" | "open" | "create_task" | "add_interaction";
+export type ActionPlanReasonCode =
+  | "TASK_OVERDUE_GT_24H"
+  | "TASK_OVERDUE_LT_24H"
+  | "DUE_TODAY"
+  | "HIGH_PRIORITY"
+  | "MEDIUM_PRIORITY"
+  | "SNOOZED"
+  | "SNOOZED_MULTIPLE_TIMES"
+  | "RELATIONSHIP_INACTIVE_14D"
+  | "RELATIONSHIP_INACTIVE_30D"
+  | "IMPORTANT_WITHOUT_DUE_DATE";
+export type ActionPlanDecisionType = "ignored" | "snoozed" | "converted_to_task" | "completed";
 export type TimelineEventType =
   | "person_created"
   | "organization_created"
@@ -148,9 +163,50 @@ export type Task = TenantScoped & {
   source_id: string | null;
   reason: string | null;
   metadata: Record<string, unknown>;
+  snoozed_until: string | null;
+  snooze_count: number;
+  last_snoozed_at: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+};
+
+export type ActionPlanDecision = TenantScoped & {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  recommendation_key: string;
+  decision_type: ActionPlanDecisionType;
+  snoozed_until: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ActionPlanReason = {
+  code: ActionPlanReasonCode;
+  weight: number;
+  metadata?: Record<string, number | string | boolean | null>;
+};
+
+export type ActionPlanItem = {
+  id: string;
+  sourceType: ActionPlanSourceType;
+  sourceId: string;
+  title: string;
+  description: string | null;
+  category: ActionPlanCategory;
+  score: number;
+  reasons: ActionPlanReason[];
+  dueAt: string | null;
+  completedAt: string | null;
+  snoozedUntil: string | null;
+  snoozeCount: number;
+  personId: string | null;
+  organizationId: string | null;
+  relationshipId: string | null;
+  primaryAction: ActionPlanPrimaryAction;
+  availableActions: ActionPlanPrimaryAction[];
+  createdAt: string;
 };
 
 export type TimelineEvent = TenantScoped & {

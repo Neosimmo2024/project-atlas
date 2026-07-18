@@ -22,6 +22,9 @@ const baseTask: Task = {
   source_id: "11111111-1111-4111-8111-111111111111",
   reason: "Suite qualification",
   metadata: { source: "manual" },
+  snoozed_until: null,
+  snooze_count: 0,
+  last_snoozed_at: null,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
   deleted_at: null
