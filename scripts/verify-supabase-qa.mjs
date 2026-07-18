@@ -20,22 +20,32 @@ async function verify() {
 }
 
 async function assertPostgrestProjectsVisible() {
-  const { error } = await supabase.from("projects").select("id", { count: "exact", head: true });
-  if (error) throw new Error(`PostgREST cannot see public.projects: ${JSON.stringify(error)}`);
+  await assertQueryEventually("projects", "id", "PostgREST cannot see public.projects");
 }
 
 async function assertInformationSchema() {
   const requiredTables = ["projects", "people", "organizations", "relationships", "tasks", "interactions", "timeline_events", "action_plan_decisions"];
   for (const table of requiredTables) {
-    const { data, error } = await supabase.from(table).select("id", { head: true, count: "exact" });
-    if (error) throw new Error(`Expected table ${table} to be queryable: ${JSON.stringify(error)}`);
-    void data;
+    await assertQueryEventually(table, "id", `Expected table ${table} to be queryable`);
   }
 
   for (const table of ["tasks", "interactions", "timeline_events"]) {
-    const { error } = await supabase.from(table).select("project_id", { head: true, count: "exact" });
-    if (error) throw new Error(`Expected ${table}.project_id to be queryable: ${JSON.stringify(error)}`);
+    await assertQueryEventually(table, "project_id", `Expected ${table}.project_id to be queryable`);
   }
+}
+
+async function assertQueryEventually(table, columns, message) {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= 12; attempt += 1) {
+    const { error } = await supabase.from(table).select(columns, { head: true, count: "exact" });
+    if (!error) return;
+
+    lastError = error;
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+  }
+
+  throw new Error(`${message}: ${JSON.stringify(lastError)}`);
 }
 
 verify().catch((error) => {

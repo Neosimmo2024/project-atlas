@@ -192,7 +192,9 @@ jobs:
               raise exception 'Expected projects RLS policies are missing';
             end if;
           end $$;
+          notify pgrst, 'reload schema';
           SQL
+          sleep 5
 
       - name: Verify PostgREST schema cache
         run: node scripts/verify-supabase-qa.mjs
