@@ -313,6 +313,9 @@ for each row execute function public.interaction_project_matches_tenant();
 
 alter table public.projects enable row level security;
 
+grant select, insert, update, delete on public.projects to authenticated;
+grant select, insert, update, delete on public.projects to service_role;
+
 drop policy if exists projects_select_for_members on public.projects;
 create policy projects_select_for_members
 on public.projects

@@ -118,7 +118,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Start local Supabase
-        run: supabase start
+        run: supabase start > /dev/null
 
       - name: Export local Supabase environment
         shell: bash
@@ -177,6 +177,9 @@ jobs:
             ) then
               raise exception 'RLS is not enabled on public.projects';
             end if;
+            if not has_table_privilege('authenticated', 'public.projects', 'select') then
+              raise exception 'authenticated role cannot select public.projects';
+            end if;
             if not exists (
               select 1 from pg_policies
               where schemaname = 'public'
@@ -201,7 +204,7 @@ jobs:
         run: |
           set -euo pipefail
           supabase stop
-          supabase start
+          supabase start > /dev/null
           supabase status -o env > supabase-status.env
           set -a
           source supabase-status.env
