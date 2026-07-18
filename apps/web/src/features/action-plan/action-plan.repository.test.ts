@@ -4,7 +4,8 @@ import type { ActionPlanRequest } from "../../repositories/action-plan";
 
 const mocks = vi.hoisted(() => ({
   fromMock: vi.fn(),
-  buildActionPlanMock: vi.fn()
+  buildActionPlanMock: vi.fn(),
+  createInteractionMock: vi.fn()
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -13,6 +14,10 @@ vi.mock("@/lib/supabase/server", () => ({
 
 vi.mock("@/features/action-plan/engine", () => ({
   buildActionPlan: mocks.buildActionPlanMock
+}));
+
+vi.mock("@/repositories/interactions", () => ({
+  createInteraction: mocks.createInteractionMock
 }));
 
 const context: TenantContext = {
@@ -98,10 +103,25 @@ function interactionsQuery(data: unknown[]) {
   return { select: vi.fn().mockReturnValue({ eq: eqTenant }), order, secondOrder: ordered.order, range: result.range };
 }
 
+function relationshipUpdateQuery() {
+  const eqId = vi.fn().mockResolvedValue({ error: null });
+  const eqTenant = vi.fn().mockReturnValue({ eq: eqId });
+  const update = vi.fn().mockReturnValue({ eq: eqTenant });
+  return { update, eqTenant, eqId };
+}
+
+function decisionUpsertQuery(data: unknown) {
+  const single = vi.fn().mockResolvedValue({ data, error: null });
+  const select = vi.fn().mockReturnValue({ single });
+  const upsert = vi.fn().mockReturnValue({ select });
+  return { upsert, select, single };
+}
+
 describe("action plan repository", () => {
   beforeEach(() => {
     mocks.fromMock.mockReset();
     mocks.buildActionPlanMock.mockReset();
+    mocks.createInteractionMock.mockReset();
     mocks.buildActionPlanMock.mockReturnValue([item]);
   });
 
@@ -110,7 +130,7 @@ describe("action plan repository", () => {
     mocks.fromMock.mockReturnValueOnce(organization);
     const { getActionPlanForUser } = await import("../../repositories/action-plan");
 
-    await expect(getActionPlanForUser(context, { organizationId: "missing" })).rejects.toThrow("L'organisation selectionnee est introuvable pour ce tenant.");
+    await expect(getActionPlanForUser(context, { organizationId: "missing" })).rejects.toThrow("L’organisation sélectionnée est introuvable pour ce tenant.");
     expect(mocks.buildActionPlanMock).not.toHaveBeenCalled();
   });
 
@@ -217,5 +237,50 @@ describe("action plan repository", () => {
     await getActionPlanForUser(context, { organizationId: "organization-1" });
 
     expect(tasks.or).toHaveBeenCalledWith("organization_id.eq.organization-1,relationship_id.in.(relationship-paused)");
+  });
+
+  it("updates the relationship last activity when an action plan interaction is created", async () => {
+    const relationshipUpdate = relationshipUpdateQuery();
+    const decisionUpsert = decisionUpsertQuery({ id: "decision-1" });
+    mocks.fromMock
+      .mockReturnValueOnce(relationshipUpdate)
+      .mockReturnValueOnce(decisionUpsert);
+    mocks.createInteractionMock.mockResolvedValue({
+      id: "interaction-1",
+      relationship_id: "relationship-1",
+      interaction_date: "2026-07-18T12:00:00.000Z"
+    });
+    const { createActionPlanInteraction } = await import("../../repositories/action-plan");
+
+    await createActionPlanInteraction(context, {
+      itemId: "relationship_inactive:relationship-1",
+      organizationId: "organization-1",
+      interaction: {
+        organization_id: "organization-1",
+        person_id: "person-1",
+        relationship_id: "relationship-1",
+        type_id: "type-1",
+        title: "Échange ajouté depuis le Plan d’action",
+        summary: null,
+        interaction_date: "2026-07-18T12:00:00.000Z",
+        duration_minutes: null,
+        location: null,
+        change_reason: null,
+        main_obstacle: null,
+        timing: null,
+        dna_compatibility: null,
+        work_with_person_desire: null,
+        comments: null,
+        metadata: {}
+      }
+    });
+
+    expect(relationshipUpdate.update).toHaveBeenCalledWith({ last_interaction_at: "2026-07-18T12:00:00.000Z" });
+    expect(relationshipUpdate.eqTenant).toHaveBeenCalledWith("tenant_id", "tenant-a");
+    expect(relationshipUpdate.eqId).toHaveBeenCalledWith("id", "relationship-1");
+    expect(decisionUpsert.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      decision_type: "completed",
+      recommendation_key: "relationship_inactive:relationship-1"
+    }), { onConflict: "tenant_id,organization_id,user_id,recommendation_key" });
   });
 });

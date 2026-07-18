@@ -19,7 +19,7 @@ export function LoginForm() {
     async function redirectActiveSession() {
       const { data: { session } } = await supabase.auth.getSession();
       if (mounted && session) {
-        router.replace("/dashboard");
+        router.replace("/action-plan");
         router.refresh();
       }
     }
@@ -44,7 +44,7 @@ export function LoginForm() {
       setError(signInError.message);
       return;
     }
-    router.replace("/dashboard");
+    router.replace("/action-plan");
     router.refresh();
   }
 

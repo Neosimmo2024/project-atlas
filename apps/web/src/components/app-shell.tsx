@@ -3,11 +3,11 @@ import Link from "next/link";
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/people", label: "People" },
-  { href: "/organizations", label: "Organizations" },
-  { href: "/relationships", label: "Relationships" },
-  { href: "/interactions", label: "Interactions" },
-  { href: "/tasks", label: "Tasks" },
-  { href: "/action-plan", label: "Action Plan" }
+  { href: "/organizations", label: "Organisations" },
+  { href: "/relationships", label: "Relations" },
+  { href: "/interactions", label: "Échanges" },
+  { href: "/tasks", label: "Tâches" },
+  { href: "/action-plan", label: "Plan d’action" }
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
