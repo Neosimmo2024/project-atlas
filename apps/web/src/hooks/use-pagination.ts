@@ -2,8 +2,8 @@
 
 import { useMemo } from "react";
 
-export function usePagination({ page, pageCount, total }: { page: number; pageCount: number; total: number }) {
-  return useMemo(() => ({
+export function getPaginationState({ page, pageCount, total }: { page: number; pageCount: number; total: number }) {
+  return {
     page,
     pageCount,
     total,
@@ -11,5 +11,9 @@ export function usePagination({ page, pageCount, total }: { page: number; pageCo
     hasNext: page < pageCount,
     previousPage: Math.max(page - 1, 1),
     nextPage: Math.min(page + 1, pageCount)
-  }), [page, pageCount, total]);
+  };
+}
+
+export function usePagination({ page, pageCount, total }: { page: number; pageCount: number; total: number }) {
+  return useMemo(() => getPaginationState({ page, pageCount, total }), [page, pageCount, total]);
 }

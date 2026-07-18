@@ -405,7 +405,6 @@ export async function listProjectOrganizationOptions(context: TenantContext): Pr
     .from("organizations")
     .select("id, name")
     .eq("tenant_id", context.tenantId)
-    .is("deleted_at", null)
     .order("name", { ascending: true })
     .limit(200);
 
