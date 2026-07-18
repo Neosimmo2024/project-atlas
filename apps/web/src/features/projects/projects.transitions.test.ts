@@ -21,8 +21,10 @@ vi.mock("@/lib/supabase/server", () => ({
 
 vi.mock("@/services/timeline-service", () => timelineMocks);
 
-type TableName = "projects" | "tenant_users";
-type TableRow = Project | { id: string; tenant_id: string; user_id: string; status: string };
+type RelationshipRow = { id: string; tenant_id: string; person_id: string; organization_id: string | null };
+type ReferenceRow = { id: string; tenant_id: string };
+type TableName = "projects" | "tenant_users" | "relationships" | "people" | "organizations";
+type TableRow = Project | RelationshipRow | ReferenceRow | { id: string; tenant_id: string; user_id: string; status: string };
 type Tables = Record<TableName, TableRow[]>;
 
 const context: TenantContext = {
@@ -60,6 +62,10 @@ function project(overrides: Partial<Project> = {}): Project {
     updated_at: "2026-07-18T08:00:00Z",
     ...overrides
   };
+}
+
+function relationship(id: string, personId: string, organizationId: string | null): RelationshipRow {
+  return { id, tenant_id: "tenant-a", person_id: personId, organization_id: organizationId };
 }
 
 function matches(row: TableRow, filters: Record<string, unknown>) {
@@ -120,7 +126,10 @@ describe("projects repository patch and transitions", () => {
   it("patches a single title without deleting absent fields", async () => {
     const tables: Tables = {
       projects: [project()],
-      tenant_users: [{ id: "tenant-user-a", tenant_id: "tenant-a", user_id: "user-a", status: "active" }]
+      tenant_users: [{ id: "tenant-user-a", tenant_id: "tenant-a", user_id: "user-a", status: "active" }],
+      relationships: [],
+      people: [],
+      organizations: []
     };
     installSupabase(tables);
     const { patchProject } = await import("@/repositories/projects");
@@ -136,7 +145,10 @@ describe("projects repository patch and transitions", () => {
   it("patches only stage, owner, and explicit null values", async () => {
     const tables: Tables = {
       projects: [project()],
-      tenant_users: [{ id: "tenant-user-b", tenant_id: "tenant-a", user_id: "user-b", status: "active" }]
+      tenant_users: [{ id: "tenant-user-b", tenant_id: "tenant-a", user_id: "user-b", status: "active" }],
+      relationships: [],
+      people: [],
+      organizations: []
     };
     installSupabase(tables);
     const { patchProject } = await import("@/repositories/projects");
@@ -158,7 +170,10 @@ describe("projects repository patch and transitions", () => {
   it("refuses cross-tenant transition targets as not found", async () => {
     const tables: Tables = {
       projects: [project({ tenant_id: "tenant-b" })],
-      tenant_users: []
+      tenant_users: [],
+      relationships: [],
+      people: [],
+      organizations: []
     };
     installSupabase(tables);
     const { archiveProject, loseProject, reactivateProject, reopenProject, winProject } = await import("@/repositories/projects");
@@ -173,7 +188,10 @@ describe("projects repository patch and transitions", () => {
   it("creates exactly one timeline event for valid transitions and none for refused transitions", async () => {
     const tables: Tables = {
       projects: [project()],
-      tenant_users: []
+      tenant_users: [],
+      relationships: [],
+      people: [],
+      organizations: []
     };
     installSupabase(tables);
     const { loseProject, reopenProject, winProject } = await import("@/repositories/projects");
@@ -194,7 +212,10 @@ describe("projects repository patch and transitions", () => {
   it("refuses double lose, winning a lost project, double archive, and reactivating an active project", async () => {
     const tables: Tables = {
       projects: [project()],
-      tenant_users: []
+      tenant_users: [],
+      relationships: [],
+      people: [],
+      organizations: []
     };
     installSupabase(tables);
     const { archiveProject, loseProject, reactivateProject, winProject } = await import("@/repositories/projects");
@@ -212,5 +233,81 @@ describe("projects repository patch and transitions", () => {
     expect(timelineMocks.recordProjectArchived).toHaveBeenCalledTimes(1);
     await expectConflict(archiveProject(context, "11111111-1111-4111-8111-111111111111", {}), "Ce Projet est deja archive.");
     expect(timelineMocks.recordProjectArchived).toHaveBeenCalledTimes(1);
+  });
+
+  it("changes relationship alone and derives person and organization from the new relationship", async () => {
+    const tables: Tables = {
+      projects: [project({ person_id: "person-florence", organization_id: "org-a", relationship_id: "relationship-florence" })],
+      tenant_users: [],
+      relationships: [
+        relationship("relationship-florence", "person-florence", "org-a"),
+        relationship("relationship-sophie", "person-sophie", "org-b")
+      ],
+      people: [{ id: "person-sophie", tenant_id: "tenant-a" }],
+      organizations: [{ id: "org-b", tenant_id: "tenant-a" }]
+    };
+    installSupabase(tables);
+    const { patchProject } = await import("@/repositories/projects");
+
+    const updated = await patchProject(context, "11111111-1111-4111-8111-111111111111", { relationship_id: "relationship-sophie" });
+
+    expect(updated.relationship_id).toBe("relationship-sophie");
+    expect(updated.person_id).toBe("person-sophie");
+    expect(updated.organization_id).toBe("org-b");
+  });
+
+  it("rejects a new relationship with an inconsistent explicit person or organization", async () => {
+    const tables: Tables = {
+      projects: [project({ person_id: "person-florence", organization_id: "org-a", relationship_id: "relationship-florence" })],
+      tenant_users: [],
+      relationships: [relationship("relationship-sophie", "person-sophie", "org-b")],
+      people: [{ id: "person-florence", tenant_id: "tenant-a" }],
+      organizations: [{ id: "org-a", tenant_id: "tenant-a" }]
+    };
+    installSupabase(tables);
+    const { patchProject } = await import("@/repositories/projects");
+
+    await expect(patchProject(context, "11111111-1111-4111-8111-111111111111", { relationship_id: "relationship-sophie", person_id: "person-florence" }))
+      .rejects.toThrow("La personne fournie ne correspond pas");
+    await expect(patchProject(context, "11111111-1111-4111-8111-111111111111", { relationship_id: "relationship-sophie", organization_id: "org-a" }))
+      .rejects.toThrow("L");
+  });
+
+  it("clears relationship without changing existing person or organization unless explicitly requested", async () => {
+    const tables: Tables = {
+      projects: [project({ person_id: "person-florence", organization_id: "org-a", relationship_id: "relationship-florence" })],
+      tenant_users: [],
+      relationships: [relationship("relationship-florence", "person-florence", "org-a")],
+      people: [],
+      organizations: []
+    };
+    installSupabase(tables);
+    const { patchProject } = await import("@/repositories/projects");
+
+    const relationshipOnly = await patchProject(context, "11111111-1111-4111-8111-111111111111", { relationship_id: null });
+    expect(relationshipOnly.relationship_id).toBeNull();
+    expect(relationshipOnly.person_id).toBe("person-florence");
+    expect(relationshipOnly.organization_id).toBe("org-a");
+
+    tables.projects[0] = project({ person_id: "person-florence", organization_id: "org-a", relationship_id: "relationship-florence" });
+    const relationshipAndPerson = await patchProject(context, "11111111-1111-4111-8111-111111111111", { relationship_id: null, person_id: null });
+    expect(relationshipAndPerson.relationship_id).toBeNull();
+    expect(relationshipAndPerson.person_id).toBeNull();
+    expect(relationshipAndPerson.organization_id).toBe("org-a");
+  });
+
+  it("rejects person changes that are incompatible with the existing relationship", async () => {
+    const tables: Tables = {
+      projects: [project({ person_id: "person-florence", organization_id: "org-a", relationship_id: "relationship-florence" })],
+      tenant_users: [],
+      relationships: [relationship("relationship-florence", "person-florence", "org-a")],
+      people: [{ id: "person-sophie", tenant_id: "tenant-a" }],
+      organizations: []
+    };
+    installSupabase(tables);
+    const { patchProject } = await import("@/repositories/projects");
+
+    await expect(patchProject(context, "11111111-1111-4111-8111-111111111111", { person_id: "person-sophie" }))
+      .rejects.toThrow("La personne fournie ne correspond pas");
   });
 });

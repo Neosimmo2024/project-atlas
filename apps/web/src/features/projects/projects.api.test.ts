@@ -122,7 +122,7 @@ describe("projects API", () => {
     }), { params: Promise.resolve({ id: project.id }) });
     const forbiddenResponse = await route.PATCH(new Request("http://localhost/api/projects/11111111-1111-4111-8111-111111111111", {
       method: "PATCH",
-      body: JSON.stringify({ status: "won", final_value: "12000.00", won_at: "2026-07-18T08:00:00Z", lost_at: null, loss_reason: null, archived_at: null })
+      body: JSON.stringify({ status: "won", final_value: "12000.00", won_at: "2026-07-18T08:00:00Z", lost_at: null, loss_reason: null, archived_at: null, closing_note: "Note interdite" })
     }), { params: Promise.resolve({ id: project.id }) });
 
     expect(emptyResponse.status).toBe(400);

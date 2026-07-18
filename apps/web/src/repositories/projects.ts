@@ -393,29 +393,6 @@ export async function createProject(context: TenantContext, input: ProjectFormIn
   return project;
 }
 
-export async function updateProject(context: TenantContext, projectId: string, input: ProjectFormInput) {
-  const supabase = await createSupabaseServerClient();
-  const { data: previous, error: previousError } = await supabase.from("projects").select("*").eq("tenant_id", context.tenantId).eq("id", projectId).maybeSingle();
-  if (previousError) throw previousError;
-  if (!previous) throw new Error("Le Projet est introuvable pour ce tenant.");
-
-  const ownerUserId = input.owner_user_id ?? (previous as Project).owner_user_id;
-  await assertOwnerBelongsToTenant(context, ownerUserId);
-  const refs = await normalizeProjectReferences(context, input);
-  const { data, error } = await supabase
-    .from("projects")
-    .update(projectPayload(context, { ...input, owner_user_id: ownerUserId }, refs))
-    .eq("tenant_id", context.tenantId)
-    .eq("id", projectId)
-    .select("*")
-    .single();
-
-  if (error) throw error;
-  const project = data as Project;
-  await recordProjectUpdated(context, project, previous as Project);
-  return project;
-}
-
 export async function patchProject(context: TenantContext, projectId: string, input: ProjectPatchInput) {
   const supabase = await createSupabaseServerClient();
   const { data: previous, error: previousError } = await supabase.from("projects").select("*").eq("tenant_id", context.tenantId).eq("id", projectId).maybeSingle();
@@ -432,23 +409,26 @@ export async function patchProject(context: TenantContext, projectId: string, in
   if (hasOwnField(input, "estimated_value")) updates.estimated_value = input.estimated_value;
   if (hasOwnField(input, "currency")) updates.currency = input.currency;
   if (hasOwnField(input, "expected_close_at")) updates.expected_close_at = input.expected_close_at;
-  if (hasOwnField(input, "closing_note")) updates.closing_note = input.closing_note;
   if (hasOwnField(input, "metadata")) updates.metadata = input.metadata;
 
-  const referenceInput: ProjectReferenceInput = {};
-  for (const field of ["person_id", "organization_id", "relationship_id"] as const) {
-    if (hasOwnField(input, field)) referenceInput[field] = input[field];
-  }
-
-  if (Object.keys(referenceInput).length > 0) {
+  const changesReferences = hasOwnField(input, "person_id") || hasOwnField(input, "organization_id") || hasOwnField(input, "relationship_id");
+  if (changesReferences) {
     const refs = await normalizeProjectReferences(context, {
-      person_id: hasOwnField(input, "person_id") ? input.person_id : previousProject.person_id,
-      organization_id: hasOwnField(input, "organization_id") ? input.organization_id : previousProject.organization_id,
+      person_id: hasOwnField(input, "person_id") ? input.person_id : null,
+      organization_id: hasOwnField(input, "organization_id") ? input.organization_id : null,
       relationship_id: hasOwnField(input, "relationship_id") ? input.relationship_id : previousProject.relationship_id
     });
-    for (const field of ["person_id", "organization_id", "relationship_id"] as const) {
-      if (hasOwnField(input, field)) updates[field] = refs[field];
+
+    if (hasOwnField(input, "relationship_id")) {
+      updates.relationship_id = input.relationship_id;
+      if (input.relationship_id) {
+        updates.person_id = refs.person_id;
+        updates.organization_id = refs.organization_id;
+      }
     }
+
+    if (hasOwnField(input, "person_id")) updates.person_id = refs.person_id;
+    if (hasOwnField(input, "organization_id")) updates.organization_id = refs.organization_id;
   }
 
   if (hasOwnField(input, "owner_user_id")) {

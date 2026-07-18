@@ -81,13 +81,14 @@ describe("projects foundation", () => {
       won_at: "2026-07-18T08:00:00Z",
       lost_at: null,
       loss_reason: null,
-      archived_at: null
+      archived_at: null,
+      closing_note: "Note interdite"
     });
 
     expect(empty.success).toBe(false);
     expect(forbidden.success).toBe(false);
     if (!forbidden.success) {
-      expect(forbidden.error.issues.map((issue) => issue.path.join("."))).toEqual(expect.arrayContaining(["status", "final_value", "won_at", "lost_at", "loss_reason", "archived_at"]));
+      expect(forbidden.error.issues.map((issue) => issue.path.join("."))).toEqual(expect.arrayContaining(["status", "final_value", "won_at", "lost_at", "loss_reason", "archived_at", "closing_note"]));
     }
   });
 

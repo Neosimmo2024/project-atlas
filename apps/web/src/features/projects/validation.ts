@@ -4,7 +4,7 @@ const projectTypes = ["recruitment", "property_sale", "rental_management", "part
 const projectStatuses = ["open", "won", "lost"] as const;
 const projectStages = ["new", "qualification", "proposal", "decision"] as const;
 const lossReasons = ["price", "competition", "abandoned", "too_long", "no_response", "bad_qualification", "conditions_rejected", "other"] as const;
-const forbiddenPatchFields = ["status", "won_at", "lost_at", "loss_reason", "final_value", "archived_at"] as const;
+const forbiddenPatchFields = ["status", "won_at", "lost_at", "loss_reason", "final_value", "archived_at", "closing_note"] as const;
 
 const nullableText = z
   .string()
@@ -133,7 +133,6 @@ const projectPatchBaseSchema = z.object({
   estimated_value: patchDecimalString.optional(),
   currency: z.string().trim().length(3, "La devise doit contenir trois lettres.").transform((value) => value.toUpperCase()).optional(),
   expected_close_at: patchDate.optional(),
-  closing_note: patchNullableText.optional(),
   metadata: patchMetadataSchema.optional()
 }).strict();
 
