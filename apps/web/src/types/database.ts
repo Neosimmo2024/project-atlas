@@ -137,6 +137,12 @@ export type Database = {
             columns: ["organization_id"];
             referencedRelation: "organizations";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "action_plan_decisions_tenant_organization_fkey";
+            columns: ["tenant_id", "organization_id"];
+            referencedRelation: "organizations";
+            referencedColumns: ["tenant_id", "id"];
           }
         ];
       };

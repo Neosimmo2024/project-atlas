@@ -14,7 +14,7 @@ Le moteur est deterministe, testable sans React et n'utilise pas d'IA en V1.
 - Repository serveur : `apps/web/src/repositories/action-plan.ts`.
 - API minimale : `GET /api/action-plan`.
 
-Le repository valide toujours l'organisation demandee dans le tenant courant avant de charger les donnees.
+Le repository valide toujours l'organisation demandee dans le tenant courant avant de charger les donnees. Les taches sont filtrees en base sur l'organisation demandee et sur les relations actives de cette organisation ; le resultat ne depend pas d'une limite globale de tenant appliquee avant le filtrage metier. Les interactions liees aux relations actives sont aussi chargees sans limite arbitraire afin de determiner correctement le dernier echange.
 
 ## Modele de donnees
 
@@ -50,6 +50,8 @@ Valeurs `decision_type` :
 - `completed`
 
 Une contrainte unique evite les doublons pour le meme tenant, la meme organisation, le meme utilisateur et la meme recommandation.
+
+Une contrainte tenant/organisation garantit que `organization_id` reference une organisation appartenant au meme `tenant_id` que la decision. Les policies RLS repetent cette verification cote base pour empecher toute association cross-tenant.
 
 ## Sources V1
 
@@ -143,6 +145,8 @@ Parametres :
 - `organizationId` obligatoire ;
 - `now` optionnel, ISO date, reserve aux tests et controles deterministes.
 
+L'identifiant utilisateur n'est pas accepte comme parametre public. Le repository utilise exclusivement l'utilisateur authentifie present dans le contexte serveur.
+
 Reponse :
 
 ```json
@@ -169,6 +173,7 @@ Chaque item contient :
 - Insert/update sont limites aux roles `owner`, `admin`, `recruiter`, `manager`.
 - Aucune cle `service_role` n'est utilisee cote navigateur.
 - Le `organizationId` fourni a l'API est toujours valide cote serveur dans le tenant courant.
+- Une decision ne peut pas referencer une organisation d'un autre tenant, meme si le navigateur envoie un couple `tenant_id` / `organization_id` incoherent.
 
 ## Limites V1
 

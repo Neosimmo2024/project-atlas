@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ActionPlanItem, TenantContext } from "@/types/domain";
+import type { ActionPlanRequest } from "../../repositories/action-plan";
 
 const mocks = vi.hoisted(() => ({
   fromMock: vi.fn(),
@@ -42,6 +43,15 @@ const item: ActionPlanItem = {
   createdAt: "2026-07-01T08:00:00Z"
 };
 
+function pagedResult(data: unknown[]) {
+  const range = vi.fn(async (from: number, to: number) => ({
+    data: data.slice(from, to + 1),
+    error: null
+  }));
+
+  return { range };
+}
+
 function organizationQuery(data: unknown) {
   const maybeSingle = vi.fn().mockResolvedValue({ data, error: null });
   const eqId = vi.fn().mockReturnValue({ maybeSingle });
@@ -50,36 +60,38 @@ function organizationQuery(data: unknown) {
 }
 
 function relationshipsQuery(data: unknown[]) {
-  const limit = vi.fn().mockResolvedValue({ data, error: null });
-  const eqStatus = vi.fn().mockReturnValue({ limit });
+  const result = pagedResult(data);
+  const eqStatus = vi.fn().mockReturnValue(result);
   const eqOrganization = vi.fn().mockReturnValue({ eq: eqStatus });
   const eqTenant = vi.fn().mockReturnValue({ eq: eqOrganization });
-  return { select: vi.fn().mockReturnValue({ eq: eqTenant }), limit };
+  return { select: vi.fn().mockReturnValue({ eq: eqTenant }), eqStatus, range: result.range };
 }
 
 function tasksQuery(data: unknown[]) {
-  const limit = vi.fn().mockResolvedValue({ data, error: null });
-  const not = vi.fn().mockReturnValue({ limit });
+  const result = pagedResult(data);
+  const or = vi.fn().mockReturnValue(result);
+  const eqOrganization = vi.fn().mockReturnValue(result);
+  const not = vi.fn().mockReturnValue({ or, eq: eqOrganization });
   const isDeleted = vi.fn().mockReturnValue({ not });
   const eqTenant = vi.fn().mockReturnValue({ is: isDeleted });
-  return { select: vi.fn().mockReturnValue({ eq: eqTenant }), limit };
+  return { select: vi.fn().mockReturnValue({ eq: eqTenant }), or, eqOrganization, range: result.range };
 }
 
 function decisionsQuery(data: unknown[]) {
-  const limit = vi.fn().mockResolvedValue({ data, error: null });
-  const eqUser = vi.fn().mockReturnValue({ limit });
+  const result = pagedResult(data);
+  const eqUser = vi.fn().mockReturnValue(result);
   const eqOrganization = vi.fn().mockReturnValue({ eq: eqUser });
   const eqTenant = vi.fn().mockReturnValue({ eq: eqOrganization });
-  return { select: vi.fn().mockReturnValue({ eq: eqTenant }), limit };
+  return { select: vi.fn().mockReturnValue({ eq: eqTenant }), eqUser, range: result.range };
 }
 
 function interactionsQuery(data: unknown[]) {
-  const limit = vi.fn().mockResolvedValue({ data, error: null });
-  const order = vi.fn().mockReturnValue({ limit });
+  const result = pagedResult(data);
+  const order = vi.fn().mockReturnValue(result);
   const inRelationship = vi.fn().mockReturnValue({ order });
   const isDeleted = vi.fn().mockReturnValue({ in: inRelationship });
   const eqTenant = vi.fn().mockReturnValue({ is: isDeleted });
-  return { select: vi.fn().mockReturnValue({ eq: eqTenant }), limit };
+  return { select: vi.fn().mockReturnValue({ eq: eqTenant }), order, range: result.range };
 }
 
 describe("action plan repository", () => {
@@ -125,5 +137,57 @@ describe("action plan repository", () => {
       userId: "user-a",
       now: new Date("2026-07-18T12:00:00Z")
     }));
+    expect(tasks.or).toHaveBeenCalledWith("organization_id.eq.organization-1,relationship_id.in.(relationship-1)");
+  });
+
+  it("filters tasks in Supabase before execution instead of applying a global tenant limit", async () => {
+    const organization = organizationQuery({ id: "organization-1" });
+    const relationships = relationshipsQuery(Array.from({ length: 1001 }, (_, index) => ({
+      id: `relationship-${index + 1}`,
+      organization_id: "organization-1",
+      status: "active"
+    })));
+    const tasks = tasksQuery([]);
+    const decisions = decisionsQuery([]);
+    const interactions = interactionsQuery([]);
+    mocks.fromMock
+      .mockReturnValueOnce(organization)
+      .mockReturnValueOnce(relationships)
+      .mockReturnValueOnce(tasks)
+      .mockReturnValueOnce(decisions)
+      .mockReturnValueOnce(interactions);
+    const { getActionPlanForUser } = await import("../../repositories/action-plan");
+
+    await getActionPlanForUser(context, { organizationId: "organization-1" });
+
+    expect(tasks.or).toHaveBeenCalledWith(expect.stringContaining("organization_id.eq.organization-1"));
+    expect(tasks.or).toHaveBeenCalledWith(expect.stringContaining("relationship_id.in.(relationship-1"));
+    expect(interactions.order).toHaveBeenCalledWith("interaction_date", { ascending: false });
+    expect(relationships.range).toHaveBeenCalledWith(0, 999);
+    expect(relationships.range).toHaveBeenCalledWith(1000, 1999);
+    expect(tasks.range).toHaveBeenCalledWith(0, 999);
+    expect(interactions.range).toHaveBeenCalledWith(0, 999);
+  });
+
+  it("uses the authenticated context user and ignores a userId override on the request object", async () => {
+    const organization = organizationQuery({ id: "organization-1" });
+    const relationships = relationshipsQuery([]);
+    const tasks = tasksQuery([]);
+    const decisions = decisionsQuery([]);
+    mocks.fromMock
+      .mockReturnValueOnce(organization)
+      .mockReturnValueOnce(relationships)
+      .mockReturnValueOnce(tasks)
+      .mockReturnValueOnce(decisions);
+    const { getActionPlanForUser } = await import("../../repositories/action-plan");
+    const maliciousRequest = {
+      organizationId: "organization-1",
+      userId: "other-user"
+    } as unknown as ActionPlanRequest;
+
+    await getActionPlanForUser(context, maliciousRequest);
+
+    expect(decisions.eqUser).toHaveBeenCalledWith("user_id", "user-a");
+    expect(mocks.buildActionPlanMock).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-a" }));
   });
 });

@@ -142,13 +142,19 @@ function visibleDecision(decision: ActionPlanDecision | undefined, now: Date) {
   return decision.decision_type === "ignored" || decision.decision_type === "converted_to_task" || decision.decision_type === "completed";
 }
 
+function latestDate(...values: Array<string | null | undefined>) {
+  return values
+    .filter((value): value is string => Boolean(value))
+    .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())[0];
+}
+
 function relationshipContexts(input: ActionPlanInput): RelationshipContext[] {
   const lastByRelationship = lastInteractionMap(input.interactions);
   return input.relationships
     .filter((relationship) => relationship.organization_id === input.organizationId && relationship.status === "active")
     .map((relationship) => ({
       relationship,
-      lastInteractionAt: relationship.last_interaction_at ?? lastByRelationship.get(relationship.id) ?? relationship.created_at
+      lastInteractionAt: latestDate(relationship.last_interaction_at, lastByRelationship.get(relationship.id), relationship.created_at) ?? relationship.created_at
     }));
 }
 

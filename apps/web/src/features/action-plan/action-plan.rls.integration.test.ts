@@ -125,6 +125,19 @@ describeIntegration("action plan decisions RLS integration", () => {
     expect(error).not.toBeNull();
   });
 
+  it("tenant A cannot attach a decision to an organization from tenant B", async () => {
+    const { data, error } = await tenantA.from("action_plan_decisions").insert({
+      tenant_id: tenantAId,
+      organization_id: organizationBId,
+      user_id: tenantAUserId,
+      recommendation_key: `${marker}:cross-tenant-organization`,
+      decision_type: "ignored"
+    }).select("id");
+
+    expect(data ?? []).toHaveLength(0);
+    expect(error).not.toBeNull();
+  });
+
   it("user without tenant cannot access decisions", async () => {
     const { data, error } = await noTenant.from("action_plan_decisions").select("id").limit(1);
     expect(error).toBeNull();

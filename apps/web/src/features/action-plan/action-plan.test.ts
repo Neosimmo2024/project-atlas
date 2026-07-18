@@ -208,6 +208,15 @@ describe("action plan engine", () => {
     expect(items).toEqual([]);
   });
 
+  it("uses the most recent date between relationship and interaction activity", () => {
+    const items = plan({
+      relationships: [relationship({ last_interaction_at: "2026-06-01T12:00:00Z" })],
+      interactions: [interaction({ interaction_date: "2026-07-10T12:00:00Z" })]
+    });
+
+    expect(items).toEqual([]);
+  });
+
   it("excludes inactive relationship recommendations when an equivalent open task exists", () => {
     const rel = relationship({ last_interaction_at: "2026-06-01T12:00:00Z" });
     const followUpTask = task({ id: "follow-up", relationship_id: rel.id, organization_id: null, title: "Relance relation" });
@@ -241,16 +250,18 @@ describe("action plan engine", () => {
   });
 
   it("sorts deterministically by category, score, due date, then creation date", () => {
-    const items = plan({
+    const input = {
       tasks: [
         task({ id: "schedule-old", priority: "low", due_at: null, created_at: "2026-01-01T00:00:00Z" }),
         task({ id: "critical", due_at: "2026-07-15T12:00:00Z", priority: "high" }),
         task({ id: "priority-sooner", due_at: "2026-07-18T13:00:00Z", priority: "low" }),
         task({ id: "priority-later", due_at: "2026-07-18T20:00:00Z", priority: "low" })
       ]
-    });
+    };
+    const items = plan(input);
 
     expect(items.map((item) => item.sourceId)).toEqual(["critical", "priority-sooner", "priority-later", "schedule-old"]);
+    expect(plan(input)).toEqual(items);
   });
 
   it("supports now injection and returns an empty plan", () => {

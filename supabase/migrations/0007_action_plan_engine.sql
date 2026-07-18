@@ -7,6 +7,9 @@ create index if not exists tasks_tenant_snoozed_idx
   on public.tasks (tenant_id, snoozed_until)
   where deleted_at is null and snoozed_until is not null;
 
+create unique index if not exists organizations_tenant_id_id_unique
+  on public.organizations (tenant_id, id);
+
 create table if not exists public.action_plan_decisions (
   id uuid primary key default gen_random_uuid(),
   tenant_id uuid not null references public.tenants(id) on delete cascade,
@@ -20,8 +23,30 @@ create table if not exists public.action_plan_decisions (
   constraint action_plan_decisions_snooze_check check (
     decision_type <> 'snoozed'
     or snoozed_until is not null
-  )
+  ),
+  constraint action_plan_decisions_tenant_organization_fkey foreign key (tenant_id, organization_id)
+    references public.organizations (tenant_id, id)
+    on delete cascade
+    deferrable initially immediate
 );
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'action_plan_decisions_tenant_organization_fkey'
+      and conrelid = 'public.action_plan_decisions'::regclass
+  ) then
+    alter table public.action_plan_decisions
+      add constraint action_plan_decisions_tenant_organization_fkey
+      foreign key (tenant_id, organization_id)
+      references public.organizations (tenant_id, id)
+      on delete cascade
+      deferrable initially immediate;
+  end if;
+end;
+$$;
 
 create unique index if not exists action_plan_decisions_unique
   on public.action_plan_decisions (tenant_id, organization_id, user_id, recommendation_key);
@@ -49,6 +74,13 @@ to authenticated
 using (
   user_id = auth.uid()
   and public.is_tenant_member(tenant_id)
+  and exists (
+    select 1
+    from public.organizations organizations
+    where organizations.id = action_plan_decisions.organization_id
+      and organizations.tenant_id = action_plan_decisions.tenant_id
+      and public.is_tenant_member(organizations.tenant_id)
+  )
 );
 
 drop policy if exists action_plan_decisions_insert_own_for_recruiting_roles on public.action_plan_decisions;
@@ -59,6 +91,13 @@ to authenticated
 with check (
   user_id = auth.uid()
   and public.has_tenant_role(tenant_id, array['owner', 'admin', 'recruiter', 'manager'])
+  and exists (
+    select 1
+    from public.organizations organizations
+    where organizations.id = action_plan_decisions.organization_id
+      and organizations.tenant_id = action_plan_decisions.tenant_id
+      and public.has_tenant_role(organizations.tenant_id, array['owner', 'admin', 'recruiter', 'manager'])
+  )
 );
 
 drop policy if exists action_plan_decisions_update_own_for_recruiting_roles on public.action_plan_decisions;
@@ -69,8 +108,22 @@ to authenticated
 using (
   user_id = auth.uid()
   and public.has_tenant_role(tenant_id, array['owner', 'admin', 'recruiter', 'manager'])
+  and exists (
+    select 1
+    from public.organizations organizations
+    where organizations.id = action_plan_decisions.organization_id
+      and organizations.tenant_id = action_plan_decisions.tenant_id
+      and public.has_tenant_role(organizations.tenant_id, array['owner', 'admin', 'recruiter', 'manager'])
+  )
 )
 with check (
   user_id = auth.uid()
   and public.has_tenant_role(tenant_id, array['owner', 'admin', 'recruiter', 'manager'])
+  and exists (
+    select 1
+    from public.organizations organizations
+    where organizations.id = action_plan_decisions.organization_id
+      and organizations.tenant_id = action_plan_decisions.tenant_id
+      and public.has_tenant_role(organizations.tenant_id, array['owner', 'admin', 'recruiter', 'manager'])
+  )
 );
