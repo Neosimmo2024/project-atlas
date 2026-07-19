@@ -8,6 +8,7 @@ on:
     branches:
       - feat/foundation-ui
       - feat/recruitment-pipeline-domain
+      - feat/recruitment-pipeline-ui
   workflow_dispatch:
 
 permissions:
@@ -28,6 +29,7 @@ jobs:
       TIMELINE_E2E_BASE_URL: http://127.0.0.1:3000
       PROJECTS_E2E_BASE_URL: http://127.0.0.1:3000
       FOUNDATION_UI_E2E_BASE_URL: http://127.0.0.1:3000
+      PIPELINE_E2E_BASE_URL: http://127.0.0.1:3000
       PEOPLE_TEST_TENANT_A_EMAIL: qa-tenant-a-owner@atlas.local.test
       PEOPLE_TEST_TENANT_B_EMAIL: qa-tenant-b-owner@atlas.local.test
       PEOPLE_TEST_NO_TENANT_EMAIL: qa-no-tenant@atlas.local.test
@@ -52,6 +54,8 @@ jobs:
       PROJECTS_TEST_TENANT_A_EMAIL: qa-tenant-a-owner@atlas.local.test
       PROJECTS_TEST_TENANT_B_EMAIL: qa-tenant-b-owner@atlas.local.test
       FOUNDATION_UI_TEST_TENANT_A_EMAIL: qa-tenant-a-owner@atlas.local.test
+      PIPELINE_TEST_TENANT_A_EMAIL: qa-tenant-a-owner@atlas.local.test
+      PIPELINE_TEST_TENANT_B_EMAIL: qa-tenant-b-owner@atlas.local.test
 
     steps:
       - name: Checkout
@@ -116,6 +120,8 @@ jobs:
             echo "PROJECTS_TEST_TENANT_A_PASSWORD=$tenant_a_password"
             echo "PROJECTS_TEST_TENANT_B_PASSWORD=$tenant_b_password"
             echo "FOUNDATION_UI_TEST_TENANT_A_PASSWORD=$tenant_a_password"
+            echo "PIPELINE_TEST_TENANT_A_PASSWORD=$tenant_a_password"
+            echo "PIPELINE_TEST_TENANT_B_PASSWORD=$tenant_b_password"
           } >> "$GITHUB_ENV"
 
       - name: Start local Supabase
@@ -275,7 +281,7 @@ jobs:
         working-directory: apps/web
 
       - name: E2E tests
-        run: npm --workspace apps/web run e2e -- e2e/foundation-ui.e2e.spec.ts e2e/projects.e2e.spec.ts e2e/recruitment-pipeline.e2e.spec.ts --workers=1
+        run: npm --workspace apps/web run e2e -- e2e/foundation-ui.e2e.spec.ts e2e/projects.e2e.spec.ts e2e/recruitment-pipeline.e2e.spec.ts e2e/recruitment-pipeline-ui.e2e.spec.ts --workers=1
 
       - name: Upload failure artifacts
         if: failure()
