@@ -38,7 +38,7 @@ async function assertQueryEventually(table, columns, message) {
   let lastError = null;
 
   for (let attempt = 1; attempt <= 12; attempt += 1) {
-    const { error } = await supabase.from(table).select(columns, { head: true, count: "exact" });
+    const { error } = await supabase.from(table).select(columns).limit(1);
     if (!error) return;
 
     lastError = error;

@@ -180,6 +180,9 @@ jobs:
             if not has_table_privilege('authenticated', 'public.projects', 'select') then
               raise exception 'authenticated role cannot select public.projects';
             end if;
+            if not has_table_privilege('authenticated', 'public.people', 'select') then
+              raise exception 'authenticated role cannot select public.people';
+            end if;
             if not exists (
               select 1 from pg_policies
               where schemaname = 'public'
