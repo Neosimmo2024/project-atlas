@@ -36,8 +36,9 @@ test.describe("Recruitment pipeline UI authenticated flow", () => {
     await expect(pipelineCard(page).getByText("Conversation engagée")).toBeVisible();
 
     await page.getByRole("button", { name: "Responsable" }).first().click();
-    await page.getByLabel("Responsable").selectOption("");
-    await page.getByRole("button", { name: "Valider" }).click();
+    const ownerDialog = page.getByRole("dialog", { name: "Modifier le responsable" });
+    await ownerDialog.getByLabel("Responsable").selectOption("");
+    await ownerDialog.getByRole("button", { name: "Valider" }).click();
     await expect(page.getByText("Responsable mis à jour.")).toBeVisible();
     await expect(page.getByText("Sans responsable")).toBeVisible();
 
