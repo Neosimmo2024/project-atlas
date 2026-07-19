@@ -1,22 +1,7 @@
 import { NextResponse } from "next/server";
+import { apiErrorResponse } from "@/lib/security/api-errors";
 import { getActionPlanForUser } from "@/repositories/action-plan";
 import { getTenantContext } from "@/repositories/tenant-context";
-
-function errorResponse(error: unknown) {
-  const message = error instanceof Error ? error.message : "Erreur inconnue.";
-  const code = typeof error === "object" && error !== null && "code" in error ? String(error.code) : null;
-  const isMissingSchema = code === "42703" || message.includes("action_plan_decisions") || message.includes("snoozed_until");
-
-  return NextResponse.json(
-    {
-      error: isMissingSchema
-        ? `Schema Supabase incomplet: ${message}. Executez la migration supabase/migrations/0007_action_plan_engine.sql puis reessayez.`
-        : message,
-      code
-    },
-    { status: isMissingSchema ? 500 : 400 }
-  );
-}
 
 export async function GET(request: Request) {
   try {
@@ -34,6 +19,6 @@ export async function GET(request: Request) {
     const items = await getActionPlanForUser(context, { organizationId, now });
     return NextResponse.json({ data: items });
   } catch (error) {
-    return errorResponse(error);
+    return apiErrorResponse(error);
   }
 }

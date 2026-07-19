@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { parseProjectArchiveInput } from "@/features/projects/validation";
-import { isApiError } from "@/lib/api-errors";
+import { apiErrorResponse } from "@/lib/security/api-errors";
 import { archiveProject } from "@/repositories/projects";
 import { getTenantContext } from "@/repositories/tenant-context";
 
@@ -18,8 +18,6 @@ export async function POST(request: Request, { params }: ProjectRouteParams) {
     const project = await archiveProject(context, id, parsed.data);
     return NextResponse.json({ data: project });
   } catch (error) {
-    if (isApiError(error)) return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
-    const message = error instanceof Error ? error.message : "Erreur inconnue.";
-    return NextResponse.json({ error: message }, { status: 400 });
+    return apiErrorResponse(error);
   }
 }

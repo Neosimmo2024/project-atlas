@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ApiError } from "@/lib/api-errors";
 import type { Relationship, TenantContext } from "@/types/domain";
 import type {
   RecruitmentPipelineDoNotContactInput,
@@ -6,9 +7,9 @@ import type {
   RecruitmentPipelineTransitionInput
 } from "@/features/recruitment-pipeline/validation";
 
-export class RecruitmentPipelineError extends Error {
-  constructor(message: string, public status = 400, public code = "RECRUITMENT_PIPELINE_ERROR") {
-    super(message);
+export class RecruitmentPipelineError extends ApiError {
+  constructor(message: string, status = 400, code = "RECRUITMENT_PIPELINE_ERROR") {
+    super(message, status, code);
     this.name = "RecruitmentPipelineError";
   }
 }

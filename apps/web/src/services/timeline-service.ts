@@ -1,5 +1,6 @@
 import { createTimelineEvent, type TimelineEventInput } from "@/repositories/timeline-events";
 import { PROJECT_STAGE_LABELS } from "@/features/projects/options";
+import { logServerError } from "@/lib/security/logger";
 import type { Interaction, Organization, Person, Project, Relationship, Task, TenantContext, TimelineEventType } from "@/types/domain";
 
 type TimelineSubject = {
@@ -15,7 +16,7 @@ async function recordTimelineEvent(context: TenantContext, input: TimelineEventI
   try {
     await createTimelineEvent(context, input);
   } catch (error) {
-    console.error("Timeline event recording failed", {
+    logServerError("Timeline event recording failed", {
       tenantId: context.tenantId,
       eventType: input.event_type,
       sourceType: input.source_type,

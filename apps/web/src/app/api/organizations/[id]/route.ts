@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { parseOrganizationInput } from "@/features/organizations/validation";
+import { apiErrorResponse } from "@/lib/security/api-errors";
 import { deleteOrganization, findPotentialOrganizationDuplicates, getOrganizationDetail, updateOrganization } from "@/repositories/organizations";
 import { getTenantContext } from "@/repositories/tenant-context";
 
@@ -9,22 +10,6 @@ function validationErrorResponse(error: { issues: { path: PropertyKey[]; message
   return NextResponse.json(
     { error: "Validation failed", fields: error.issues.map((issue) => ({ field: issue.path.join("."), message: issue.message })) },
     { status: 400 }
-  );
-}
-
-function apiErrorResponse(error: unknown) {
-  const message = error instanceof Error ? error.message : "Erreur inconnue.";
-  const code = typeof error === "object" && error !== null && "code" in error ? String(error.code) : null;
-  const isMissingColumn = code === "42703" || message.includes("does not exist");
-
-  return NextResponse.json(
-    {
-      error: isMissingColumn
-        ? `Schema Supabase incomplet: ${message}. Executez la migration supabase/migrations/0002_organizations_module.sql puis reessayez.`
-        : message,
-      code
-    },
-    { status: isMissingColumn ? 500 : 400 }
   );
 }
 

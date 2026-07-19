@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { parseTaskInput } from "@/features/tasks/validation";
+import { apiErrorResponse } from "@/lib/security/api-errors";
 import { deleteTask, updateTask } from "@/repositories/tasks";
 import { getTenantContext } from "@/repositories/tenant-context";
 
@@ -9,22 +10,6 @@ function validationErrorResponse(error: { issues: { path: PropertyKey[]; message
   return NextResponse.json(
     { error: "Validation failed", fields: error.issues.map((issue) => ({ field: issue.path.join("."), message: issue.message })) },
     { status: 400 }
-  );
-}
-
-function apiErrorResponse(error: unknown) {
-  const message = error instanceof Error ? error.message : "Erreur inconnue.";
-  const code = typeof error === "object" && error !== null && "code" in error ? String(error.code) : null;
-  const isMissingColumn = code === "42703" || message.includes("does not exist") || message.includes("relation") && message.includes("tasks");
-
-  return NextResponse.json(
-    {
-      error: isMissingColumn
-        ? `Schema Supabase incomplet: ${message}. Executez la migration supabase/migrations/0005_tasks_module.sql puis reessayez.`
-        : message,
-      code
-    },
-    { status: isMissingColumn ? 500 : 400 }
   );
 }
 
