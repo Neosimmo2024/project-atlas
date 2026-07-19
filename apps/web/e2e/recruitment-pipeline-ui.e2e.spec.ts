@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const requiredEnv = [
   "RELATIONSHIPS_TEST_TENANT_A_EMAIL",
@@ -42,16 +42,16 @@ test.describe("Recruitment pipeline UI authenticated flow", () => {
     await expect(page.getByText("Responsable mis à jour.")).toBeVisible();
     await expect(pipelineCard(page).getByText("Sans responsable")).toBeVisible();
 
-    await changeStage(page, "Signature", "Signature confirmée depuis E2E", async () => {
-      await page.getByLabel("Confirmation explicite").check();
-      await page.getByLabel("Date de signature").fill("2026-07-20T10:00");
+    await changeStage(page, "Signature", "Signature confirmée depuis E2E", async (stageDialog) => {
+      await stageDialog.getByLabel("Confirmation explicite").check();
+      await stageDialog.getByLabel("Date de signature").fill("2026-07-20T10:00");
     });
     await expect(page.getByText("Phase mise à jour.")).toBeVisible();
     await expect(pipelineCard(page).getByText("Signature")).toBeVisible();
 
-    await changeStage(page, "Refus", "Refus documenté depuis E2E", async () => {
-      await page.getByLabel("Motif de refus").selectOption("not_interested");
-      await page.getByLabel("Ne plus contacter").check();
+    await changeStage(page, "Refus", "Refus documenté depuis E2E", async (stageDialog) => {
+      await stageDialog.getByLabel("Motif de refus").selectOption("not_interested");
+      await stageDialog.getByLabel("Ne plus contacter").check();
     });
     await expect(page.getByText("Phase mise à jour.")).toBeVisible();
     await expect(pipelineCard(page).getByText("Ne plus contacter")).toBeVisible();
@@ -81,10 +81,11 @@ function pipelineCard(page: Page) {
   return page.locator(".pipeline-card").filter({ hasText: "Atlas QA Person A" }).first();
 }
 
-async function changeStage(page: Page, label: string, reason: string, fillExtra?: () => Promise<void>) {
+async function changeStage(page: Page, label: string, reason: string, fillExtra?: (stageDialog: Locator) => Promise<void>) {
   await page.getByRole("button", { name: "Changer de phase" }).first().click();
-  await page.getByLabel("Phase cible").selectOption({ label });
-  await page.getByLabel("Motif ou note").fill(reason);
-  if (fillExtra) await fillExtra();
-  await page.getByRole("button", { name: "Valider" }).click();
+  const stageDialog = page.getByRole("dialog", { name: "Changer la phase" });
+  await stageDialog.getByLabel("Phase cible").selectOption({ label });
+  await stageDialog.getByLabel("Motif ou note").fill(reason);
+  if (fillExtra) await fillExtra(stageDialog);
+  await stageDialog.getByRole("button", { name: "Valider" }).click();
 }
