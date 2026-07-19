@@ -1,0 +1,283 @@
+name: CI Supabase
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - feat/foundation-ui
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  supabase-local:
+    name: Supabase local QA
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CI: true
+      PEOPLE_E2E_BASE_URL: http://127.0.0.1:3000
+      ORGANIZATIONS_E2E_BASE_URL: http://127.0.0.1:3000
+      RELATIONSHIPS_E2E_BASE_URL: http://127.0.0.1:3000
+      INTERACTIONS_E2E_BASE_URL: http://127.0.0.1:3000
+      TASKS_E2E_BASE_URL: http://127.0.0.1:3000
+      TIMELINE_E2E_BASE_URL: http://127.0.0.1:3000
+      PROJECTS_E2E_BASE_URL: http://127.0.0.1:3000
+      FOUNDATION_UI_E2E_BASE_URL: http://127.0.0.1:3000
+      PEOPLE_TEST_TENANT_A_EMAIL: qa-tenant-a-owner@atlas.local.test
+      PEOPLE_TEST_TENANT_B_EMAIL: qa-tenant-b-owner@atlas.local.test
+      PEOPLE_TEST_NO_TENANT_EMAIL: qa-no-tenant@atlas.local.test
+      ORGANIZATIONS_TEST_TENANT_A_EMAIL: qa-tenant-a-owner@atlas.local.test
+      ORGANIZATIONS_TEST_TENANT_B_EMAIL: qa-tenant-b-owner@atlas.local.test
+      ORGANIZATIONS_TEST_NO_TENANT_EMAIL: qa-no-tenant@atlas.local.test
+      RELATIONSHIPS_TEST_TENANT_A_EMAIL: qa-tenant-a-owner@atlas.local.test
+      RELATIONSHIPS_TEST_TENANT_B_EMAIL: qa-tenant-b-owner@atlas.local.test
+      RELATIONSHIPS_TEST_NO_TENANT_EMAIL: qa-no-tenant@atlas.local.test
+      INTERACTIONS_TEST_TENANT_A_EMAIL: qa-tenant-a-owner@atlas.local.test
+      INTERACTIONS_TEST_TENANT_B_EMAIL: qa-tenant-b-owner@atlas.local.test
+      INTERACTIONS_TEST_NO_TENANT_EMAIL: qa-no-tenant@atlas.local.test
+      TASKS_TEST_TENANT_A_EMAIL: qa-tenant-a-owner@atlas.local.test
+      TASKS_TEST_TENANT_B_EMAIL: qa-tenant-b-owner@atlas.local.test
+      TASKS_TEST_NO_TENANT_EMAIL: qa-no-tenant@atlas.local.test
+      TIMELINE_TEST_TENANT_A_EMAIL: qa-tenant-a-owner@atlas.local.test
+      TIMELINE_TEST_TENANT_B_EMAIL: qa-tenant-b-owner@atlas.local.test
+      TIMELINE_TEST_NO_TENANT_EMAIL: qa-no-tenant@atlas.local.test
+      ACTION_PLAN_TEST_TENANT_A_EMAIL: qa-tenant-a-owner@atlas.local.test
+      ACTION_PLAN_TEST_TENANT_B_EMAIL: qa-tenant-b-owner@atlas.local.test
+      ACTION_PLAN_TEST_NO_TENANT_EMAIL: qa-no-tenant@atlas.local.test
+      PROJECTS_TEST_TENANT_A_EMAIL: qa-tenant-a-owner@atlas.local.test
+      PROJECTS_TEST_TENANT_B_EMAIL: qa-tenant-b-owner@atlas.local.test
+      FOUNDATION_UI_TEST_TENANT_A_EMAIL: qa-tenant-a-owner@atlas.local.test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Generate local QA credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          tenant_a_password="$(openssl rand -base64 32)"
+          tenant_b_password="$(openssl rand -base64 32)"
+          no_tenant_password="$(openssl rand -base64 32)"
+          echo "::add-mask::$tenant_a_password"
+          echo "::add-mask::$tenant_b_password"
+          echo "::add-mask::$no_tenant_password"
+          {
+            echo "QA_TENANT_A_PASSWORD=$tenant_a_password"
+            echo "QA_TENANT_B_PASSWORD=$tenant_b_password"
+            echo "QA_NO_TENANT_PASSWORD=$no_tenant_password"
+            echo "PEOPLE_TEST_TENANT_A_PASSWORD=$tenant_a_password"
+            echo "PEOPLE_TEST_TENANT_B_PASSWORD=$tenant_b_password"
+            echo "PEOPLE_TEST_NO_TENANT_PASSWORD=$no_tenant_password"
+            echo "ORGANIZATIONS_TEST_TENANT_A_PASSWORD=$tenant_a_password"
+            echo "ORGANIZATIONS_TEST_TENANT_B_PASSWORD=$tenant_b_password"
+            echo "ORGANIZATIONS_TEST_NO_TENANT_PASSWORD=$no_tenant_password"
+            echo "RELATIONSHIPS_TEST_TENANT_A_PASSWORD=$tenant_a_password"
+            echo "RELATIONSHIPS_TEST_TENANT_B_PASSWORD=$tenant_b_password"
+            echo "RELATIONSHIPS_TEST_NO_TENANT_PASSWORD=$no_tenant_password"
+            echo "INTERACTIONS_TEST_TENANT_A_PASSWORD=$tenant_a_password"
+            echo "INTERACTIONS_TEST_TENANT_B_PASSWORD=$tenant_b_password"
+            echo "INTERACTIONS_TEST_NO_TENANT_PASSWORD=$no_tenant_password"
+            echo "TASKS_TEST_TENANT_A_PASSWORD=$tenant_a_password"
+            echo "TASKS_TEST_TENANT_B_PASSWORD=$tenant_b_password"
+            echo "TASKS_TEST_NO_TENANT_PASSWORD=$no_tenant_password"
+            echo "TIMELINE_TEST_TENANT_A_PASSWORD=$tenant_a_password"
+            echo "TIMELINE_TEST_TENANT_B_PASSWORD=$tenant_b_password"
+            echo "TIMELINE_TEST_NO_TENANT_PASSWORD=$no_tenant_password"
+            echo "ACTION_PLAN_TEST_TENANT_A_PASSWORD=$tenant_a_password"
+            echo "ACTION_PLAN_TEST_TENANT_B_PASSWORD=$tenant_b_password"
+            echo "ACTION_PLAN_TEST_NO_TENANT_PASSWORD=$no_tenant_password"
+            echo "PROJECTS_TEST_TENANT_A_PASSWORD=$tenant_a_password"
+            echo "PROJECTS_TEST_TENANT_B_PASSWORD=$tenant_b_password"
+            echo "FOUNDATION_UI_TEST_TENANT_A_PASSWORD=$tenant_a_password"
+          } >> "$GITHUB_ENV"
+
+      - name: Start local Supabase
+        run: supabase start > /dev/null
+
+      - name: Export local Supabase environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase status -o env > supabase-status.env
+          set -a
+          source supabase-status.env
+          set +a
+          echo "::add-mask::$ANON_KEY"
+          echo "::add-mask::$SERVICE_ROLE_KEY"
+          echo "::add-mask::$DB_URL"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$ANON_KEY"
+            echo "QA_SUPABASE_URL=$API_URL"
+            echo "QA_SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "QA_DB_URL=$DB_URL"
+          } >> "$GITHUB_ENV"
+
+      - name: Apply canonical migrations
+        run: supabase migration up --local
+
+      - name: Verify migrated schema and RLS catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql "$QA_DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          begin
+            if to_regclass('public.projects') is null then
+              raise exception 'public.projects is missing';
+            end if;
+            if not exists (
+              select 1 from information_schema.columns
+              where table_schema = 'public' and table_name = 'tasks' and column_name = 'project_id'
+            ) then
+              raise exception 'tasks.project_id is missing';
+            end if;
+            if not exists (
+              select 1 from information_schema.columns
+              where table_schema = 'public' and table_name = 'interactions' and column_name = 'project_id'
+            ) then
+              raise exception 'interactions.project_id is missing';
+            end if;
+            if not exists (
+              select 1 from information_schema.columns
+              where table_schema = 'public' and table_name = 'timeline_events' and column_name = 'project_id'
+            ) then
+              raise exception 'timeline_events.project_id is missing';
+            end if;
+            if not exists (
+              select 1 from pg_class c
+              join pg_namespace n on n.oid = c.relnamespace
+              where n.nspname = 'public' and c.relname = 'projects' and c.relrowsecurity
+            ) then
+              raise exception 'RLS is not enabled on public.projects';
+            end if;
+            if not has_table_privilege('authenticated', 'public.projects', 'select') then
+              raise exception 'authenticated role cannot select public.projects';
+            end if;
+            if not has_table_privilege('authenticated', 'public.people', 'select') then
+              raise exception 'authenticated role cannot select public.people';
+            end if;
+            if not exists (
+              select 1 from pg_policies
+              where schemaname = 'public'
+                and tablename = 'projects'
+                and policyname in (
+                  'projects_select_for_members',
+                  'projects_insert_for_recruiting_roles',
+                  'projects_update_for_recruiting_roles'
+                )
+              group by tablename
+              having count(*) = 3
+            ) then
+              raise exception 'Expected projects RLS policies are missing';
+            end if;
+          end $$;
+          notify pgrst, 'reload schema';
+          SQL
+          sleep 5
+
+      - name: Restart local Supabase after migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase stop
+          supabase start > /dev/null
+          supabase status -o env > supabase-status.env
+          set -a
+          source supabase-status.env
+          set +a
+          echo "::add-mask::$ANON_KEY"
+          echo "::add-mask::$SERVICE_ROLE_KEY"
+          echo "::add-mask::$DB_URL"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$ANON_KEY"
+            echo "QA_SUPABASE_URL=$API_URL"
+            echo "QA_SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "QA_DB_URL=$DB_URL"
+          } >> "$GITHUB_ENV"
+
+      - name: Verify PostgREST schema cache
+        run: node scripts/verify-supabase-qa.mjs
+
+      - name: Seed fictitious QA data
+        run: node scripts/seed-supabase-qa.mjs
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: RLS and integration tests
+        run: npm run integration
+
+      - name: Start Next.js app
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run dev -- --hostname 127.0.0.1 --port 3000 > next.log 2>&1 &
+          echo "$!" > next.pid
+          for attempt in {1..90}; do
+            if curl -fsS http://127.0.0.1:3000/api/health >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat next.log
+          exit 1
+        working-directory: apps/web
+
+      - name: E2E tests
+        run: npm run e2e -- e2e/foundation-ui.e2e.spec.ts e2e/projects.e2e.spec.ts --workers=1
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-supabase-failure-artifacts
+          path: |
+            apps/web/next.log
+            apps/web/playwright-report
+            apps/web/test-results
+
+      - name: Stop services
+        if: always()
+        shell: bash
+        run: |
+          if [ -f apps/web/next.pid ]; then
+            kill "$(cat apps/web/next.pid)" || true
+          fi
+          supabase stop || true

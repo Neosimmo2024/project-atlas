@@ -1,0 +1,25 @@
+import { NextResponse } from "next/server";
+import { parseProjectArchiveInput } from "@/features/projects/validation";
+import { isApiError } from "@/lib/api-errors";
+import { archiveProject } from "@/repositories/projects";
+import { getTenantContext } from "@/repositories/tenant-context";
+
+type ProjectRouteParams = { params: Promise<{ id: string }> };
+
+export async function POST(request: Request, { params }: ProjectRouteParams) {
+  try {
+    const context = await getTenantContext();
+    if (!context) return NextResponse.json({ error: "Tenant context not found" }, { status: 401 });
+    const parsed = parseProjectArchiveInput(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Validation failed", fields: parsed.error.issues.map((issue) => ({ field: issue.path.join("."), message: issue.message })) }, { status: 400 });
+    }
+    const { id } = await params;
+    const project = await archiveProject(context, id, parsed.data);
+    return NextResponse.json({ data: project });
+  } catch (error) {
+    if (isApiError(error)) return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
+    const message = error instanceof Error ? error.message : "Erreur inconnue.";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}

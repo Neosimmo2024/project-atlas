@@ -40,6 +40,7 @@ export async function GET(request: Request) {
       organizationId: url.searchParams.get("organizationId") ?? "",
       relationshipId: url.searchParams.get("relationshipId") ?? "",
       interactionId: url.searchParams.get("interactionId") ?? "",
+      projectId: url.searchParams.get("projectId") ?? "",
       page: Number(url.searchParams.get("page") ?? 1),
       pageSize: Number(url.searchParams.get("pageSize") ?? 10)
     });

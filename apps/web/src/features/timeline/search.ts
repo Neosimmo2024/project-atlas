@@ -5,6 +5,7 @@ export type TimelineSearchParams = {
   personId?: string;
   organizationId?: string;
   relationshipId?: string;
+  projectId?: string;
   eventType?: string;
   category?: string;
   dateFrom?: string;
@@ -27,6 +28,7 @@ export function normalizeTimelineListParams(params: TimelineSearchParams) {
     personId: params.personId?.trim() || "",
     organizationId: params.organizationId?.trim() || "",
     relationshipId: params.relationshipId?.trim() || "",
+    projectId: params.projectId?.trim() || "",
     eventType: params.eventType?.trim() || "",
     eventTypes: timelineEventTypesForCategory(params.category),
     category: params.category?.trim() || "all",

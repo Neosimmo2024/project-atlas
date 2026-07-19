@@ -44,6 +44,7 @@ export const interactionInputSchema = z.object({
   person_id: nullableUuid,
   organization_id: nullableUuid,
   relationship_id: nullableUuid,
+  project_id: nullableUuid,
   type_id: z.string().uuid("Le type d'interaction est obligatoire."),
   title: z.string().trim().min(1, "Le titre est obligatoire.").max(180, "Le titre est trop long."),
   summary: optionalNullableText,
@@ -58,8 +59,8 @@ export const interactionInputSchema = z.object({
   comments: optionalNullableText,
   metadata: metadataSchema
 }).superRefine((value, ctx) => {
-  if (!value.person_id && !value.organization_id && !value.relationship_id) {
-    ctx.addIssue({ code: "custom", path: ["person_id"], message: "Selectionnez au moins une personne, une organisation ou une relation." });
+  if (!value.person_id && !value.organization_id && !value.relationship_id && !value.project_id) {
+    ctx.addIssue({ code: "custom", path: ["person_id"], message: "Selectionnez au moins une personne, une organisation, une relation ou un projet." });
   }
 });
 

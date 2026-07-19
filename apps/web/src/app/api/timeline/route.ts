@@ -28,6 +28,7 @@ export async function GET(request: Request) {
       personId: url.searchParams.get("personId") ?? "",
       organizationId: url.searchParams.get("organizationId") ?? "",
       relationshipId: url.searchParams.get("relationshipId") ?? "",
+      projectId: url.searchParams.get("projectId") ?? "",
       eventType: url.searchParams.get("eventType") ?? "",
       category: url.searchParams.get("category") ?? "all",
       dateFrom: url.searchParams.get("dateFrom") ?? "",

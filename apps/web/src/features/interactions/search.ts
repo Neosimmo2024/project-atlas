@@ -7,6 +7,7 @@ export type InteractionsSearchParams = {
   personId?: string;
   organizationId?: string;
   relationshipId?: string;
+  projectId?: string;
   page?: number;
   pageSize?: number;
 };
@@ -52,6 +53,7 @@ export function normalizeInteractionsListParams(params: InteractionsSearchParams
     personId: params.personId?.trim() || "",
     organizationId: params.organizationId?.trim() || "",
     relationshipId: params.relationshipId?.trim() || "",
+    projectId: params.projectId?.trim() || "",
     page,
     pageSize,
     from: (page - 1) * pageSize,

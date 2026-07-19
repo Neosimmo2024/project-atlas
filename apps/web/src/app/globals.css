@@ -253,6 +253,29 @@ button, input, select, textarea { font: inherit; }
 .danger-button { background: var(--danger); }
 .error { color: var(--danger); }
 .success { border: 1px solid #a6e3c7; border-radius: 8px; background: #eefbf4; color: #067647; padding: 12px 14px; }
+.error-state { border-color: #fecdca; background: #fff4f3; }
+.loading-state { color: var(--muted); }
+.metric-value { color: var(--foreground); font-size: 28px; line-height: 1; }
+.toolbar { flex-wrap: wrap; }
+.tag-neutral { background: #f2f4f7; color: #344054; }
+.tag-success { background: #ecfdf3; color: #067647; }
+.tag-warning { background: #fffaeb; color: #b54708; }
+.tag-danger { background: #fef3f2; color: var(--danger); }
+.tag-info { background: #eff8ff; color: #175cd3; }
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.36);
+  z-index: 50;
+}
+.confirm-dialog { width: min(480px, 100%); box-shadow: 0 20px 60px rgba(15, 23, 42, 0.24); }
+.entity-header h1 { margin-bottom: 6px; }
+.entity-summary { align-items: start; }
+.entity-actions, .entity-tabs { flex-wrap: wrap; }
+.timeline-item h2 { font-size: 16px; margin: 0; }
 .login-form-panel .error {
   margin: 0;
   border: 1px solid #fecdca;

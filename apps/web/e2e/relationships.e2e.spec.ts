@@ -17,7 +17,7 @@ test.describe("Relationships authenticated flow", () => {
 
     await page.goto("/login");
     await page.getByLabel("Email").fill(process.env.RELATIONSHIPS_TEST_TENANT_A_EMAIL!);
-    await page.getByLabel("Mot de passe").fill(process.env.RELATIONSHIPS_TEST_TENANT_A_PASSWORD!);
+    await page.getByLabel("Mot de passe", { exact: true }).fill(process.env.RELATIONSHIPS_TEST_TENANT_A_PASSWORD!);
     await page.getByRole("button", { name: "Se connecter" }).click();
     await expect(page).toHaveURL(/\/dashboard/);
 

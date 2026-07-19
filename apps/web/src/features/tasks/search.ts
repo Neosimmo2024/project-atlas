@@ -10,6 +10,7 @@ export type TasksSearchParams = {
   organizationId?: string;
   relationshipId?: string;
   interactionId?: string;
+  projectId?: string;
   page?: number;
   pageSize?: number;
 };
@@ -52,6 +53,7 @@ export function normalizeTasksListParams(params: TasksSearchParams) {
     organizationId: params.organizationId?.trim() || "",
     relationshipId: params.relationshipId?.trim() || "",
     interactionId: params.interactionId?.trim() || "",
+    projectId: params.projectId?.trim() || "",
     page,
     pageSize,
     from: (page - 1) * pageSize,

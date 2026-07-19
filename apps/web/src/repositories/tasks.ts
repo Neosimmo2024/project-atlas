@@ -2,13 +2,14 @@ import { buildTasksSearchOrFilter, canDeleteTasks, normalizeTasksListParams, typ
 import type { TaskFormInput } from "@/features/tasks/validation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { recordTaskChanged, recordTaskDeleted } from "@/services/timeline-service";
-import type { Interaction, Organization, Person, Relationship, Task, TenantContext } from "@/types/domain";
+import type { Interaction, Organization, Person, Project, Relationship, Task, TenantContext } from "@/types/domain";
 
 export type TaskListItem = Task & {
   person: Pick<Person, "id" | "display_name"> | null;
   organization: Pick<Organization, "id" | "name"> | null;
   relationship: Pick<Relationship, "id" | "relationship_type" | "pipeline_stage"> | null;
   interaction: Pick<Interaction, "id" | "title"> | null;
+  project: Pick<Project, "id" | "title" | "status" | "stage"> | null;
 };
 
 export type TasksListResult = {
@@ -25,6 +26,7 @@ export type TaskDetail = {
   organization: Organization | null;
   relationship: Relationship | null;
   interaction: Interaction | null;
+  project: Project | null;
 };
 
 type TaskJoinedRow = Task & {
@@ -32,6 +34,7 @@ type TaskJoinedRow = Task & {
   organizations?: TaskListItem["organization"];
   relationships?: TaskListItem["relationship"];
   interactions?: TaskListItem["interaction"];
+  projects?: TaskListItem["project"];
 };
 
 function mapTaskRow(row: TaskJoinedRow): TaskListItem {
@@ -40,7 +43,8 @@ function mapTaskRow(row: TaskJoinedRow): TaskListItem {
     person: row.people ?? null,
     organization: row.organizations ?? null,
     relationship: row.relationships ?? null,
-    interaction: row.interactions ?? null
+    interaction: row.interactions ?? null,
+    project: row.projects ?? null
   };
 }
 
@@ -108,13 +112,27 @@ export async function listTaskInteractionOptions(context: TenantContext): Promis
   return (data ?? []) as Pick<Interaction, "id" | "title">[];
 }
 
+export async function listTaskProjectOptions(context: TenantContext): Promise<Pick<Project, "id" | "title">[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("projects")
+    .select("id, title")
+    .eq("tenant_id", context.tenantId)
+    .is("archived_at", null)
+    .order("updated_at", { ascending: false })
+    .limit(200);
+
+  if (error) throw error;
+  return (data ?? []) as Pick<Project, "id" | "title">[];
+}
+
 export async function listTasks(context: TenantContext, params: TasksSearchParams = {}): Promise<TasksListResult> {
   const supabase = await createSupabaseServerClient();
   const normalized = normalizeTasksListParams(params);
 
   let query = supabase
     .from("tasks")
-    .select("*, people(id, display_name), organizations(id, name), relationships(id, relationship_type, pipeline_stage), interactions(id, title)", { count: "exact" })
+    .select("*, people(id, display_name), organizations(id, name), relationships(id, relationship_type, pipeline_stage), interactions(id, title), projects(id, title, status, stage)", { count: "exact" })
     .eq("tenant_id", context.tenantId)
     .is("deleted_at", null);
 
@@ -124,6 +142,7 @@ export async function listTasks(context: TenantContext, params: TasksSearchParam
   if (normalized.organizationId) query = query.eq("organization_id", normalized.organizationId);
   if (normalized.relationshipId) query = query.eq("relationship_id", normalized.relationshipId);
   if (normalized.interactionId) query = query.eq("interaction_id", normalized.interactionId);
+  if (normalized.projectId) query = query.eq("project_id", normalized.projectId);
   if (normalized.query) query = query.or(buildTasksSearchOrFilter(["title", "description", "reason"], normalized.query));
   if (normalized.due) {
     const today = startOfToday();
@@ -166,31 +185,34 @@ export async function getTaskDetail(context: TenantContext, taskId: string): Pro
   if (!task) return null;
 
   const typedTask = task as Task;
-  const [{ data: person, error: personError }, { data: organization, error: organizationError }, { data: relationship, error: relationshipError }, { data: interaction, error: interactionError }] = await Promise.all([
+  const [{ data: person, error: personError }, { data: organization, error: organizationError }, { data: relationship, error: relationshipError }, { data: interaction, error: interactionError }, { data: project, error: projectError }] = await Promise.all([
     typedTask.person_id ? supabase.from("people").select("*").eq("tenant_id", context.tenantId).eq("id", typedTask.person_id).maybeSingle() : Promise.resolve({ data: null, error: null }),
     typedTask.organization_id ? supabase.from("organizations").select("*").eq("tenant_id", context.tenantId).eq("id", typedTask.organization_id).maybeSingle() : Promise.resolve({ data: null, error: null }),
     typedTask.relationship_id ? supabase.from("relationships").select("*").eq("tenant_id", context.tenantId).eq("id", typedTask.relationship_id).maybeSingle() : Promise.resolve({ data: null, error: null }),
-    typedTask.interaction_id ? supabase.from("interactions").select("*").eq("tenant_id", context.tenantId).eq("id", typedTask.interaction_id).maybeSingle() : Promise.resolve({ data: null, error: null })
+    typedTask.interaction_id ? supabase.from("interactions").select("*").eq("tenant_id", context.tenantId).eq("id", typedTask.interaction_id).maybeSingle() : Promise.resolve({ data: null, error: null }),
+    typedTask.project_id ? supabase.from("projects").select("*").eq("tenant_id", context.tenantId).eq("id", typedTask.project_id).maybeSingle() : Promise.resolve({ data: null, error: null })
   ]);
 
   if (personError) throw personError;
   if (organizationError) throw organizationError;
   if (relationshipError) throw relationshipError;
   if (interactionError) throw interactionError;
+  if (projectError) throw projectError;
 
   return {
     task: typedTask,
     person: person as Person | null,
     organization: organization as Organization | null,
     relationship: relationship as Relationship | null,
-    interaction: interaction as Interaction | null
+    interaction: interaction as Interaction | null,
+    project: project as Project | null
   };
 }
 
 async function assertTaskReferencesBelongToTenant(context: TenantContext, input: TaskFormInput) {
   const supabase = await createSupabaseServerClient();
 
-  async function assertReference(table: "people" | "organizations" | "relationships" | "interactions", id: string | null | undefined, message: string) {
+  async function assertReference(table: "people" | "organizations" | "relationships" | "interactions" | "projects", id: string | null | undefined, message: string) {
     if (!id) return;
     const { data, error } = await supabase.from(table).select("id").eq("tenant_id", context.tenantId).eq("id", id).maybeSingle();
     if (error) throw error;
@@ -201,7 +223,8 @@ async function assertTaskReferencesBelongToTenant(context: TenantContext, input:
     assertReference("people", input.person_id, "La personne selectionnee est introuvable pour ce tenant."),
     assertReference("organizations", input.organization_id, "L'organisation selectionnee est introuvable pour ce tenant."),
     assertReference("relationships", input.relationship_id, "La relation selectionnee est introuvable pour ce tenant."),
-    assertReference("interactions", input.interaction_id, "L'interaction selectionnee est introuvable pour ce tenant.")
+    assertReference("interactions", input.interaction_id, "L'interaction selectionnee est introuvable pour ce tenant."),
+    assertReference("projects", input.project_id, "Le projet selectionne est introuvable pour ce tenant.")
   ]);
 }
 
@@ -298,4 +321,8 @@ export async function listRelationshipTasks(context: TenantContext, relationship
 
 export async function listInteractionTasks(context: TenantContext, interactionId: string) {
   return listTasks(context, { interactionId, page: 1, pageSize: 10 });
+}
+
+export async function listProjectTasks(context: TenantContext, projectId: string) {
+  return listTasks(context, { projectId, page: 1, pageSize: 10 });
 }

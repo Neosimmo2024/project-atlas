@@ -2,12 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DeleteOrganizationButton } from "@/components/organizations/delete-organization-button";
 import { OrganizationForm } from "@/components/organizations/organization-form";
+import { ContextProjects } from "@/components/projects/context-projects";
 import { TaskCard } from "@/components/tasks/task-card";
 import { TimelineFilters, normalizeTimelineCategory } from "@/components/timeline/timeline-filters";
 import { TimelineList } from "@/components/timeline/timeline-list";
 import { ORGANIZATION_STATUS_LABELS, ORGANIZATION_TYPE_LABELS } from "@/features/organizations/options";
 import { canDeleteOrganizations } from "@/features/organizations/search";
 import { getOrganizationDetail, listParentOrganizationOptions } from "@/repositories/organizations";
+import { listContextProjects } from "@/repositories/projects";
 import { listOrganizationTasks } from "@/repositories/tasks";
 import { getTenantContext } from "@/repositories/tenant-context";
 import { listTimelineEvents } from "@/repositories/timeline-events";
@@ -39,10 +41,11 @@ export default async function OrganizationDetailPage({ params, searchParams }: O
   const { organization, parent, children, people, relationships } = detail;
   const timelineCategory = normalizeTimelineCategory(valueOf(query, "timelineCategory"));
   const timelinePage = Number(valueOf(query, "timelinePage") || 1);
-  const [parentOptions, chronology, tasks] = await Promise.all([
+  const [parentOptions, chronology, tasks, projects] = await Promise.all([
     listParentOrganizationOptions(context, organization.id),
     listTimelineEvents(context, { organizationId: organization.id, category: timelineCategory, page: timelinePage, pageSize: 10 }),
-    listOrganizationTasks(context, organization.id)
+    listOrganizationTasks(context, organization.id),
+    listContextProjects(context, { organizationId: organization.id })
   ]);
   const typeLabel = organization.organization_type ? ORGANIZATION_TYPE_LABELS[organization.organization_type as keyof typeof ORGANIZATION_TYPE_LABELS] ?? organization.organization_type : "-";
 
@@ -121,6 +124,8 @@ export default async function OrganizationDetailPage({ params, searchParams }: O
           <p key={relationship.id}>{relationship.relationship_type} - {relationship.pipeline_stage} - {relationship.status}</p>
         ))}
       </section>
+
+      <ContextProjects result={projects} newHref={`/projects/new?organizationId=${organization.id}`} allHref={`/projects?organizationId=${organization.id}`} />
 
       <section className="card stack">
         <div className="page-header">

@@ -2,12 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DeletePersonButton } from "@/components/people/delete-person-button";
 import { PersonForm } from "@/components/people/person-form";
+import { ContextProjects } from "@/components/projects/context-projects";
 import { TaskCard } from "@/components/tasks/task-card";
 import { TimelineFilters, normalizeTimelineCategory } from "@/components/timeline/timeline-filters";
 import { TimelineList } from "@/components/timeline/timeline-list";
 import { PERSON_STATUS_LABELS, PRIORITY_LABELS } from "@/features/people/options";
 import { canDeletePeople } from "@/features/people/search";
 import { getPersonDetail } from "@/repositories/people";
+import { listContextProjects } from "@/repositories/projects";
 import { listPersonTasks } from "@/repositories/tasks";
 import { getTenantContext } from "@/repositories/tenant-context";
 import { listTimelineEvents } from "@/repositories/timeline-events";
@@ -39,9 +41,10 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
   const { person, organizations, relationships } = detail;
   const timelineCategory = normalizeTimelineCategory(valueOf(query, "timelineCategory"));
   const timelinePage = Number(valueOf(query, "timelinePage") || 1);
-  const [chronology, tasks] = await Promise.all([
+  const [chronology, tasks, projects] = await Promise.all([
     listTimelineEvents(context, { personId: person.id, category: timelineCategory, page: timelinePage, pageSize: 10 }),
-    listPersonTasks(context, person.id)
+    listPersonTasks(context, person.id),
+    listContextProjects(context, { personId: person.id })
   ]);
 
   return (
@@ -97,6 +100,8 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
           <p key={relationship.id}>{relationship.relationship_type} - {relationship.pipeline_stage} - {relationship.status}</p>
         ))}
       </section>
+
+      <ContextProjects result={projects} newHref={`/projects/new?personId=${person.id}`} allHref={`/projects?personId=${person.id}`} />
 
       <section className="card stack">
         <div className="page-header">
