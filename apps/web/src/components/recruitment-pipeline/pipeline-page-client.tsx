@@ -271,6 +271,7 @@ function StageFields({ card, toStage }: { card: PipelineCardModel; toStage?: Rel
   const [selectedStage, setSelectedStage] = useState<RelationshipPipelineStage>(defaultStage);
   const isSignature = selectedStage === "signature";
   const isRejected = selectedStage === "rejected";
+  const isLeavingSignature = card.stage === "signature" && selectedStage !== "signature";
   const isReopen = card.stage === "rejected" && selectedStage !== "rejected";
   return (
     <>
@@ -280,7 +281,8 @@ function StageFields({ card, toStage }: { card: PipelineCardModel; toStage?: Rel
         </select>
       </label>
       {isReopen ? <p className="warning">L&apos;ancien refus restera dans l&apos;historique. Le blocage de contact ne sera pas levé automatiquement.</p> : null}
-      <label>Motif ou note<textarea className="input textarea" name="reason" required={isReopen || isSignature} /></label>
+      <label>Motif ou note<textarea className="input textarea" name="reason" required={isReopen || isSignature || isLeavingSignature} /></label>
+      {isLeavingSignature ? <label className="checks"><input type="checkbox" name="confirmed" value="true" required /> Confirmation explicite</label> : null}
       {isSignature ? (
         <div className="form-grid">
           <label className="checks"><input type="checkbox" name="confirmed" value="true" required /> Confirmation explicite</label>

@@ -51,6 +51,7 @@ test.describe("Recruitment pipeline UI authenticated flow", () => {
     await expect(pipelineCard(page).getByText("Signature")).toBeVisible();
 
     await changeStage(page, "Refus", "Refus documenté depuis E2E", async (stageDialog) => {
+      await stageDialog.getByLabel("Confirmation explicite").check();
       await stageDialog.getByLabel("Motif de refus").selectOption("not_interested");
       await stageDialog.getByLabel("Ne plus contacter").check();
     });
