@@ -40,7 +40,7 @@ test.describe("Recruitment pipeline UI authenticated flow", () => {
     await ownerDialog.getByLabel("Responsable").selectOption("");
     await ownerDialog.getByRole("button", { name: "Valider" }).click();
     await expect(page.getByText("Responsable mis à jour.")).toBeVisible();
-    await expect(page.getByText("Sans responsable")).toBeVisible();
+    await expect(pipelineCard(page).getByText("Sans responsable")).toBeVisible();
 
     await changeStage(page, "Signature", "Signature confirmée depuis E2E", async () => {
       await page.getByLabel("Confirmation explicite").check();
