@@ -261,7 +261,7 @@ jobs:
         working-directory: apps/web
 
       - name: E2E tests
-        run: npm run e2e
+        run: npm run e2e -- --workers=1
 
       - name: Upload failure artifacts
         if: failure()
