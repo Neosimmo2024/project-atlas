@@ -167,8 +167,19 @@ async function changeStage(page: Page, label: string, reason: string, fillExtra?
 }
 
 async function dragStage(page: Page, label: string) {
-  const target = page.locator(".pipeline-column").filter({ has: page.getByRole("heading", { name: label }) });
-  await pipelineCard(page).dragTo(target);
+  await page.evaluate((targetLabel) => {
+    const card = Array.from(document.querySelectorAll<HTMLElement>(".pipeline-card"))
+      .find((element) => element.textContent?.includes("Atlas QA Person A"));
+    const target = Array.from(document.querySelectorAll<HTMLElement>(".pipeline-column"))
+      .find((element) => element.textContent?.includes(targetLabel));
+    if (!card || !target) throw new Error(`Cannot drag pipeline card to ${targetLabel}`);
+
+    const dataTransfer = new DataTransfer();
+    card.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true, dataTransfer }));
+    target.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer }));
+    target.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer }));
+  }, label);
+  await expect(page.getByRole("dialog", { name: "Changer la phase" })).toBeVisible();
 }
 
 async function capture(page: Page, testInfo: TestInfo, name: string) {
