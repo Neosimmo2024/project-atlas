@@ -46,7 +46,7 @@ test.describe("Recruitment pipeline UI authenticated flow", () => {
     await page.setViewportSize({ width: 1440, height: 900 });
 
     await page.goto(`/pipeline?query=${encodeURIComponent("No matching pipeline card")}`);
-    await expect(page.getByText("Aucune relation dans le pipeline")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Pipeline vide" })).toBeVisible();
     await capture(page, testInfo, "pipeline-empty-state");
     await page.goto(`/pipeline?query=${encodeURIComponent("Atlas QA Person A")}`);
 
