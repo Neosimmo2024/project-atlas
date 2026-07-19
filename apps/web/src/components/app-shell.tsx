@@ -5,6 +5,7 @@ const navItems = [
   { href: "/people", label: "People" },
   { href: "/organizations", label: "Organizations" },
   { href: "/relationships", label: "Relationships" },
+  { href: "/pipeline", label: "Pipeline" },
   { href: "/interactions", label: "Interactions" },
   { href: "/tasks", label: "Tasks" },
   { href: "/projects", label: "Projets" }
