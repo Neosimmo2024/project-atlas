@@ -22,6 +22,24 @@ function requestOrigin(request: NextRequest) {
   return request.nextUrl.origin;
 }
 
+function isLoopbackHost(hostname: string) {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "[::1]";
+}
+
+function isEquivalentLoopbackOrigin(origin: string, expectedOrigin: string) {
+  try {
+    const actual = new URL(origin);
+    const expected = new URL(expectedOrigin);
+
+    return actual.protocol === expected.protocol
+      && actual.port === expected.port
+      && isLoopbackHost(actual.hostname)
+      && isLoopbackHost(expected.hostname);
+  } catch {
+    return false;
+  }
+}
+
 function jsonError(status: number, code: string, error: string) {
   const response = NextResponse.json({ error, code }, { status });
   applySecurityHeaders(response.headers);
@@ -46,7 +64,7 @@ export function validateMutationRequest(request: NextRequest) {
 
   const allowedOrigins = configuredOrigins();
   const expectedOrigin = requestOrigin(request);
-  if (origin === expectedOrigin || allowedOrigins.has(origin)) return null;
+  if (origin === expectedOrigin || allowedOrigins.has(origin) || isEquivalentLoopbackOrigin(origin, expectedOrigin)) return null;
 
   return jsonError(403, "CSRF_FORBIDDEN", "Requete refusee.");
 }

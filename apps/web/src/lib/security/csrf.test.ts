@@ -56,4 +56,17 @@ describe("CSRF mutation protection", () => {
 
     expect(response).toBeNull();
   });
+
+  it("allows localhost and 127.0.0.1 as the same local development origin", () => {
+    const response = validateMutationRequest(request("http://localhost:3000/api/projects", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: "http://127.0.0.1:3000",
+        "sec-fetch-site": "same-origin"
+      }
+    }));
+
+    expect(response).toBeNull();
+  });
 });
