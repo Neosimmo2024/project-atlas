@@ -217,7 +217,7 @@ export async function createRelationship(context: TenantContext, input: Relation
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("relationships")
-    .insert({ ...input, tenant_id: context.tenantId })
+    .insert({ ...input, tenant_id: context.tenantId, owner_user_id: input.owner_user_id ?? context.userId })
     .select("*")
     .single();
 
@@ -230,6 +230,24 @@ export async function createRelationship(context: TenantContext, input: Relation
 export async function updateRelationship(context: TenantContext, relationshipId: string, input: RelationshipFormInput) {
   await assertRelationshipReferencesBelongToTenant(context, input);
   const supabase = await createSupabaseServerClient();
+  const { data: previous, error: previousError } = await supabase
+    .from("relationships")
+    .select("*")
+    .eq("tenant_id", context.tenantId)
+    .eq("id", relationshipId)
+    .maybeSingle();
+
+  if (previousError) throw previousError;
+  if (!previous) throw new Error("Relation introuvable.");
+
+  const previousRelationship = previous as Relationship;
+  if (input.pipeline_stage !== previousRelationship.pipeline_stage) {
+    throw new Error("La phase de recrutement doit etre modifiee par le moteur de pipeline.");
+  }
+  if (input.owner_user_id !== previousRelationship.owner_user_id) {
+    throw new Error("Le responsable de relation doit etre modifie par l'action dediee.");
+  }
+
   const { data, error } = await supabase
     .from("relationships")
     .update(input)

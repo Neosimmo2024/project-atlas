@@ -25,7 +25,13 @@ export const TIMELINE_EVENT_LABELS: Record<TimelineEventType, string> = {
   project_reactivated: "Projet réactivé",
   project_task_created: "Tâche créée dans le Projet",
   project_task_completed: "Tâche terminée dans le Projet",
-  project_interaction_created: "Échange ajouté dans le Projet"
+  project_interaction_created: "Échange ajouté dans le Projet",
+  relationship_stage_changed: "Phase de relation modifiée",
+  relationship_signature_confirmed: "Signature confirmée",
+  relationship_rejected: "Relation rejetée",
+  relationship_reopened: "Relation rouverte",
+  relationship_owner_changed: "Responsable de relation modifié",
+  relationship_do_not_contact_changed: "Ne plus contacter modifié"
 };
 
 export const TIMELINE_FILTER_LABELS = {
@@ -42,7 +48,15 @@ export type TimelineFilterCategory = keyof typeof TIMELINE_FILTER_LABELS;
 export const TIMELINE_EVENT_CATEGORIES: Record<Exclude<TimelineFilterCategory, "all">, TimelineEventType[]> = {
   interactions: ["interaction_created", "interaction_updated", "project_interaction_created"],
   tasks: ["task_created", "task_completed", "task_reopened", "task_updated", "task_deleted", "project_task_created", "project_task_completed"],
-  relationships: ["relationship_created"],
+  relationships: [
+    "relationship_created",
+    "relationship_stage_changed",
+    "relationship_signature_confirmed",
+    "relationship_rejected",
+    "relationship_reopened",
+    "relationship_owner_changed",
+    "relationship_do_not_contact_changed"
+  ],
   organizations: ["organization_created", "organization_linked", "organization_unlinked"],
   projects: [
     "project_created",

@@ -1,3 +1,5 @@
+import { RECRUITMENT_PIPELINE_STAGE_LABELS, RECRUITMENT_PIPELINE_STAGES } from "@/features/recruitment-pipeline/options";
+
 export const RELATIONSHIP_TYPES = [
   "recruiting",
   "management",
@@ -9,20 +11,7 @@ export const RELATIONSHIP_TYPES = [
 ] as const;
 
 export const RELATIONSHIP_PIPELINE_STAGES = [
-  "detection",
-  "qualification",
-  "first_contact",
-  "conversation",
-  "meeting",
-  "presentation",
-  "reflection",
-  "negotiation",
-  "signature",
-  "onboarding",
-  "development",
-  "ambassador",
-  "refusal",
-  "closed"
+  ...RECRUITMENT_PIPELINE_STAGES
 ] as const;
 
 export const RELATIONSHIP_STATUSES = ["active", "paused", "won", "lost", "archived"] as const;
@@ -37,27 +26,12 @@ export const RELATIONSHIP_TYPE_LABELS: Record<(typeof RELATIONSHIP_TYPES)[number
   prospecting: "Prospection"
 };
 
-export const RELATIONSHIP_PIPELINE_STAGE_LABELS: Record<(typeof RELATIONSHIP_PIPELINE_STAGES)[number], string> = {
-  detection: "Detection",
-  qualification: "Qualification",
-  first_contact: "Premier contact",
-  conversation: "Conversation",
-  meeting: "Rendez-vous",
-  presentation: "Presentation",
-  reflection: "Reflexion",
-  negotiation: "Negociation",
-  signature: "Signature",
-  onboarding: "Integration",
-  development: "Developpement",
-  ambassador: "Ambassadeur",
-  refusal: "Refus",
-  closed: "Cloturee"
-};
+export const RELATIONSHIP_PIPELINE_STAGE_LABELS = RECRUITMENT_PIPELINE_STAGE_LABELS;
 
 export const RELATIONSHIP_STATUS_LABELS: Record<(typeof RELATIONSHIP_STATUSES)[number], string> = {
   active: "Active",
   paused: "En pause",
-  won: "Gagnee",
+  won: "Gagnée",
   lost: "Perdue",
-  archived: "Archivee"
+  archived: "Archivée"
 };

@@ -154,4 +154,228 @@ describeIntegration("relationships RLS integration", () => {
     expect(data ?? []).toHaveLength(0);
     expect(error).not.toBeNull();
   });
+
+  it("creates pipeline history atomically for tenant A transitions", async () => {
+    const transition = await tenantA.rpc("transition_recruitment_pipeline", {
+      p_relationship_id: relationshipAId,
+      p_tenant_id: tenantAId,
+      p_to_stage: "conversation",
+      p_expected_stage: "detection",
+      p_expected_updated_at: null,
+      p_confirmed: false,
+      p_reason: "Qualification validee",
+      p_signature_at: null,
+      p_start_at: null,
+      p_rejection_reason: null,
+      p_rejection_comment: null,
+      p_rejection_recontactable: null,
+      p_rejection_follow_up_at: null,
+      p_do_not_contact: null,
+      p_metadata: {}
+    });
+    expect(transition.error).toBeNull();
+    expect(transition.data?.pipeline_stage).toBe("conversation");
+
+    const { data: history, error: historyError } = await tenantA
+      .from("recruitment_pipeline_events")
+      .select("relationship_id, from_stage, to_stage, event_type")
+      .eq("relationship_id", relationshipAId);
+
+    expect(historyError).toBeNull();
+    expect(history).toEqual(expect.arrayContaining([
+      expect.objectContaining({ relationship_id: relationshipAId, from_stage: "detection", to_stage: "conversation", event_type: "stage_transition" })
+    ]));
+  });
+
+  it("tenant A cannot read or modify tenant B pipeline history", async () => {
+    const transitionB = await tenantB.rpc("transition_recruitment_pipeline", {
+      p_relationship_id: relationshipBId,
+      p_tenant_id: tenantBId,
+      p_to_stage: "conversation",
+      p_expected_stage: "detection",
+      p_expected_updated_at: null,
+      p_confirmed: false,
+      p_reason: "Tenant B transition",
+      p_signature_at: null,
+      p_start_at: null,
+      p_rejection_reason: null,
+      p_rejection_comment: null,
+      p_rejection_recontactable: null,
+      p_rejection_follow_up_at: null,
+      p_do_not_contact: null,
+      p_metadata: {}
+    });
+    expect(transitionB.error).toBeNull();
+
+    const read = await tenantA.from("recruitment_pipeline_events").select("id").eq("relationship_id", relationshipBId);
+    expect(read.error).toBeNull();
+    expect(read.data).toHaveLength(0);
+
+    const forbidden = await tenantA.rpc("transition_recruitment_pipeline", {
+      p_relationship_id: relationshipBId,
+      p_tenant_id: tenantBId,
+      p_to_stage: "appointment",
+      p_expected_stage: null,
+      p_expected_updated_at: null,
+      p_confirmed: false,
+      p_reason: "Forbidden",
+      p_signature_at: null,
+      p_start_at: null,
+      p_rejection_reason: null,
+      p_rejection_comment: null,
+      p_rejection_recontactable: null,
+      p_rejection_follow_up_at: null,
+      p_do_not_contact: null,
+      p_metadata: {}
+    });
+    expect(forbidden.error).not.toBeNull();
+  });
+
+  it("user without active tenant cannot transition or assign owners", async () => {
+    const transition = await noTenant.rpc("transition_recruitment_pipeline", {
+      p_relationship_id: relationshipAId,
+      p_tenant_id: tenantAId,
+      p_to_stage: "appointment",
+      p_expected_stage: null,
+      p_expected_updated_at: null,
+      p_confirmed: false,
+      p_reason: "No tenant",
+      p_signature_at: null,
+      p_start_at: null,
+      p_rejection_reason: null,
+      p_rejection_comment: null,
+      p_rejection_recontactable: null,
+      p_rejection_follow_up_at: null,
+      p_do_not_contact: null,
+      p_metadata: {}
+    });
+    const owner = await noTenant.rpc("assign_relationship_owner", {
+      p_relationship_id: relationshipAId,
+      p_tenant_id: tenantAId,
+      p_owner_user_id: null,
+      p_expected_updated_at: null,
+      p_reason: "No tenant"
+    });
+
+    expect(transition.error).not.toBeNull();
+    expect(owner.error).not.toBeNull();
+  });
+
+  it("rejects owner assignment to another tenant user", async () => {
+    const { data: tenantBUser } = await tenantB.from("tenant_users").select("user_id").eq("tenant_id", tenantBId).limit(1).single();
+    const owner = await tenantA.rpc("assign_relationship_owner", {
+      p_relationship_id: relationshipAId,
+      p_tenant_id: tenantAId,
+      p_owner_user_id: tenantBUser?.user_id,
+      p_expected_updated_at: null,
+      p_reason: "Cross-tenant owner"
+    });
+
+    expect(owner.error).not.toBeNull();
+  });
+
+  it("rejects stale transitions, signature without date, rejected without reason, and reopen without reason", async () => {
+    const stale = await tenantA.rpc("transition_recruitment_pipeline", {
+      p_relationship_id: relationshipAId,
+      p_tenant_id: tenantAId,
+      p_to_stage: "appointment",
+      p_expected_stage: "detection",
+      p_expected_updated_at: null,
+      p_confirmed: false,
+      p_reason: null,
+      p_signature_at: null,
+      p_start_at: null,
+      p_rejection_reason: null,
+      p_rejection_comment: null,
+      p_rejection_recontactable: null,
+      p_rejection_follow_up_at: null,
+      p_do_not_contact: null,
+      p_metadata: {}
+    });
+    expect(stale.error).not.toBeNull();
+
+    const signature = await tenantA.rpc("transition_recruitment_pipeline", {
+      p_relationship_id: relationshipAId,
+      p_tenant_id: tenantAId,
+      p_to_stage: "signature",
+      p_expected_stage: null,
+      p_expected_updated_at: null,
+      p_confirmed: true,
+      p_reason: null,
+      p_signature_at: null,
+      p_start_at: null,
+      p_rejection_reason: null,
+      p_rejection_comment: null,
+      p_rejection_recontactable: null,
+      p_rejection_follow_up_at: null,
+      p_do_not_contact: null,
+      p_metadata: {}
+    });
+    expect(signature.error).not.toBeNull();
+
+    const rejected = await tenantA.rpc("transition_recruitment_pipeline", {
+      p_relationship_id: relationshipAId,
+      p_tenant_id: tenantAId,
+      p_to_stage: "rejected",
+      p_expected_stage: null,
+      p_expected_updated_at: null,
+      p_confirmed: false,
+      p_reason: null,
+      p_signature_at: null,
+      p_start_at: null,
+      p_rejection_reason: null,
+      p_rejection_comment: null,
+      p_rejection_recontactable: null,
+      p_rejection_follow_up_at: null,
+      p_do_not_contact: null,
+      p_metadata: {}
+    });
+    expect(rejected.error).not.toBeNull();
+  });
+
+  it("sets do-not-contact on rejection and does not clear it on reopen", async () => {
+    const reject = await tenantA.rpc("transition_recruitment_pipeline", {
+      p_relationship_id: relationshipAId,
+      p_tenant_id: tenantAId,
+      p_to_stage: "rejected",
+      p_expected_stage: null,
+      p_expected_updated_at: null,
+      p_confirmed: false,
+      p_reason: "Refus explicite",
+      p_signature_at: null,
+      p_start_at: null,
+      p_rejection_reason: "not_interested",
+      p_rejection_comment: null,
+      p_rejection_recontactable: false,
+      p_rejection_follow_up_at: null,
+      p_do_not_contact: true,
+      p_metadata: {}
+    });
+    expect(reject.error).toBeNull();
+
+    const { data: personAfterReject } = await tenantA.from("people").select("do_not_contact").eq("id", personAId).single();
+    expect(personAfterReject?.do_not_contact).toBe(true);
+
+    const reopen = await tenantA.rpc("transition_recruitment_pipeline", {
+      p_relationship_id: relationshipAId,
+      p_tenant_id: tenantAId,
+      p_to_stage: "qualification",
+      p_expected_stage: null,
+      p_expected_updated_at: null,
+      p_confirmed: false,
+      p_reason: "Nouvelle demande documentee",
+      p_signature_at: null,
+      p_start_at: null,
+      p_rejection_reason: null,
+      p_rejection_comment: null,
+      p_rejection_recontactable: null,
+      p_rejection_follow_up_at: null,
+      p_do_not_contact: null,
+      p_metadata: {}
+    });
+    expect(reopen.error).toBeNull();
+
+    const { data: personAfterReopen } = await tenantA.from("people").select("do_not_contact").eq("id", personAId).single();
+    expect(personAfterReopen?.do_not_contact).toBe(true);
+  });
 });

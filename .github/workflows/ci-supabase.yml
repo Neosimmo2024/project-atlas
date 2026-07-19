@@ -7,6 +7,7 @@ on:
   push:
     branches:
       - feat/foundation-ui
+      - feat/recruitment-pipeline-domain
   workflow_dispatch:
 
 permissions:
@@ -197,6 +198,19 @@ jobs:
             ) then
               raise exception 'Expected projects RLS policies are missing';
             end if;
+            if to_regclass('public.recruitment_pipeline_events') is null then
+              raise exception 'public.recruitment_pipeline_events is missing';
+            end if;
+            if not exists (
+              select 1 from pg_class c
+              join pg_namespace n on n.oid = c.relnamespace
+              where n.nspname = 'public' and c.relname = 'recruitment_pipeline_events' and c.relrowsecurity
+            ) then
+              raise exception 'RLS is not enabled on public.recruitment_pipeline_events';
+            end if;
+            if not has_function_privilege('authenticated', 'public.transition_recruitment_pipeline(uuid, uuid, text, text, timestamp with time zone, boolean, text, timestamp with time zone, timestamp with time zone, text, text, boolean, timestamp with time zone, boolean, jsonb)', 'execute') then
+              raise exception 'authenticated role cannot execute transition_recruitment_pipeline';
+            end if;
           end $$;
           notify pgrst, 'reload schema';
           SQL
@@ -261,7 +275,7 @@ jobs:
         working-directory: apps/web
 
       - name: E2E tests
-        run: npm run e2e -- e2e/foundation-ui.e2e.spec.ts e2e/projects.e2e.spec.ts --workers=1
+        run: npm --workspace apps/web run e2e -- e2e/foundation-ui.e2e.spec.ts e2e/projects.e2e.spec.ts e2e/recruitment-pipeline.e2e.spec.ts --workers=1
 
       - name: Upload failure artifacts
         if: failure()

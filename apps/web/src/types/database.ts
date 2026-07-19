@@ -1,4 +1,4 @@
-import type { ActionPlanDecision, Interaction, InteractionType, Organization, Person, Project, Relationship, Task, TimelineEvent } from "@/types/domain";
+import type { ActionPlanDecision, Interaction, InteractionType, Organization, Person, Project, RecruitmentPipelineEvent, Relationship, Task, TimelineEvent } from "@/types/domain";
 
 type Timestamped = { id: string; tenant_id: string; created_at: string; updated_at: string };
 type Row<T> = T & Record<string, unknown>;
@@ -9,6 +9,9 @@ type Update<T extends Timestamped> = Partial<Insert<T>>;
 type TimelineEventInsert = Partial<Omit<TimelineEvent, "id" | "tenant_id" | "created_at">> &
   Pick<TimelineEvent, "tenant_id" | "event_type" | "title" | "source_type" | "source_id" | "idempotency_key"> &
   Partial<Pick<TimelineEvent, "id">>;
+type RecruitmentPipelineEventInsert = Partial<Omit<RecruitmentPipelineEvent, "id" | "tenant_id" | "created_at">> &
+  Pick<RecruitmentPipelineEvent, "tenant_id" | "relationship_id" | "to_stage"> &
+  Partial<Pick<RecruitmentPipelineEvent, "id">>;
 type NoRelationships = [];
 type TenantRow = {
   id: string;
@@ -171,6 +174,19 @@ export type Database = {
           }
         ];
       };
+      recruitment_pipeline_events: {
+        Row: Row<RecruitmentPipelineEvent>;
+        Insert: RecruitmentPipelineEventInsert;
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "recruitment_pipeline_events_relationship_id_fkey";
+            columns: ["relationship_id"];
+            referencedRelation: "relationships";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       timeline_events: {
         Row: Row<TimelineEvent>;
         Insert: TimelineEventInsert;
@@ -254,7 +270,48 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      transition_recruitment_pipeline: {
+        Args: {
+          p_relationship_id: string;
+          p_tenant_id: string;
+          p_to_stage: string;
+          p_expected_stage?: string | null;
+          p_expected_updated_at?: string | null;
+          p_confirmed?: boolean;
+          p_reason?: string | null;
+          p_signature_at?: string | null;
+          p_start_at?: string | null;
+          p_rejection_reason?: string | null;
+          p_rejection_comment?: string | null;
+          p_rejection_recontactable?: boolean | null;
+          p_rejection_follow_up_at?: string | null;
+          p_do_not_contact?: boolean | null;
+          p_metadata?: Record<string, unknown>;
+        };
+        Returns: Row<Relationship>;
+      };
+      assign_relationship_owner: {
+        Args: {
+          p_relationship_id: string;
+          p_tenant_id: string;
+          p_owner_user_id: string | null;
+          p_expected_updated_at?: string | null;
+          p_reason?: string | null;
+        };
+        Returns: Row<Relationship>;
+      };
+      set_relationship_do_not_contact: {
+        Args: {
+          p_relationship_id: string;
+          p_tenant_id: string;
+          p_do_not_contact: boolean;
+          p_justification: string;
+          p_expected_updated_at?: string | null;
+        };
+        Returns: Row<Relationship>;
+      };
+    };
     Enums: Record<string, never>;
   };
 };
