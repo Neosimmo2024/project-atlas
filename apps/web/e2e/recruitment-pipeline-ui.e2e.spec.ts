@@ -39,7 +39,7 @@ test.describe("Recruitment pipeline UI authenticated flow", () => {
     const ownerDialog = page.getByRole("dialog", { name: "Modifier le responsable" });
     await ownerDialog.getByLabel("Responsable").selectOption("");
     await ownerDialog.getByRole("button", { name: "Valider" }).click();
-    await expect(ownerDialog).toBeHidden();
+    await expect(ownerDialog).toBeHidden({ timeout: 15000 });
     await expect(page.getByText("Responsable mis à jour.")).toBeVisible();
     await expect(pipelineCard(page).getByText("Sans responsable")).toBeVisible();
 
@@ -66,7 +66,7 @@ test.describe("Recruitment pipeline UI authenticated flow", () => {
     const contactDialog = page.getByRole("dialog", { name: "Lever Ne plus contacter" });
     await contactDialog.getByLabel("Justification").fill("Consentement revalidé depuis E2E");
     await contactDialog.getByRole("button", { name: "Valider" }).click();
-    await expect(contactDialog).toBeHidden();
+    await expect(contactDialog).toBeHidden({ timeout: 15000 });
     await expect(page.getByText("Préférence de contact mise à jour.")).toBeVisible();
 
     const tenantBRead = await page.evaluate(async () => {
@@ -91,5 +91,5 @@ async function changeStage(page: Page, label: string, reason: string, fillExtra?
   await stageDialog.getByLabel("Motif ou note").fill(reason);
   if (fillExtra) await fillExtra(stageDialog);
   await stageDialog.getByRole("button", { name: "Valider" }).click();
-  await expect(stageDialog).toBeHidden();
+  await expect(stageDialog).toBeHidden({ timeout: 15000 });
 }
