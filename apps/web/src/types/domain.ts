@@ -26,6 +26,29 @@ export type ActionPlanReasonCode =
   | "RELATIONSHIP_INACTIVE_30D"
   | "IMPORTANT_WITHOUT_DUE_DATE";
 export type ActionPlanDecisionType = "ignored" | "snoozed" | "converted_to_task" | "completed";
+export type RelationshipPipelineStage =
+  | "detection"
+  | "qualification"
+  | "first_contact"
+  | "conversation"
+  | "appointment"
+  | "presentation"
+  | "reflection"
+  | "negotiation"
+  | "signature"
+  | "onboarding"
+  | "development"
+  | "ambassador"
+  | "rejected";
+export type RelationshipRejectionReason =
+  | "not_interested"
+  | "conditions"
+  | "current_network"
+  | "postponed"
+  | "profile_mismatch"
+  | "unresponsive"
+  | "duplicate"
+  | "other";
 export type TimelineEventType =
   | "person_created"
   | "organization_created"
@@ -51,7 +74,13 @@ export type TimelineEventType =
   | "project_reactivated"
   | "project_task_created"
   | "project_task_completed"
-  | "project_interaction_created";
+  | "project_interaction_created"
+  | "relationship_stage_changed"
+  | "relationship_signature_confirmed"
+  | "relationship_rejected"
+  | "relationship_reopened"
+  | "relationship_owner_changed"
+  | "relationship_do_not_contact_changed";
 export type TimelineSourceType = "person" | "organization" | "relationship" | "interaction" | "task" | "project";
 export type TimelineVisibility = "tenant";
 
@@ -111,7 +140,7 @@ export type Relationship = TenantScoped & {
   person_id: string;
   organization_id: string;
   relationship_type: "recruiting" | "management" | "partnership" | "customer" | "supplier" | "referrer" | "prospecting";
-  pipeline_stage: "detection" | "qualification" | "first_contact" | "conversation" | "meeting" | "presentation" | "reflection" | "negotiation" | "signature" | "onboarding" | "development" | "ambassador" | "refusal" | "closed";
+  pipeline_stage: RelationshipPipelineStage;
   status: "active" | "paused" | "won" | "lost" | "archived";
   owner_user_id: string | null;
   score: number | null;
@@ -125,6 +154,18 @@ export type Relationship = TenantScoped & {
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+};
+
+export type RecruitmentPipelineEvent = TenantScoped & {
+  id: string;
+  relationship_id: string;
+  from_stage: RelationshipPipelineStage | null;
+  to_stage: RelationshipPipelineStage;
+  event_type: "stage_transition" | "signature_confirmed" | "signature_left" | "rejected" | "reopened" | "owner_changed" | "do_not_contact_changed";
+  actor_user_id: string | null;
+  reason: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
 };
 
 export type InteractionType = {

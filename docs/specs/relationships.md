@@ -21,22 +21,32 @@ Relationships are implemented during sprint `v0.4.0`, after the stable `v0.3.0` 
 | Deduplication | Prevent identical active relationships for the same person, organization, and type |
 | Tests | Unit tests, RLS integration placeholders, authenticated E2E placeholder |
 
-## Initial Recruitment Phases
+## Recruitment Pipeline Phases
 
-- Detection.
-- Qualification.
-- First contact.
-- Conversation.
-- Meeting.
-- Presentation.
-- Reflection.
-- Negotiation.
-- Signature.
-- Onboarding.
-- Development.
-- Ambassador.
-- Refusal.
-- Closed.
+The canonical recruitment pipeline is stored in `relationships.pipeline_stage`.
+No second phase field should be introduced for recruitment pipeline state.
+
+- `detection`
+- `qualification`
+- `first_contact`
+- `conversation`
+- `appointment`
+- `presentation`
+- `reflection`
+- `negotiation`
+- `signature`
+- `onboarding`
+- `development`
+- `ambassador`
+- `rejected`
+
+Legacy values are migrated as follows:
+
+- `meeting` becomes `appointment`.
+- `refusal` becomes `rejected`.
+- `closed` becomes `rejected`.
+
+The previous value is preserved in relationship metadata under the recruitment pipeline legacy stage key.
 
 ## Table Shape
 
@@ -68,3 +78,17 @@ Relationships are implemented during sprint `v0.4.0`, after the stable `v0.3.0` 
 - A relationship can only reference a person and an organization from the current tenant.
 - Sensitive actions are protected by server-side role checks.
 - Two active relationships with the same person, organization, and type are not allowed.
+
+## Recruitment Pipeline Foundation
+
+Sprint 10A adds the server-side recruitment pipeline foundation.
+
+- Ordinary Relationship updates cannot modify `pipeline_stage` or `owner_user_id` directly.
+- Pipeline transitions use a central service and Supabase RPC so the relationship update, history event, and timeline event are atomic.
+- Transition history is stored in `recruitment_pipeline_events`.
+- RLS restricts history visibility to the current tenant.
+- Signature requires explicit confirmation and a signature date.
+- Rejected requires an official reason; `other` requires a comment.
+- Reopening a rejected relationship requires a reason and does not clear `people.do_not_contact`.
+- Do-not-contact continues to use the existing person contact blocking field and is audited through the relationship pipeline action.
+- Owner assignment requires an active user in the same tenant.
