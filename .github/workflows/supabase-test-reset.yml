@@ -1,0 +1,452 @@
+name: Supabase Test Reset
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_ref:
+        description: "Must be exactly aqmuvakvienfwzhgzhcw"
+        required: true
+        type: string
+      confirmation:
+        description: "Must be exactly RESET PLATEFORME RECRUTEMENT TEST"
+        required: true
+        type: string
+      apply_reset:
+        description: "Must be true to perform the reset"
+        required: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-test-reset-aqmuvakvienfwzhgzhcw
+  cancel-in-progress: false
+
+jobs:
+  reset-test-project:
+    name: Reset authorized Supabase test project
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: atlas-test-reset
+    env:
+      ALLOWED_PROJECT_REF: aqmuvakvienfwzhgzhcw
+      EXPECTED_BASE_SHA: 4dbb483d6418d98bbbd40f0ef9ac72d35f4250a1
+      EXPECTED_CONFIRMATION: RESET PLATEFORME RECRUTEMENT TEST
+      SUPABASE_CLI_VERSION: 2.101.0
+      PROJECT_REF_INPUT: ${{ inputs.project_ref }}
+      CONFIRMATION_INPUT: ${{ inputs.confirmation }}
+      APPLY_RESET_INPUT: ${{ inputs.apply_reset }}
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      ATLAS_TEST_OWNER_EMAIL: ${{ secrets.ATLAS_TEST_OWNER_EMAIL }}
+
+    steps:
+      - name: Validate manual reset inputs before any Supabase connection
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$PROJECT_REF_INPUT" != "$ALLOWED_PROJECT_REF" ]; then
+            echo "Refusing reset: unauthorized project_ref."
+            exit 1
+          fi
+          if [ "$CONFIRMATION_INPUT" != "$EXPECTED_CONFIRMATION" ]; then
+            echo "Refusing reset: confirmation phrase does not match."
+            exit 1
+          fi
+          if [ "$APPLY_RESET_INPUT" != "true" ]; then
+            echo "Refusing reset: apply_reset must be true."
+            exit 1
+          fi
+          echo "Manual reset inputs accepted for the authorized test project."
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify repository base and canonical migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git merge-base --is-ancestor "$EXPECTED_BASE_SHA" HEAD; then
+            echo "Refusing reset: workflow checkout is not based on the validated main SHA."
+            exit 1
+          fi
+
+          expected_migrations="$RUNNER_TEMP/expected-migrations.txt"
+          actual_migrations="$RUNNER_TEMP/actual-migrations.txt"
+          cat > "$expected_migrations" <<'EOF'
+          0001_core.sql
+          0002_organizations_module.sql
+          0003_relationships_module.sql
+          0004_interactions_module.sql
+          0005_tasks_module.sql
+          0006_timeline_events.sql
+          0007_action_plan_engine.sql
+          0008_projects_foundation.sql
+          0009_api_permissions_hardening.sql
+          0010_recruitment_pipeline_domain.sql
+          EOF
+          sed -i 's/^          //' "$expected_migrations"
+          find supabase/migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort > "$actual_migrations"
+          if ! diff -u "$expected_migrations" "$actual_migrations"; then
+            echo "Refusing reset: migration set is not exactly 0001 through 0010."
+            exit 1
+          fi
+
+      - name: Validate dedicated secrets without printing them
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
+            echo "Missing required GitHub secret: SUPABASE_ACCESS_TOKEN"
+            missing=1
+          fi
+          if [ -z "${SUPABASE_DB_PASSWORD:-}" ]; then
+            echo "Missing required GitHub secret: SUPABASE_DB_PASSWORD"
+            missing=1
+          fi
+          if [ -z "${ATLAS_TEST_OWNER_EMAIL:-}" ]; then
+            echo "Missing required GitHub secret: ATLAS_TEST_OWNER_EMAIL"
+            missing=1
+          fi
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+          echo "::add-mask::$SUPABASE_ACCESS_TOKEN"
+          echo "::add-mask::$SUPABASE_DB_PASSWORD"
+          echo "::add-mask::$ATLAS_TEST_OWNER_EMAIL"
+          echo "Required dedicated secrets are present."
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Link only the authorized Supabase test project
+        shell: bash
+        run: |
+          set -euo pipefail
+          export SUPABASE_DB_PASSWORD
+          supabase link --project-ref "$ALLOWED_PROJECT_REF"
+          echo "Linked authorized project ref $ALLOWED_PROJECT_REF."
+
+      - name: Configure masked database connection
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "::add-mask::$SUPABASE_DB_PASSWORD"
+          {
+            echo "PGHOST=db.$ALLOWED_PROJECT_REF.supabase.co"
+            echo "PGPORT=5432"
+            echo "PGDATABASE=postgres"
+            echo "PGUSER=postgres"
+            echo "PGPASSWORD=$SUPABASE_DB_PASSWORD"
+          } >> "$GITHUB_ENV"
+          echo "Database connection variables configured for the authorized project without printing a connection string."
+
+      - name: Verify target identity and conservative pre-reset volume
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          set search_path = '';
+
+          create temp table atlas_reset_expected_counts (
+            table_name text primary key,
+            expected_count integer not null,
+            max_count integer not null
+          ) on commit drop;
+
+          insert into atlas_reset_expected_counts (table_name, expected_count, max_count)
+          values
+            ('auth.users', 1, 2),
+            ('public.tenants', 1, 2),
+            ('public.tenant_users', 1, 2),
+            ('public.profiles', 1, 2),
+            ('public.people', 1, 5),
+            ('public.organizations', 1, 5),
+            ('public.relationships', 1, 5),
+            ('public.interactions', 4, 20),
+            ('public.tasks', 4, 20),
+            ('public.timeline_events', 9, 50),
+            ('public.audit_log', 29, 100),
+            ('public.action_plan_decisions', 0, 10);
+
+          create temp table atlas_reset_observed_counts (
+            table_name text primary key,
+            observed_count integer not null
+          ) on commit drop;
+
+          insert into atlas_reset_observed_counts (table_name, observed_count)
+          select 'auth.users', count(*)::integer from auth.users
+          union all select 'public.tenants', count(*)::integer from public.tenants
+          union all select 'public.tenant_users', count(*)::integer from public.tenant_users
+          union all select 'public.profiles', count(*)::integer from public.profiles
+          union all select 'public.people', count(*)::integer from public.people
+          union all select 'public.organizations', count(*)::integer from public.organizations
+          union all select 'public.relationships', count(*)::integer from public.relationships
+          union all select 'public.interactions', count(*)::integer from public.interactions
+          union all select 'public.tasks', count(*)::integer from public.tasks
+          union all select 'public.timeline_events', count(*)::integer from public.timeline_events
+          union all select 'public.audit_log', count(*)::integer from public.audit_log
+          union all select 'public.action_plan_decisions', count(*)::integer from public.action_plan_decisions;
+
+          select 'pre_reset_count ' || o.table_name || '=' || o.observed_count
+          from atlas_reset_observed_counts o
+          order by o.table_name;
+
+          do $$
+          declare
+            bad_count integer;
+          begin
+            select count(*)
+            into bad_count
+            from atlas_reset_expected_counts e
+            join atlas_reset_observed_counts o using (table_name)
+            where o.observed_count > e.max_count;
+
+            if bad_count > 0 then
+              raise exception 'Refusing reset: one or more table counts exceed the conservative test-project ceilings.';
+            end if;
+
+            if (select observed_count from atlas_reset_observed_counts where table_name = 'auth.users') < 1 then
+              raise exception 'Refusing reset: no auth.users row was found before reset.';
+            end if;
+          end $$;
+          SQL
+
+      - name: Ultimate destructive-action guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$PROJECT_REF_INPUT" != "$ALLOWED_PROJECT_REF" ] || [ "$CONFIRMATION_INPUT" != "$EXPECTED_CONFIRMATION" ] || [ "$APPLY_RESET_INPUT" != "true" ]; then
+            echo "Refusing reset: final guard failed."
+            exit 1
+          fi
+          echo "Final guard passed. The next step is destructive and targets only $ALLOWED_PROJECT_REF."
+
+      - name: Reset linked Supabase test database from canonical migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          export SUPABASE_DB_PASSWORD
+          supabase db reset --linked --no-seed
+
+      - name: Reload and verify schema, RLS, privileges and PostgREST readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          set search_path = '';
+
+          do $$
+          declare
+            expected_versions text[] := array[
+              '0001','0002','0003','0004','0005','0006','0007','0008','0009','0010'
+            ];
+            missing_version_count integer;
+            missing_table_count integer;
+            missing_rls_count integer;
+          begin
+            select count(*)
+            into missing_version_count
+            from unnest(expected_versions) as version_prefix
+            where not exists (
+              select 1
+              from supabase_migrations.schema_migrations sm
+              where sm.version like version_prefix || '%'
+            );
+            if missing_version_count > 0 then
+              raise exception 'Expected migration history 0001 through 0010 is incomplete.';
+            end if;
+
+            select count(*)
+            into missing_table_count
+            from unnest(array[
+              'public.roles',
+              'public.tenants',
+              'public.profiles',
+              'public.tenant_users',
+              'public.people',
+              'public.organizations',
+              'public.relationships',
+              'public.interaction_types',
+              'public.interactions',
+              'public.tasks',
+              'public.timeline_events',
+              'public.action_plan_decisions',
+              'public.projects',
+              'public.recruitment_pipeline_events'
+            ]) as table_name
+            where to_regclass(table_name) is null;
+            if missing_table_count > 0 then
+              raise exception 'Expected Atlas tables are missing after reset.';
+            end if;
+
+            select count(*)
+            into missing_rls_count
+            from unnest(array[
+              'tenants',
+              'profiles',
+              'tenant_users',
+              'people',
+              'organizations',
+              'relationships',
+              'interactions',
+              'tasks',
+              'timeline_events',
+              'action_plan_decisions',
+              'projects',
+              'recruitment_pipeline_events'
+            ]) as table_name
+            where not exists (
+              select 1
+              from pg_class c
+              join pg_namespace n on n.oid = c.relnamespace
+              where n.nspname = 'public'
+                and c.relname = table_name
+                and c.relrowsecurity
+            );
+            if missing_rls_count > 0 then
+              raise exception 'Expected RLS-enabled Atlas tables are missing RLS after reset.';
+            end if;
+
+            if not has_table_privilege('authenticated', 'public.people', 'select') then
+              raise exception 'authenticated role cannot select public.people.';
+            end if;
+            if not has_table_privilege('authenticated', 'public.projects', 'select') then
+              raise exception 'authenticated role cannot select public.projects.';
+            end if;
+            if not has_function_privilege('authenticated', 'public.transition_recruitment_pipeline(uuid, uuid, text, text, timestamp with time zone, boolean, text, timestamp with time zone, timestamp with time zone, text, text, boolean, timestamp with time zone, boolean, jsonb)', 'execute') then
+              raise exception 'authenticated role cannot execute transition_recruitment_pipeline.';
+            end if;
+          end $$;
+
+          notify pgrst, 'reload schema';
+          SQL
+          sleep 10
+
+      - name: Bootstrap the first test owner if the Auth user exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 \
+            -v owner_email="$ATLAS_TEST_OWNER_EMAIL" \
+            -v tenant_name="Atlas Test Tenant" <<'SQL'
+          set search_path = '';
+
+          create temp table atlas_reset_bootstrap_input (
+            owner_email text not null,
+            tenant_name text not null
+          ) on commit drop;
+
+          insert into atlas_reset_bootstrap_input (owner_email, tenant_name)
+          values (:'owner_email', :'tenant_name');
+
+          do $$
+          declare
+            bootstrap_owner_email text;
+            bootstrap_tenant_name text;
+            bootstrap_user_id uuid;
+            bootstrap_tenant_id uuid;
+            owner_role_id uuid;
+            matching_users integer;
+            total_users integer;
+          begin
+            select owner_email, tenant_name
+            into bootstrap_owner_email, bootstrap_tenant_name
+            from pg_temp.atlas_reset_bootstrap_input;
+
+            select count(*) into total_users from auth.users;
+            if total_users > 2 then
+              raise exception 'Refusing owner bootstrap: unexpected number of auth.users rows.';
+            end if;
+
+            select count(*)
+            into matching_users
+            from auth.users
+            where lower(email) = lower(bootstrap_owner_email);
+
+            if matching_users <> 1 then
+              raise exception 'Expected exactly one Auth user matching ATLAS_TEST_OWNER_EMAIL before owner bootstrap.';
+            end if;
+
+            select id
+            into bootstrap_user_id
+            from auth.users
+            where lower(email) = lower(bootstrap_owner_email)
+            limit 1;
+
+            select id
+            into owner_role_id
+            from public.roles
+            where slug = 'owner';
+
+            if owner_role_id is null then
+              raise exception 'Role owner not found after reset.';
+            end if;
+
+            insert into public.tenants (name, status)
+            values (bootstrap_tenant_name, 'active')
+            on conflict do nothing;
+
+            select id
+            into bootstrap_tenant_id
+            from public.tenants
+            where name = bootstrap_tenant_name
+            order by created_at asc
+            limit 1;
+
+            if bootstrap_tenant_id is null then
+              raise exception 'Unable to resolve bootstrap tenant.';
+            end if;
+
+            insert into public.profiles (id, email, full_name)
+            select
+              u.id,
+              u.email,
+              coalesce(u.raw_user_meta_data ->> 'full_name', u.raw_user_meta_data ->> 'name', u.email)
+            from auth.users u
+            where u.id = bootstrap_user_id
+            on conflict (id) do update set
+              email = excluded.email,
+              full_name = excluded.full_name,
+              updated_at = now();
+
+            insert into public.tenant_users (tenant_id, user_id, role_id, status)
+            values (bootstrap_tenant_id, bootstrap_user_id, owner_role_id, 'active')
+            on conflict (tenant_id, user_id) do update set
+              role_id = excluded.role_id,
+              status = 'active',
+              updated_at = now();
+          end $$;
+          SQL
+
+      - name: Verify post-reset Atlas readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          set search_path = '';
+
+          do $$
+          begin
+            if (select count(*) from public.tenants) <> 1 then
+              raise exception 'Expected exactly one tenant after owner bootstrap.';
+            end if;
+            if (select count(*) from public.tenant_users) <> 1 then
+              raise exception 'Expected exactly one tenant owner membership after owner bootstrap.';
+            end if;
+            if exists (select 1 from public.tenants where name like 'Atlas QA Tenant %') then
+              raise exception 'Unexpected CI QA tenant data found after reset.';
+            end if;
+            if exists (select 1 from public.profiles where email like 'qa-%@atlas.local.test') then
+              raise exception 'Unexpected CI QA user profile data found after reset.';
+            end if;
+          end $$;
+          SQL
+          echo "Supabase test reset verification completed without exposing secrets."
