@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   formatPipelineDate,
   groupPipelineCards,
@@ -14,7 +14,7 @@ import {
   type PipelineFilters,
   type PipelineViewMode
 } from "@/features/recruitment-pipeline/pipeline-ui";
-import { RECRUITMENT_PIPELINE_STAGES, RECRUITMENT_REJECTION_REASON_LABELS, RECRUITMENT_REJECTION_REASONS } from "@/features/recruitment-pipeline/options";
+import { ACTIVE_RECRUITMENT_PIPELINE_STAGES, RECRUITMENT_PIPELINE_STAGES, RECRUITMENT_REJECTION_REASON_LABELS, RECRUITMENT_REJECTION_REASONS } from "@/features/recruitment-pipeline/options";
 import type { RelationshipPipelineStage, RelationshipRejectionReason, RoleSlug } from "@/types/domain";
 import type { PipelineOwnerOption } from "@/repositories/recruitment-pipeline";
 import { Badge, Button, EmptyState, ErrorState } from "@/components/ui";
@@ -58,8 +58,19 @@ export function PipelinePageClient({ initialCards, owners, filters, role, invali
   const [dialog, setDialog] = useState<DialogState>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [result, setResult] = useState<MutationResult>(null);
+  const lastFocusedRef = useRef<HTMLElement | null>(null);
   const grouped = useMemo(() => groupPipelineCards(cards), [cards]);
   const ownerNames = useMemo(() => new Map(owners.map((owner) => [owner.id, owner.label])), [owners]);
+
+  function openDialog(nextDialog: DialogState) {
+    lastFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setDialog(nextDialog);
+  }
+
+  function closeDialog() {
+    setDialog(null);
+    window.setTimeout(() => lastFocusedRef.current?.focus(), 0);
+  }
 
   function setViewMode(nextView: PipelineViewMode) {
     const params = new URLSearchParams(window.location.search);
@@ -89,7 +100,7 @@ export function PipelinePageClient({ initialCards, owners, filters, role, invali
       {cards.length === 0 ? (
         <EmptyState title="Aucune relation dans le pipeline" body="Aucune carte ne correspond aux filtres sélectionnés." />
       ) : view === "list" ? (
-        <PipelineList cards={cards} owners={owners} role={role} openDialog={setDialog} loadingId={loadingId} />
+        <PipelineList cards={cards} owners={owners} role={role} openDialog={openDialog} loadingId={loadingId} />
       ) : (
         <div className="pipeline-board" aria-label="Kanban du pipeline de recrutement">
           {grouped.map((column) => (
@@ -102,7 +113,7 @@ export function PipelinePageClient({ initialCards, owners, filters, role, invali
                 event.preventDefault();
                 const relationshipId = event.dataTransfer.getData("text/relationship-id");
                 const card = cards.find((item) => item.id === relationshipId);
-                if (card && card.stage !== column.stage) setDialog({ type: "stage", card, toStage: column.stage });
+                if (card && card.stage !== column.stage) openDialog({ type: "stage", card, toStage: column.stage });
               }}
             >
               <header className="pipeline-column-header">
@@ -110,7 +121,7 @@ export function PipelinePageClient({ initialCards, owners, filters, role, invali
                 <Badge>{column.cards.length}</Badge>
               </header>
               {column.cards.length === 0 ? <p className="muted pipeline-column-empty">Aucune carte.</p> : column.cards.map((card) => (
-                <PipelineCard key={card.id} card={card} role={role} loading={loadingId === card.id} openDialog={setDialog} />
+                <PipelineCard key={card.id} card={card} role={role} loading={loadingId === card.id} openDialog={openDialog} />
               ))}
             </section>
           ))}
@@ -121,13 +132,13 @@ export function PipelinePageClient({ initialCards, owners, filters, role, invali
         dialog={dialog}
         owners={owners}
         ownerNames={ownerNames}
-        onClose={() => setDialog(null)}
+        onClose={closeDialog}
         onMutating={(id) => setLoadingId(id)}
         onDone={(updated, message) => {
           setCards((current) => current.map((card) => card.id === updated.id ? updated : card));
           setResult({ kind: "success", message });
           setLoadingId(null);
-          setDialog(null);
+          closeDialog();
           router.refresh();
         }}
         onError={(message) => {
@@ -157,6 +168,7 @@ function PipelineCard({ card, role, loading, openDialog }: { card: PipelineCardM
       <p>{card.organizationName}</p>
       <div className="tag-list">
         <Badge tone={card.ownerUserId ? "neutral" : "warning"}>{card.ownerName}</Badge>
+        {card.signatureScheduled ? <Badge tone="info">Signature programmée</Badge> : null}
         {card.nextActionAt ? <Badge tone={isOverdue(card.nextActionAt) ? "danger" : isToday(card.nextActionAt) ? "info" : "neutral"}>Action {formatPipelineDate(card.nextActionAt)}</Badge> : <Badge tone="warning">Sans prochaine action</Badge>}
         {card.lastInteractionAt ? <Badge>Activité {formatPipelineDate(card.lastInteractionAt)}</Badge> : null}
         {card.rejectionRecontactable === true ? <Badge tone="info">Refus recontactable</Badge> : null}
@@ -215,6 +227,13 @@ function PipelineDialog({
   onDone: (card: PipelineCardModel, message: string) => void;
   onError: (message: string) => void;
 }) {
+  const dialogRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const firstField = dialogRef.current?.querySelector<HTMLElement>("select, textarea, input, button");
+    firstField?.focus();
+  }, [dialog]);
+
   if (!dialog) return null;
   const title = dialog.type === "stage" ? "Changer la phase" : dialog.type === "owner" ? "Modifier le responsable" : dialog.doNotContact ? "Activer Ne plus contacter" : "Lever Ne plus contacter";
 
@@ -237,7 +256,7 @@ function PipelineDialog({
 
   return (
     <div className="dialog-backdrop" role="presentation">
-      <section className="card stack confirm-dialog pipeline-dialog" role="dialog" aria-modal="true" aria-labelledby="pipeline-dialog-title">
+      <section ref={dialogRef} className="card stack confirm-dialog pipeline-dialog" role="dialog" aria-modal="true" aria-labelledby="pipeline-dialog-title">
         <h2 id="pipeline-dialog-title">{title}</h2>
         <p className="muted">{dialog.card.personName} - {dialog.card.organizationName}</p>
         <form className="form" onSubmit={submit}>
@@ -267,7 +286,8 @@ function PipelineDialog({
 }
 
 function StageFields({ card, toStage }: { card: PipelineCardModel; toStage?: RelationshipPipelineStage }) {
-  const defaultStage = toStage ?? card.stage;
+  const stageOptions = card.stage === "rejected" ? ACTIVE_RECRUITMENT_PIPELINE_STAGES : RECRUITMENT_PIPELINE_STAGES;
+  const defaultStage = card.stage === "rejected" ? (toStage && toStage !== "rejected" ? toStage : "qualification") : toStage ?? card.stage;
   const [selectedStage, setSelectedStage] = useState<RelationshipPipelineStage>(defaultStage);
   const isSignature = selectedStage === "signature";
   const isRejected = selectedStage === "rejected";
@@ -277,7 +297,7 @@ function StageFields({ card, toStage }: { card: PipelineCardModel; toStage?: Rel
     <>
       <label>Phase cible
         <select className="input" name="toStage" value={selectedStage} onChange={(event) => setSelectedStage(event.target.value as RelationshipPipelineStage)}>
-          {RECRUITMENT_PIPELINE_STAGES.map((stage) => <option key={stage} value={stage}>{PIPELINE_STAGE_LABELS[stage]}</option>)}
+          {stageOptions.map((stage) => <option key={stage} value={stage}>{PIPELINE_STAGE_LABELS[stage]}</option>)}
         </select>
       </label>
       {isReopen ? <p className="warning">L&apos;ancien refus restera dans l&apos;historique. Le blocage de contact ne sera pas levé automatiquement.</p> : null}
@@ -315,13 +335,14 @@ async function submitStage(card: PipelineCardModel, form: FormData, ownerNames: 
   const toStage = String(form.get("toStage") ?? "");
   if (!isPipelineStage(toStage)) throw new Error("Phase cible invalide.");
   const doNotContact = form.get("doNotContact") === "true" ? true : null;
+  const signatureAt = localDateValue(form.get("signatureAt"));
   return requestMutation(card, `/api/relationships/${card.id}/pipeline`, {
     toStage,
     expectedStage: card.stage,
     expectedUpdatedAt: card.updatedAt,
     confirmed: form.get("confirmed") === "true",
     reason: String(form.get("reason") ?? "").trim() || null,
-    signatureAt: localDateValue(form.get("signatureAt")),
+    signatureAt,
     startAt: localDateValue(form.get("startAt")),
     rejectionReason: valueOrUndefined(form.get("rejectionReason")) as RelationshipRejectionReason | undefined,
     rejectionComment: String(form.get("rejectionComment") ?? "").trim() || null,
@@ -329,7 +350,10 @@ async function submitStage(card: PipelineCardModel, form: FormData, ownerNames: 
     rejectionFollowUpAt: localDateValue(form.get("rejectionFollowUpAt")),
     doNotContact,
     metadata: {}
-  }, ownerNames, doNotContact === true ? { doNotContact: true } : {});
+  }, ownerNames, {
+    ...(doNotContact === true ? { doNotContact: true } : {}),
+    ...(toStage === "signature" ? { signatureScheduled: Boolean(signatureAt && new Date(signatureAt).getTime() > Date.now()) } : {})
+  });
 }
 
 async function submitOwner(card: PipelineCardModel, form: FormData, ownerNames: Map<string, string>) {

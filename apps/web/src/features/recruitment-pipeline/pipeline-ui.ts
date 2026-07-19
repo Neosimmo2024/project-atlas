@@ -31,6 +31,7 @@ export type PipelineCardModel = {
   updatedAt: string;
   doNotContact: boolean;
   rejectionRecontactable: boolean | null;
+  signatureScheduled: boolean;
   status: string;
   href: string;
 };
@@ -85,6 +86,14 @@ export function formatPipelineDate(value: string | null) {
 export function ownerLabel(ownerUserId: string | null, ownerNames: Map<string, string>) {
   if (!ownerUserId) return "Sans responsable";
   return ownerNames.get(ownerUserId) ?? "Responsable assigné";
+}
+
+export function isSignatureScheduled(metadata: Record<string, unknown>) {
+  const pipeline = metadata.recruitment_pipeline;
+  if (!pipeline || typeof pipeline !== "object") return false;
+  const signature = (pipeline as Record<string, unknown>).signature;
+  if (!signature || typeof signature !== "object") return false;
+  return (signature as Record<string, unknown>).scheduled === true;
 }
 
 function startOfDay(date: Date) {

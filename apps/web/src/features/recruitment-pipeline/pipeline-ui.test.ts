@@ -4,6 +4,7 @@ import {
   formatPipelineDate,
   groupPipelineCards,
   isOverdue,
+  isSignatureScheduled,
   isToday,
   normalizePipelineStage,
   normalizePipelineView,
@@ -25,6 +26,7 @@ function card(overrides: Partial<PipelineCardModel> = {}): PipelineCardModel {
     updatedAt: "2026-07-19T08:00:00Z",
     doNotContact: false,
     rejectionRecontactable: null,
+    signatureScheduled: false,
     status: "active",
     href: "/relationships/relationship-a",
     ...overrides
@@ -84,5 +86,11 @@ describe("pipeline UI helpers", () => {
     expect(ownerLabel(null, owners)).toBe("Sans responsable");
     expect(ownerLabel("11111111-1111-4111-8111-111111111111", owners)).toBe("Utilisateur courant");
     expect(ownerLabel("22222222-2222-4222-8222-222222222222", owners)).toBe("Responsable assigné");
+  });
+
+  it("detects future signatures from pipeline metadata", () => {
+    expect(isSignatureScheduled({ recruitment_pipeline: { signature: { scheduled: true } } })).toBe(true);
+    expect(isSignatureScheduled({ recruitment_pipeline: { signature: { scheduled: false } } })).toBe(false);
+    expect(isSignatureScheduled({})).toBe(false);
   });
 });

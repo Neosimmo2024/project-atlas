@@ -38,6 +38,7 @@ const card: PipelineCardModel = {
   updatedAt: "2026-07-19T08:00:00Z",
   doNotContact: false,
   rejectionRecontactable: null,
+  signatureScheduled: false,
   status: "active",
   href: "/relationships/relationship-a"
 };

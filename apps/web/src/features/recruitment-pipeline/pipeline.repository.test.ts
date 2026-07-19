@@ -87,6 +87,7 @@ describe("recruitment pipeline repository", () => {
     );
 
     expect(result.cards).toHaveLength(1);
+    expect(result.cards[0]?.signatureScheduled).toBe(false);
     expect(result.page).toBe(2);
     expect(relationships.calls).toEqual(expect.arrayContaining([
       { method: "eq", args: ["tenant_id", "tenant-a"] },
@@ -99,5 +100,46 @@ describe("recruitment pipeline repository", () => {
     ]));
     expect(relationships.calls.some((call) => call.method === "gte" && call.args[0] === "next_action_at")).toBe(true);
     expect(relationships.calls.some((call) => call.method === "lt" && call.args[0] === "next_action_at")).toBe(true);
+  });
+
+  it("marks future signatures as scheduled from relationship metadata", async () => {
+    const relationships = new QueryMock({
+      data: [{
+        id: "relationship-signature",
+        tenant_id: "tenant-a",
+        person_id: "person-a",
+        organization_id: "organization-a",
+        relationship_type: "recruiting",
+        pipeline_stage: "signature",
+        status: "active",
+        owner_user_id: null,
+        score: null,
+        confidence: null,
+        next_action_at: null,
+        started_at: null,
+        ended_at: null,
+        last_interaction_at: null,
+        notes: null,
+        tags: [],
+        metadata: { recruitment_pipeline: { signature: { scheduled: true } } },
+        created_at: "2026-07-19T08:00:00Z",
+        updated_at: "2026-07-19T09:00:00Z",
+        people: { id: "person-a", display_name: "Florence Martin", city: "Paris", do_not_contact: false },
+        organizations: { id: "organization-a", name: "Atlas QA", city: "Paris", do_not_contact: false }
+      }],
+      error: null,
+      count: 1
+    });
+    const owners = new QueryMock({ data: [], error: null });
+
+    mocks.from.mockImplementation((table: string) => table === "relationships" ? relationships : owners);
+
+    const { listRecruitmentPipeline } = await import("@/repositories/recruitment-pipeline");
+    const result = await listRecruitmentPipeline(
+      { tenantId: "tenant-a", tenant: { id: "tenant-a", name: "Tenant A" }, userId: "user-a", role: "owner" },
+      baseFilters
+    );
+
+    expect(result.cards[0]?.signatureScheduled).toBe(true);
   });
 });

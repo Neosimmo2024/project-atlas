@@ -3,6 +3,7 @@ import { buildPeopleSearchOrFilter } from "@/features/people/search";
 import { buildRelationshipsSearchOrFilter } from "@/features/relationships/search";
 import {
   ownerLabel,
+  isSignatureScheduled,
   type PipelineActionFilter,
   type PipelineCardModel,
   type PipelineContactFilter,
@@ -172,6 +173,7 @@ function mapPipelineCard(row: PipelineRelationshipRow, ownerNames: Map<string, s
     updatedAt: row.updated_at,
     doNotContact: Boolean(row.people?.do_not_contact || row.organizations?.do_not_contact),
     rejectionRecontactable: readRecontactable(row.metadata),
+    signatureScheduled: row.pipeline_stage === "signature" && isSignatureScheduled(row.metadata),
     status: row.status,
     href: `/relationships/${row.id}`
   };
