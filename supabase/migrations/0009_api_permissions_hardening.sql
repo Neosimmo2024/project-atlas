@@ -21,7 +21,8 @@ grant usage on schema public to anon, authenticated, service_role;
 
 grant select on table public.roles to authenticated, service_role;
 
-grant select, update on table public.tenants to authenticated, service_role;
+grant select, update on table public.tenants to authenticated;
+grant select, insert, update on table public.tenants to service_role;
 
 grant select, insert, update on table public.profiles to authenticated, service_role;
 
@@ -62,6 +63,7 @@ begin
       ('authenticated:public.timeline_events:select', has_table_privilege('authenticated', 'public.timeline_events', 'select')),
       ('authenticated:public.action_plan_decisions:select', has_table_privilege('authenticated', 'public.action_plan_decisions', 'select')),
       ('authenticated:public.projects:select', has_table_privilege('authenticated', 'public.projects', 'select')),
+      ('service_role:public.tenants:insert', has_table_privilege('service_role', 'public.tenants', 'insert')),
       ('service_role:public.people:insert', has_table_privilege('service_role', 'public.people', 'insert')),
       ('service_role:public.projects:insert', has_table_privilege('service_role', 'public.projects', 'insert'))
   ) as audit(privilege, granted)
