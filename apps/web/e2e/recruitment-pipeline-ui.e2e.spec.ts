@@ -33,7 +33,7 @@ test.describe("Recruitment pipeline UI authenticated flow", () => {
 
     await changeStage(page, "Conversation engagée", "Conversation validée depuis E2E");
     await expect(page.getByText("Phase mise à jour.")).toBeVisible();
-    await expect(page.getByText("Conversation engagée")).toBeVisible();
+    await expect(pipelineCard(page).getByText("Conversation engagée")).toBeVisible();
 
     await page.getByRole("button", { name: "Responsable" }).first().click();
     await page.getByLabel("Responsable").selectOption("");
@@ -46,19 +46,19 @@ test.describe("Recruitment pipeline UI authenticated flow", () => {
       await page.getByLabel("Date de signature").fill("2026-07-20T10:00");
     });
     await expect(page.getByText("Phase mise à jour.")).toBeVisible();
-    await expect(page.getByText("Signature")).toBeVisible();
+    await expect(pipelineCard(page).getByText("Signature")).toBeVisible();
 
     await changeStage(page, "Refus", "Refus documenté depuis E2E", async () => {
       await page.getByLabel("Motif de refus").selectOption("not_interested");
       await page.getByLabel("Ne plus contacter").check();
     });
     await expect(page.getByText("Phase mise à jour.")).toBeVisible();
-    await expect(page.getByText("Ne plus contacter")).toBeVisible();
+    await expect(pipelineCard(page).getByText("Ne plus contacter")).toBeVisible();
 
     await changeStage(page, "Qualification", "Réouverture documentée depuis E2E");
     await expect(page.getByText("Phase mise à jour.")).toBeVisible();
-    await expect(page.getByText("Qualification")).toBeVisible();
-    await expect(page.getByText("Ne plus contacter")).toBeVisible();
+    await expect(pipelineCard(page).getByText("Qualification")).toBeVisible();
+    await expect(pipelineCard(page).getByText("Ne plus contacter")).toBeVisible();
 
     await page.getByRole("button", { name: "Lever le blocage" }).first().click();
     await page.getByLabel("Justification").fill("Consentement revalidé depuis E2E");
@@ -75,6 +75,10 @@ test.describe("Recruitment pipeline UI authenticated flow", () => {
     await expect(page.getByText(/404|not found|introuvable/i)).toBeVisible();
   });
 });
+
+function pipelineCard(page: Page) {
+  return page.locator(".pipeline-card").filter({ hasText: "Atlas QA Person A" }).first();
+}
 
 async function changeStage(page: Page, label: string, reason: string, fillExtra?: () => Promise<void>) {
   await page.getByRole("button", { name: "Changer de phase" }).first().click();
