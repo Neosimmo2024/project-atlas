@@ -66,7 +66,7 @@ test.describe("Recruitment pipeline UI authenticated flow", () => {
     const rejectedDragDialog = page.getByRole("dialog", { name: "Changer la phase" });
     await rejectedDragDialog.getByLabel("Motif ou note").fill("Transition obsolète depuis E2E");
     await rejectedDragDialog.getByRole("button", { name: "Valider" }).click();
-    await expect(page.getByRole("alert")).toContainText("stale");
+    await expect(page.locator("p[role='alert']")).toContainText("stale");
     await expect(pipelineCard(page).getByText("Conversation engagée")).toBeVisible();
     await rejectedDragDialog.getByRole("button", { name: "Annuler" }).click();
     await expect(rejectedDragDialog).toBeHidden();
