@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { parseProjectInput } from "@/features/projects/validation";
+import { apiErrorResponse } from "@/lib/security/api-errors";
 import { createProject, listProjects } from "@/repositories/projects";
 import { getTenantContext } from "@/repositories/tenant-context";
 
@@ -7,21 +8,6 @@ function validationErrorResponse(error: { issues: { path: PropertyKey[]; message
   return NextResponse.json(
     { error: "Validation failed", fields: error.issues.map((issue) => ({ field: issue.path.join("."), message: issue.message })) },
     { status: 400 }
-  );
-}
-
-function apiErrorResponse(error: unknown) {
-  const message = error instanceof Error ? error.message : "Erreur inconnue.";
-  const code = typeof error === "object" && error !== null && "code" in error ? String(error.code) : null;
-  const isMissingSchema = code === "42703" || message.includes("does not exist") || message.includes("projects");
-  return NextResponse.json(
-    {
-      error: isMissingSchema
-        ? `Schema Supabase incomplet: ${message}. Executez la migration supabase/migrations/0008_projects_foundation.sql puis reessayez.`
-        : message,
-      code
-    },
-    { status: isMissingSchema ? 500 : 400 }
   );
 }
 

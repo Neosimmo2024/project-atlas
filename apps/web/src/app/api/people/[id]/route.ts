@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { parsePersonInput } from "@/features/people/validation";
+import { apiErrorResponse } from "@/lib/security/api-errors";
 import { deletePerson, findPotentialPersonDuplicates, getPersonDetail, updatePerson } from "@/repositories/people";
 import { getTenantContext } from "@/repositories/tenant-context";
 
@@ -10,13 +11,6 @@ function validationErrorResponse(error: { issues: { path: PropertyKey[]; message
     { error: "Validation failed", fields: error.issues.map((issue) => ({ field: issue.path.join("."), message: issue.message })) },
     { status: 400 }
   );
-}
-
-function apiErrorResponse(error: unknown) {
-  const message = error instanceof Error ? error.message : "Erreur inconnue.";
-  const code = typeof error === "object" && error !== null && "code" in error ? String(error.code) : null;
-
-  return NextResponse.json({ error: message, code }, { status: 400 });
 }
 
 export async function GET(_request: Request, context: RouteContext) {

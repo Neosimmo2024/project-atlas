@@ -1,7 +1,12 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
+import { validateMutationRequest } from "@/lib/security/csrf";
+import { applySecurityHeaders } from "@/lib/security/headers";
 
 export async function updateSession(request: NextRequest) {
+  const csrfResponse = validateMutationRequest(request);
+  if (csrfResponse) return csrfResponse;
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -28,14 +33,19 @@ export async function updateSession(request: NextRequest) {
   if (!user && !isAuthPage && !isApiRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    return NextResponse.redirect(url);
+    const redirect = NextResponse.redirect(url);
+    applySecurityHeaders(redirect.headers);
+    return redirect;
   }
 
   if (user && isAuthPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
+    const redirect = NextResponse.redirect(url);
+    applySecurityHeaders(redirect.headers);
+    return redirect;
   }
 
+  applySecurityHeaders(response.headers);
   return response;
 }

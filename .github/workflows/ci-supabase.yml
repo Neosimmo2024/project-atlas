@@ -9,6 +9,7 @@ on:
       - feat/foundation-ui
       - feat/recruitment-pipeline-domain
       - feat/recruitment-pipeline-ui
+      - feat/preproduction-security-hardening
   workflow_dispatch:
 
 permissions:

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiErrorResponse } from "@/lib/security/api-errors";
 import { listRecruitmentPipeline, parsePipelineFilters } from "@/repositories/recruitment-pipeline";
 import { getTenantContext } from "@/repositories/tenant-context";
 
@@ -23,7 +24,6 @@ export async function GET(request: Request) {
       }
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Impossible de charger le pipeline.";
-    return NextResponse.json({ error: message }, { status: 400 });
+    return apiErrorResponse(error);
   }
 }

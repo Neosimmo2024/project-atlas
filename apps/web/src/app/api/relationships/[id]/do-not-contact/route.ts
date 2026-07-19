@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { parseRecruitmentPipelineDoNotContact } from "@/features/recruitment-pipeline/validation";
+import { apiErrorResponse } from "@/lib/security/api-errors";
 import { getTenantContext } from "@/repositories/tenant-context";
-import { RecruitmentPipelineError, setRelationshipDoNotContact } from "@/services/recruitment-pipeline-service";
+import { setRelationshipDoNotContact } from "@/services/recruitment-pipeline-service";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -10,15 +11,6 @@ function validationErrorResponse(error: { issues: { path: PropertyKey[]; message
     { error: "Validation failed", fields: error.issues.map((issue) => ({ field: issue.path.join("."), message: issue.message })) },
     { status: 400 }
   );
-}
-
-function apiErrorResponse(error: unknown) {
-  if (error instanceof RecruitmentPipelineError) {
-    return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
-  }
-
-  const message = error instanceof Error ? error.message : "Erreur inconnue.";
-  return NextResponse.json({ error: message }, { status: 400 });
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
