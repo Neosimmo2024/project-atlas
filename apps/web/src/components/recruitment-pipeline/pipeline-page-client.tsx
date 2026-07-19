@@ -268,13 +268,14 @@ function PipelineDialog({
 
 function StageFields({ card, toStage }: { card: PipelineCardModel; toStage?: RelationshipPipelineStage }) {
   const defaultStage = toStage ?? card.stage;
-  const isSignature = defaultStage === "signature";
-  const isRejected = defaultStage === "rejected";
-  const isReopen = card.stage === "rejected" && defaultStage !== "rejected";
+  const [selectedStage, setSelectedStage] = useState<RelationshipPipelineStage>(defaultStage);
+  const isSignature = selectedStage === "signature";
+  const isRejected = selectedStage === "rejected";
+  const isReopen = card.stage === "rejected" && selectedStage !== "rejected";
   return (
     <>
       <label>Phase cible
-        <select className="input" name="toStage" defaultValue={defaultStage}>
+        <select className="input" name="toStage" value={selectedStage} onChange={(event) => setSelectedStage(event.target.value as RelationshipPipelineStage)}>
           {RECRUITMENT_PIPELINE_STAGES.map((stage) => <option key={stage} value={stage}>{PIPELINE_STAGE_LABELS[stage]}</option>)}
         </select>
       </label>
