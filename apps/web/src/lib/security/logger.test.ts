@@ -27,4 +27,19 @@ describe("security logger redaction", () => {
       tenantId: "[UUID]"
     });
   });
+
+  it("handles nulls, errors and circular values without throwing", () => {
+    const circular: Record<string, unknown> = { value: null };
+    circular.self = circular;
+
+    expect(redactValue({
+      error: new Error("failed with sb_" + "secret_" + "hidden"),
+      nested: circular,
+      values: [undefined, circular]
+    })).toEqual({
+      error: { name: "Error", message: "failed with [REDACTED]" },
+      nested: { value: null, self: "[Circular]" },
+      values: [undefined, "[Circular]"]
+    });
+  });
 });

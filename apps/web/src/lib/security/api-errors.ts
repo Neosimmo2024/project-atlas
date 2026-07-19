@@ -10,11 +10,19 @@ function postgresCode(error: unknown) {
   return typeof error === "object" && error !== null && "code" in error ? String(error.code) : null;
 }
 
+function postgresMessage(error: unknown) {
+  return typeof error === "object" && error !== null && "message" in error ? String(error.message) : "";
+}
+
 export function publicErrorMessage(error: unknown) {
   if (isApiError(error)) return error.message;
   if (error instanceof ZodError) return "Validation failed";
   if (error instanceof Error && error.message.startsWith("Suppression refusee")) return error.message;
   const code = postgresCode(error);
+  const message = postgresMessage(error);
+  if (code === "23505" && message.includes("relationships_active_identity_unique")) {
+    return "Une relation active identique existe deja pour cette personne, cette organisation et ce type.";
+  }
   if (code === "23505") return "Une ressource identique existe deja.";
   if (code === "23503") return "Une reference fournie est invalide.";
   if (code === "42501") return "Action non autorisee.";

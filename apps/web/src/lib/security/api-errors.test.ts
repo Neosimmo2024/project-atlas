@@ -27,4 +27,11 @@ describe("public API errors", () => {
     expect(publicErrorMessage({ code: "23505", message: "duplicate key value violates unique constraint" })).toBe("Une ressource identique existe deja.");
     expect(publicErrorMessage({ code: "42703", message: "column secret does not exist" })).toBe("Configuration serveur invalide.");
   });
+
+  it("keeps the relationship duplicate business message", () => {
+    expect(publicErrorMessage({
+      code: "23505",
+      message: "duplicate key value violates unique constraint relationships_active_identity_unique"
+    })).toBe("Une relation active identique existe deja pour cette personne, cette organisation et ce type.");
+  });
 });
