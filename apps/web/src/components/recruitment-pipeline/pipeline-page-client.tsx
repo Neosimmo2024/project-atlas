@@ -312,6 +312,7 @@ function StageFields({ card, toStage }: { card: PipelineCardModel; toStage?: Rel
 async function submitStage(card: PipelineCardModel, form: FormData, ownerNames: Map<string, string>) {
   const toStage = String(form.get("toStage") ?? "");
   if (!isPipelineStage(toStage)) throw new Error("Phase cible invalide.");
+  const doNotContact = form.get("doNotContact") === "true" ? true : null;
   return requestMutation(card, `/api/relationships/${card.id}/pipeline`, {
     toStage,
     expectedStage: card.stage,
@@ -324,9 +325,9 @@ async function submitStage(card: PipelineCardModel, form: FormData, ownerNames: 
     rejectionComment: String(form.get("rejectionComment") ?? "").trim() || null,
     rejectionRecontactable: form.get("rejectionRecontactable") === "true",
     rejectionFollowUpAt: localDateValue(form.get("rejectionFollowUpAt")),
-    doNotContact: form.get("doNotContact") === "true" ? true : null,
+    doNotContact,
     metadata: {}
-  }, ownerNames);
+  }, ownerNames, doNotContact === true ? { doNotContact: true } : {});
 }
 
 async function submitOwner(card: PipelineCardModel, form: FormData, ownerNames: Map<string, string>) {
