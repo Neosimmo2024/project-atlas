@@ -15,6 +15,10 @@ on:
         description: "Must be true to perform the reset"
         required: true
         type: boolean
+      authorized_sha:
+        description: "Exact commit SHA reviewed and authorized for this reset"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -37,6 +41,7 @@ jobs:
       PROJECT_REF_INPUT: ${{ inputs.project_ref }}
       CONFIRMATION_INPUT: ${{ inputs.confirmation }}
       APPLY_RESET_INPUT: ${{ inputs.apply_reset }}
+      AUTHORIZED_SHA_INPUT: ${{ inputs.authorized_sha }}
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       ATLAS_TEST_OWNER_EMAIL: ${{ secrets.ATLAS_TEST_OWNER_EMAIL }}
@@ -58,15 +63,26 @@ jobs:
             echo "Refusing reset: apply_reset must be true."
             exit 1
           fi
+          if ! [[ "$AUTHORIZED_SHA_INPUT" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Refusing reset: authorized_sha must be a full 40-character commit SHA."
+            exit 1
+          fi
           echo "Manual reset inputs accepted for the authorized test project."
 
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.authorized_sha }}
 
       - name: Verify repository base and canonical migrations
         shell: bash
         run: |
           set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          if [ "$actual_sha" != "$AUTHORIZED_SHA_INPUT" ]; then
+            echo "Refusing reset: checked-out SHA does not match authorized_sha."
+            exit 1
+          fi
           if ! git merge-base --is-ancestor "$EXPECTED_BASE_SHA" HEAD; then
             echo "Refusing reset: workflow checkout is not based on the validated main SHA."
             exit 1
@@ -159,30 +175,34 @@ jobs:
             table_name text primary key,
             expected_count integer not null,
             max_count integer not null
-          ) on commit drop;
+          ) on commit preserve rows;
 
           insert into atlas_reset_expected_counts (table_name, expected_count, max_count)
           values
-            ('auth.users', 1, 2),
-            ('public.tenants', 1, 2),
-            ('public.tenant_users', 1, 2),
-            ('public.profiles', 1, 2),
-            ('public.people', 1, 5),
-            ('public.organizations', 1, 5),
-            ('public.relationships', 1, 5),
-            ('public.interactions', 4, 20),
-            ('public.tasks', 4, 20),
-            ('public.timeline_events', 9, 50),
-            ('public.audit_log', 29, 100),
-            ('public.action_plan_decisions', 0, 10);
+            ('auth.users', 1, 1),
+            ('storage.buckets', 0, 0),
+            ('storage.objects', 0, 0),
+            ('public.tenants', 1, 1),
+            ('public.tenant_users', 1, 1),
+            ('public.profiles', 1, 1),
+            ('public.people', 1, 1),
+            ('public.organizations', 1, 1),
+            ('public.relationships', 1, 1),
+            ('public.interactions', 4, 4),
+            ('public.tasks', 4, 4),
+            ('public.timeline_events', 9, 9),
+            ('public.audit_log', 29, 29),
+            ('public.action_plan_decisions', 0, 0);
 
           create temp table atlas_reset_observed_counts (
             table_name text primary key,
             observed_count integer not null
-          ) on commit drop;
+          ) on commit preserve rows;
 
           insert into atlas_reset_observed_counts (table_name, observed_count)
           select 'auth.users', count(*)::integer from auth.users
+          union all select 'storage.buckets', count(*)::integer from storage.buckets
+          union all select 'storage.objects', count(*)::integer from storage.objects
           union all select 'public.tenants', count(*)::integer from public.tenants
           union all select 'public.tenant_users', count(*)::integer from public.tenant_users
           union all select 'public.profiles', count(*)::integer from public.profiles
@@ -227,6 +247,10 @@ jobs:
             echo "Refusing reset: final guard failed."
             exit 1
           fi
+          if [ "$(git rev-parse HEAD)" != "$AUTHORIZED_SHA_INPUT" ]; then
+            echo "Refusing reset: final SHA guard failed."
+            exit 1
+          fi
           echo "Final guard passed. The next step is destructive and targets only $ALLOWED_PROJECT_REF."
 
       - name: Reset linked Supabase test database from canonical migrations
@@ -234,7 +258,7 @@ jobs:
         run: |
           set -euo pipefail
           export SUPABASE_DB_PASSWORD
-          supabase db reset --linked --no-seed
+          supabase db reset --linked --no-seed --yes
 
       - name: Reload and verify schema, RLS, privileges and PostgREST readiness
         shell: bash
@@ -342,7 +366,7 @@ jobs:
           create temp table atlas_reset_bootstrap_input (
             owner_email text not null,
             tenant_name text not null
-          ) on commit drop;
+          ) on commit preserve rows;
 
           insert into atlas_reset_bootstrap_input (owner_email, tenant_name)
           values (:'owner_email', :'tenant_name');
@@ -390,10 +414,6 @@ jobs:
               raise exception 'Role owner not found after reset.';
             end if;
 
-            insert into public.tenants (name, status)
-            values (bootstrap_tenant_name, 'active')
-            on conflict do nothing;
-
             select id
             into bootstrap_tenant_id
             from public.tenants
@@ -402,7 +422,9 @@ jobs:
             limit 1;
 
             if bootstrap_tenant_id is null then
-              raise exception 'Unable to resolve bootstrap tenant.';
+              insert into public.tenants (name, status)
+              values (bootstrap_tenant_name, 'active')
+              returning id into bootstrap_tenant_id;
             end if;
 
             insert into public.profiles (id, email, full_name)

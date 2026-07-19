@@ -24,16 +24,17 @@ to:
 
 1. validate the project ref and confirmation phrase before any Supabase
    connection;
-2. verify that the checkout is based on the validated main SHA;
-3. verify that the migration set is exactly `0001` through `0010`;
-4. install a pinned Supabase CLI version;
-5. link only the authorized Supabase project;
-6. verify conservative pre-reset row-count ceilings;
-7. run the official `supabase db reset --linked --no-seed`;
-8. verify migration history, tables, RLS, privileges, functions, and PostgREST
+2. checkout the exact human-reviewed commit SHA supplied as `authorized_sha`;
+3. verify that the checkout is based on the validated main SHA;
+4. verify that the migration set is exactly `0001` through `0010`;
+5. install a pinned Supabase CLI version;
+6. link only the authorized Supabase project;
+7. verify strict pre-reset row-count ceilings;
+8. run the official `supabase db reset --linked --no-seed --yes`;
+9. verify migration history, tables, RLS, privileges, functions, and PostgREST
    reload;
-9. bootstrap one test owner only if the matching Auth user already exists;
-10. verify that no CI QA seed data was introduced.
+10. bootstrap one test owner only if the matching Auth user already exists;
+11. verify that no CI QA seed data was introduced.
 
 ## Official Supabase behavior used
 
@@ -46,6 +47,14 @@ Supabase community discussion also confirms that remote reset preserves managed
 schemas such as `auth`, including `auth.users`, while dropping public
 user-created objects.
 
+The pinned CLI version `2.101.0` has been checked locally for command syntax:
+
+- `supabase db reset` supports `--linked`;
+- `supabase db reset` supports `--no-seed`;
+- `supabase db reset` supports the global `--yes` flag for non-interactive
+  confirmation;
+- `supabase migration list` supports `--local`, `--linked`, and `--db-url`.
+
 Operational conclusion for Atlas:
 
 - do not assume `auth.users` is deleted;
@@ -54,6 +63,11 @@ Operational conclusion for Atlas:
 - fail if there are multiple unexpected Auth users;
 - if the Auth user is missing after reset, create it manually through Supabase
   Auth and rerun only the owner bootstrap procedure.
+
+Storage is treated as managed Supabase state. The reset procedure does not rely
+on database reset deleting Storage buckets or objects. The workflow requires
+`storage.buckets = 0` and `storage.objects = 0` before reset. If Storage is not
+empty, stop and review manually before any destructive action.
 
 References:
 
@@ -76,6 +90,11 @@ Recommended protection:
 - restrict who can approve;
 - do not add deployment targets;
 - keep environment secrets separate from repository secrets when possible.
+
+The environment reviewer is a blocking safety control. If the GitHub plan in use
+does not enforce environment required reviewers for this repository, do not run
+the workflow until equivalent human approval is enforced outside GitHub and
+recorded in the project notes.
 
 Menu path:
 
@@ -136,8 +155,15 @@ Inputs must be exactly:
 - `project_ref`: `aqmuvakvienfwzhgzhcw`
 - `confirmation`: `RESET PLATEFORME RECRUTEMENT TEST`
 - `apply_reset`: `true`
+- `authorized_sha`: the full 40-character commit SHA that has been reviewed for
+  the reset run
 
 Any different value stops the workflow before Supabase is contacted.
+
+After this runbook is merged, use the exact merge commit SHA that contains the
+workflow as `authorized_sha`. This avoids hardcoding a future SHA in Git while
+still preventing the workflow from silently running whatever `main` happens to
+contain later.
 
 ## Conservative pre-reset row-count ceilings
 
@@ -146,21 +172,23 @@ database. The workflow prints counts only, never row data.
 
 | Table | Observed reference | Maximum allowed |
 | --- | ---: | ---: |
-| `auth.users` | 1 | 2 |
-| `public.tenants` | 1 | 2 |
-| `public.tenant_users` | 1 | 2 |
-| `public.profiles` | 1 | 2 |
-| `public.people` | 1 | 5 |
-| `public.organizations` | 1 | 5 |
-| `public.relationships` | 1 | 5 |
-| `public.interactions` | 4 | 20 |
-| `public.tasks` | 4 | 20 |
-| `public.timeline_events` | 9 | 50 |
-| `public.audit_log` | 29 | 100 |
-| `public.action_plan_decisions` | 0 | 10 |
+| `auth.users` | 1 | 1 |
+| `storage.buckets` | 0 | 0 |
+| `storage.objects` | 0 | 0 |
+| `public.tenants` | 1 | 1 |
+| `public.tenant_users` | 1 | 1 |
+| `public.profiles` | 1 | 1 |
+| `public.people` | 1 | 1 |
+| `public.organizations` | 1 | 1 |
+| `public.relationships` | 1 | 1 |
+| `public.interactions` | 4 | 4 |
+| `public.tasks` | 4 | 4 |
+| `public.timeline_events` | 9 | 9 |
+| `public.audit_log` | 29 | 29 |
+| `public.action_plan_decisions` | 0 | 0 |
 
-If any count exceeds the maximum, stop. Do not raise the limit in the same run.
-Review the database identity and data ownership first.
+If any count differs from the historical test state, stop. Do not raise a limit
+in the same run. Review the database identity and data ownership first.
 
 ## First owner procedure
 
@@ -209,14 +237,32 @@ The workflow stops before reset if:
 - `project_ref` is not exactly `aqmuvakvienfwzhgzhcw`;
 - `confirmation` is not exactly `RESET PLATEFORME RECRUTEMENT TEST`;
 - `apply_reset` is not `true`;
+- `authorized_sha` is not a full 40-character SHA;
 - a required secret is missing;
-- the checkout is not based on the validated main SHA;
+- the checked-out commit is not exactly `authorized_sha`;
+- the checked-out commit is not based on the validated main SHA;
 - the migration set is not exactly `0001` through `0010`;
-- the pre-reset table counts exceed conservative ceilings;
+- the pre-reset table counts differ from the historical test state;
 - no Auth user exists before reset.
 
 After reset starts, the workflow uses `set -euo pipefail` and `ON_ERROR_STOP=1`.
 It stops at the first error and prints only non-sensitive diagnostics.
+
+## Dry-run and validation limits
+
+Before the first real reset, run the non-destructive validations from the branch:
+
+- `npm test`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run build`
+- local CLI syntax check with `supabase@2.101.0 db reset --help`
+- local CLI syntax check with `supabase@2.101.0 migration list --help`
+
+A full local disposable reset also requires Docker and a working Bash shell on
+the runner. If Docker or Bash is unavailable locally, do not use a distant
+Supabase project as a substitute test target. Use GitHub Actions review and a
+separate local runner with Docker for the final non-production rehearsal.
 
 ## Cleanup after success
 
