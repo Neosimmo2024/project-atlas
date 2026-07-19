@@ -88,4 +88,5 @@ async function changeStage(page: Page, label: string, reason: string, fillExtra?
   await stageDialog.getByLabel("Motif ou note").fill(reason);
   if (fillExtra) await fillExtra(stageDialog);
   await stageDialog.getByRole("button", { name: "Valider" }).click();
+  await expect(stageDialog).toBeHidden();
 }
