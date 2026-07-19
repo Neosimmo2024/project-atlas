@@ -94,7 +94,7 @@ test.describe("Recruitment pipeline UI authenticated flow", () => {
       await stageDialog.getByLabel("Date de signature").fill("2099-07-20T10:00");
     });
     await expect(page.getByText("Phase mise à jour.")).toBeVisible();
-    await expect(pipelineCard(page).getByText("Signature")).toBeVisible();
+    await expect(pipelineCard(page).getByText("Signature", { exact: true })).toBeVisible();
     await expect(pipelineCard(page).getByText("Signature programmée")).toBeVisible();
 
     await pipelineCard(page).getByRole("button", { name: "Changer de phase" }).click();
