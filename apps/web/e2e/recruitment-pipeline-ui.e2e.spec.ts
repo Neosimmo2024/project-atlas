@@ -35,7 +35,7 @@ test.describe("Recruitment pipeline UI authenticated flow", () => {
     await expect(page.getByText("Phase mise à jour.")).toBeVisible();
     await expect(pipelineCard(page).getByText("Conversation engagée")).toBeVisible();
 
-    await page.getByRole("button", { name: "Responsable" }).first().click();
+    await pipelineCard(page).getByRole("button", { name: "Responsable" }).click();
     const ownerDialog = page.getByRole("dialog", { name: "Modifier le responsable" });
     await ownerDialog.getByLabel("Responsable").selectOption("");
     await ownerDialog.getByRole("button", { name: "Valider" }).click();
@@ -62,7 +62,7 @@ test.describe("Recruitment pipeline UI authenticated flow", () => {
     await expect(pipelineCard(page).getByText("Qualification")).toBeVisible();
     await expect(pipelineCard(page).getByText("Ne plus contacter")).toBeVisible();
 
-    await page.getByRole("button", { name: "Lever le blocage" }).first().click();
+    await pipelineCard(page).getByRole("button", { name: "Lever le blocage" }).click();
     const contactDialog = page.getByRole("dialog", { name: "Lever Ne plus contacter" });
     await contactDialog.getByLabel("Justification").fill("Consentement revalidé depuis E2E");
     await contactDialog.getByRole("button", { name: "Valider" }).click();
@@ -85,7 +85,7 @@ function pipelineCard(page: Page) {
 }
 
 async function changeStage(page: Page, label: string, reason: string, fillExtra?: (stageDialog: Locator) => Promise<void>) {
-  await page.getByRole("button", { name: "Changer de phase" }).first().click();
+  await pipelineCard(page).getByRole("button", { name: "Changer de phase" }).click();
   const stageDialog = page.getByRole("dialog", { name: "Changer la phase" });
   await stageDialog.getByLabel("Phase cible").selectOption({ label });
   await stageDialog.getByLabel("Motif ou note").fill(reason);
