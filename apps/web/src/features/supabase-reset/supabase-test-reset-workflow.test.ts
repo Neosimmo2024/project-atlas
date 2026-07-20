@@ -62,6 +62,22 @@ describe("Supabase test reset workflow", () => {
     expect(workflow).not.toContain("DROP SCHEMA");
   });
 
+  it("uses the locked IPv4 Session Pooler for psql checks instead of the direct database host", () => {
+    const configureConnectionIndex = workflow.indexOf("- name: Configure masked database connection");
+    const firstPsqlIndex = workflow.indexOf("psql -X -v ON_ERROR_STOP=1");
+
+    expect(workflow).toContain("SUPABASE_POOLER_HOST: aws-0-eu-central-1.pooler.supabase.com");
+    expect(workflow).toContain("SUPABASE_POOLER_PORT: 5432");
+    expect(workflow).toContain("SUPABASE_POOLER_USER: postgres.aqmuvakvienfwzhgzhcw");
+    expect(workflow).toContain('if [ "$SUPABASE_POOLER_HOST" != "aws-0-eu-central-1.pooler.supabase.com" ]');
+    expect(workflow).toContain('if [ "$SUPABASE_POOLER_USER" != "postgres.$ALLOWED_PROJECT_REF" ]');
+    expect(workflow).toContain('echo "PGSSLMODE=require"');
+    expect(workflow).not.toContain("PGHOST=db.$ALLOWED_PROJECT_REF.supabase.co");
+    expect(workflow).not.toContain("db.aqmuvakvienfwzhgzhcw.supabase.co");
+    expect(configureConnectionIndex).toBeGreaterThan(-1);
+    expect(firstPsqlIndex).toBeGreaterThan(configureConnectionIndex);
+  });
+
   it("requires exactly canonical migrations 0001 through 0010", () => {
     const migrations = readdirSync(resolve(root, "supabase/migrations")).filter((name) => name.endsWith(".sql")).sort();
     expect(migrations).toEqual([

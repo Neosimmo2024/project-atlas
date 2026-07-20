@@ -10,6 +10,9 @@ designed for a future human-triggered GitHub Actions run with explicit approval.
 - Supabase project name: plateforme de recrutement
 - Supabase project ref: `aqmuvakvienfwzhgzhcw`
 - Expected project URL: `https://aqmuvakvienfwzhgzhcw.supabase.co`
+- Session Pooler host: `aws-0-eu-central-1.pooler.supabase.com`
+- Session Pooler port: `5432`
+- Session Pooler user: `postgres.aqmuvakvienfwzhgzhcw`
 - Validated repository base SHA: `4dbb483d6418d98bbbd40f0ef9ac72d35f4250a1`
 
 No other project ref is accepted by the workflow.
@@ -30,12 +33,14 @@ to:
 4. verify that the migration set is exactly `0001` through `0010`;
 5. install a pinned Supabase CLI version;
 6. link only the authorized Supabase project;
-7. verify the exact authorized pre-reset snapshot;
-8. run the official `supabase db reset --linked --no-seed --yes`;
-9. verify migration history, tables, RLS, privileges, functions, and PostgREST
+7. configure PostgreSQL checks through the locked IPv4 Session Pooler with SSL
+   required;
+8. verify the exact authorized pre-reset snapshot;
+9. run the official `supabase db reset --linked --no-seed --yes`;
+10. verify migration history, tables, RLS, privileges, functions, and PostgREST
    reload;
-10. bootstrap one test owner only if the matching Auth user already exists;
-11. verify that no CI QA seed data was introduced.
+11. bootstrap one test owner only if the matching Auth user already exists;
+12. verify that no CI QA seed data was introduced.
 
 ## Official Supabase behavior used
 
@@ -69,6 +74,20 @@ Storage is treated as managed Supabase state. The reset procedure does not rely
 on database reset deleting Storage buckets or objects. The workflow requires
 `storage.buckets = 0` and `storage.objects = 0` before reset. If Storage is not
 empty, stop and review manually before any destructive action.
+
+GitHub-hosted runners can be IPv4-only. The workflow therefore uses the official
+Supabase Shared Pooler in session mode for every remote `psql` check:
+
+- host: `aws-0-eu-central-1.pooler.supabase.com`;
+- port: `5432`;
+- user: `postgres.aqmuvakvienfwzhgzhcw`;
+- SSL mode: `require`.
+
+Do not switch `psql` checks back to the direct host
+`db.aqmuvakvienfwzhgzhcw.supabase.co`; that endpoint can resolve to IPv6 and is
+not reliable from GitHub-hosted runners without an IPv4 add-on. The workflow
+still uses `supabase db reset --linked --no-seed --yes` for the official reset
+step after all guards pass, with the linked project ref locked separately.
 
 References:
 
@@ -326,8 +345,9 @@ Known differences to keep explicit:
   remote workflow must still verify remote `auth.users` before bootstrap;
 - local Storage bucket/object guards are exercised, but managed remote Storage
   must still be checked before any distant reset;
-- direct Postgres access from GitHub Actions to the remote test project remains
-  unproven until the first human-approved reset run.
+- remote PostgreSQL checks are configured through the IPv4 Session Pooler, but
+  the managed remote reset path remains unproven until the first human-approved
+  reset run.
 
 Do not loosen the remote guards because the local simulation passes. Any future
 change to the exact authorized snapshot still requires human verification and a
