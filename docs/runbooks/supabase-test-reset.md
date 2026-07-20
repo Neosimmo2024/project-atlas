@@ -268,6 +268,65 @@ the runner. If Docker or Bash is unavailable locally, do not use a distant
 Supabase project as a substitute test target. Use GitHub Actions review and a
 separate local runner with Docker for the final non-production rehearsal.
 
+## Local reset simulation
+
+The standard `CI Supabase` workflow runs a local-only simulation before the QA
+seed step:
+
+```bash
+node scripts/supabase-reset-local-simulation.mjs
+```
+
+The simulation refuses to run unless every Supabase API and PostgreSQL URL points
+to `localhost` or `127.0.0.1`. It does not use the project ref
+`aqmuvakvienfwzhgzhcw`, does not link a Supabase project, does not read GitHub
+secrets, and does not contact a remote Supabase host.
+
+The simulation covers:
+
+- canonical migrations `0001` through `0010` from a local database;
+- creation of a fictitious pre-reset snapshot with the exact authorized counts;
+- strict equality guards for lower values, higher values, unexpected zero,
+  missing/NULL observations, Storage buckets, Storage objects, and Auth user
+  count drift;
+- local input guards for project ref, confirmation phrase, `apply_reset`, and
+  `authorized_sha`;
+- a local reset with `supabase db reset --no-seed --yes`, without `--linked`;
+- post-reset checks for migration history, tables, RLS, API privileges,
+  recruitment pipeline RPC access, PostgREST schema reload, and idempotent first
+  owner bootstrap.
+
+The simulation intentionally uses a local-only project ref:
+
+`atlas-local-reset-simulation`
+
+This avoids training or testing against the real remote project ref. The remote
+workflow remains locked to `aqmuvakvienfwzhgzhcw`; the local simulation never
+changes that production safety guard.
+
+### Local and distant behavior differences
+
+The simulation demonstrates Atlas SQL, local Supabase services, local Auth, local
+Storage, and the workflow guard logic. It does not prove every managed-service
+detail of a linked remote reset.
+
+Known differences to keep explicit:
+
+- local reset uses `supabase db reset --no-seed --yes`, without `--linked`;
+- distant test reset uses `supabase db reset --linked --no-seed --yes`;
+- local Auth and Storage run inside disposable Docker services;
+- remote Auth and Storage are Supabase-managed schemas and services;
+- local `auth.users` behavior after reset is recorded by the simulation, but the
+  remote workflow must still verify remote `auth.users` before bootstrap;
+- local Storage bucket/object guards are exercised, but managed remote Storage
+  must still be checked before any distant reset;
+- direct Postgres access from GitHub Actions to the remote test project remains
+  unproven until the first human-approved reset run.
+
+Do not loosen the remote guards because the local simulation passes. Any future
+change to the exact authorized snapshot still requires human verification and a
+new commit.
+
 ## Cleanup after success
 
 After a successful one-time reset:
