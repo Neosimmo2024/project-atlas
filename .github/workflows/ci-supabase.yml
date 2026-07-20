@@ -247,6 +247,9 @@ jobs:
       - name: Verify PostgREST schema cache
         run: node scripts/verify-supabase-qa.mjs
 
+      - name: Simulate Supabase Test Reset locally
+        run: node scripts/supabase-reset-local-simulation.mjs
+
       - name: Seed fictitious QA data
         run: node scripts/seed-supabase-qa.mjs
 

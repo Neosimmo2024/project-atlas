@@ -3,8 +3,8 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const root = resolve(__dirname, "../../../../..");
-const workflow = readFileSync(resolve(root, ".github/workflows/supabase-test-reset.yml"), "utf8");
-const runbook = readFileSync(resolve(root, "docs/runbooks/supabase-test-reset.md"), "utf8");
+const workflow = readFileSync(resolve(root, ".github/workflows/supabase-test-reset.yml"), "utf8").replace(/\r\n/g, "\n");
+const runbook = readFileSync(resolve(root, "docs/runbooks/supabase-test-reset.md"), "utf8").replace(/\r\n/g, "\n");
 
 describe("Supabase test reset workflow", () => {
   it("is manual only and cannot run from push, pull_request, or schedule", () => {
