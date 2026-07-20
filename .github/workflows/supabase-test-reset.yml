@@ -37,6 +37,9 @@ jobs:
       ALLOWED_PROJECT_REF: aqmuvakvienfwzhgzhcw
       EXPECTED_BASE_SHA: 4dbb483d6418d98bbbd40f0ef9ac72d35f4250a1
       EXPECTED_CONFIRMATION: RESET PLATEFORME RECRUTEMENT TEST
+      SUPABASE_POOLER_HOST: aws-0-eu-central-1.pooler.supabase.com
+      SUPABASE_POOLER_PORT: 5432
+      SUPABASE_POOLER_USER: postgres.aqmuvakvienfwzhgzhcw
       SUPABASE_CLI_VERSION: 2.101.0
       PROJECT_REF_INPUT: ${{ inputs.project_ref }}
       CONFIRMATION_INPUT: ${{ inputs.confirmation }}
@@ -155,15 +158,28 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [ "$SUPABASE_POOLER_HOST" != "aws-0-eu-central-1.pooler.supabase.com" ]; then
+            echo "Refusing reset: unexpected Supabase pooler host."
+            exit 1
+          fi
+          if [ "$SUPABASE_POOLER_PORT" != "5432" ]; then
+            echo "Refusing reset: unexpected Supabase pooler port."
+            exit 1
+          fi
+          if [ "$SUPABASE_POOLER_USER" != "postgres.$ALLOWED_PROJECT_REF" ]; then
+            echo "Refusing reset: unexpected Supabase pooler user."
+            exit 1
+          fi
           echo "::add-mask::$SUPABASE_DB_PASSWORD"
           {
-            echo "PGHOST=db.$ALLOWED_PROJECT_REF.supabase.co"
-            echo "PGPORT=5432"
+            echo "PGHOST=$SUPABASE_POOLER_HOST"
+            echo "PGPORT=$SUPABASE_POOLER_PORT"
             echo "PGDATABASE=postgres"
-            echo "PGUSER=postgres"
+            echo "PGUSER=$SUPABASE_POOLER_USER"
             echo "PGPASSWORD=$SUPABASE_DB_PASSWORD"
+            echo "PGSSLMODE=require"
           } >> "$GITHUB_ENV"
-          echo "Database connection variables configured for the authorized project without printing a connection string."
+          echo "Database connection variables configured through the authorized IPv4 Session Pooler without printing a connection string."
 
       - name: Verify target identity and exact pre-reset snapshot
         shell: bash
