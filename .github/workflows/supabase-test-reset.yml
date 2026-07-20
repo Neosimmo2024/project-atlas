@@ -164,7 +164,7 @@ jobs:
           } >> "$GITHUB_ENV"
           echo "Database connection variables configured for the authorized project without printing a connection string."
 
-      - name: Verify target identity and conservative pre-reset volume
+      - name: Verify target identity and exact pre-reset snapshot
         shell: bash
         run: |
           set -euo pipefail
@@ -173,26 +173,25 @@ jobs:
 
           create temp table atlas_reset_expected_counts (
             table_name text primary key,
-            expected_count integer not null,
-            max_count integer not null
+            expected_count integer not null
           ) on commit preserve rows;
 
-          insert into atlas_reset_expected_counts (table_name, expected_count, max_count)
+          insert into atlas_reset_expected_counts (table_name, expected_count)
           values
-            ('auth.users', 1, 1),
-            ('storage.buckets', 0, 0),
-            ('storage.objects', 0, 0),
-            ('public.tenants', 1, 1),
-            ('public.tenant_users', 1, 1),
-            ('public.profiles', 1, 1),
-            ('public.people', 1, 1),
-            ('public.organizations', 1, 1),
-            ('public.relationships', 1, 1),
-            ('public.interactions', 4, 4),
-            ('public.tasks', 4, 4),
-            ('public.timeline_events', 9, 9),
-            ('public.audit_log', 29, 29),
-            ('public.action_plan_decisions', 0, 0);
+            ('auth.users', 1),
+            ('storage.buckets', 0),
+            ('storage.objects', 0),
+            ('public.tenants', 1),
+            ('public.tenant_users', 1),
+            ('public.profiles', 1),
+            ('public.people', 1),
+            ('public.organizations', 1),
+            ('public.relationships', 1),
+            ('public.interactions', 4),
+            ('public.tasks', 4),
+            ('public.timeline_events', 9),
+            ('public.audit_log', 29),
+            ('public.action_plan_decisions', 0);
 
           create temp table atlas_reset_observed_counts (
             table_name text primary key,
@@ -219,6 +218,15 @@ jobs:
           from atlas_reset_observed_counts o
           order by o.table_name;
 
+          select
+            'pre_reset_mismatch table=' || e.table_name ||
+            ' expected=' || e.expected_count::text ||
+            ' observed=' || coalesce(o.observed_count::text, 'NULL')
+          from atlas_reset_expected_counts e
+          left join atlas_reset_observed_counts o using (table_name)
+          where o.observed_count is distinct from e.expected_count
+          order by e.table_name;
+
           do $$
           declare
             bad_count integer;
@@ -226,15 +234,11 @@ jobs:
             select count(*)
             into bad_count
             from atlas_reset_expected_counts e
-            join atlas_reset_observed_counts o using (table_name)
-            where o.observed_count > e.max_count;
+            left join atlas_reset_observed_counts o using (table_name)
+            where o.observed_count is distinct from e.expected_count;
 
             if bad_count > 0 then
-              raise exception 'Refusing reset: one or more table counts exceed the conservative test-project ceilings.';
-            end if;
-
-            if (select observed_count from atlas_reset_observed_counts where table_name = 'auth.users') < 1 then
-              raise exception 'Refusing reset: no auth.users row was found before reset.';
+              raise exception 'Refusing reset: pre-reset table counts differ from the exact authorized snapshot.';
             end if;
           end $$;
           SQL

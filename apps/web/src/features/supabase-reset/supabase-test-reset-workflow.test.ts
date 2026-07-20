@@ -67,14 +67,55 @@ describe("Supabase test reset workflow", () => {
     expect(workflow).toContain("Refusing reset: migration set is not exactly 0001 through 0010.");
   });
 
-  it("stops on conservative counters and impossible alternate targets", () => {
-    expect(workflow).toContain("auth.users', 1, 1");
-    expect(workflow).toContain("storage.buckets', 0, 0");
-    expect(workflow).toContain("storage.objects', 0, 0");
-    expect(workflow).toContain("public.timeline_events', 9, 9");
-    expect(workflow).toContain("Refusing reset: one or more table counts exceed the conservative test-project ceilings.");
+  it("stops unless the exact authorized pre-reset snapshot matches", () => {
+    for (const [table, count] of [
+      ["auth.users", 1],
+      ["public.tenants", 1],
+      ["public.tenant_users", 1],
+      ["public.profiles", 1],
+      ["public.people", 1],
+      ["public.organizations", 1],
+      ["public.relationships", 1],
+      ["public.interactions", 4],
+      ["public.tasks", 4],
+      ["public.timeline_events", 9],
+      ["public.audit_log", 29],
+      ["public.action_plan_decisions", 0],
+      ["storage.buckets", 0],
+      ["storage.objects", 0]
+    ] as const) {
+      expect(workflow).toContain(`('${table}', ${count})`);
+    }
+    expect(workflow).toContain("where o.observed_count is distinct from e.expected_count");
+    expect(workflow).toContain("pre_reset_mismatch table=");
+    expect(workflow).toContain("expected=");
+    expect(workflow).toContain("observed=");
+    expect(workflow).toContain("coalesce(o.observed_count::text, 'NULL')");
+    expect(workflow).toContain("psql -X -v ON_ERROR_STOP=1");
+    expect(workflow).toContain("observed_count integer not null");
+    expect(workflow).toContain("Refusing reset: pre-reset table counts differ from the exact authorized snapshot.");
+    expect(workflow).not.toContain("max_count");
+    expect(workflow).not.toContain("ceilings");
+    expect(workflow).not.toContain("o.observed_count >");
+    expect(workflow).not.toContain("no auth.users row was found before reset");
     expect(workflow).not.toContain("SUPABASE_PROJECT_REF");
     expect(workflow).not.toContain("on commit drop");
+  });
+
+  it("keeps the destructive reset unreachable until the exact snapshot guard passes", () => {
+    const guardIndex = workflow.indexOf("Refusing reset: pre-reset table counts differ from the exact authorized snapshot.");
+    const resetIndex = workflow.indexOf("supabase db reset --linked --no-seed --yes");
+
+    expect(guardIndex).toBeGreaterThan(-1);
+    expect(resetIndex).toBeGreaterThan(guardIndex);
+    expect(workflow).toContain("set -euo pipefail");
+  });
+
+  it("does not let workflow inputs replace the authorized snapshot", () => {
+    expect(workflow).not.toContain("inputs.expected_count");
+    expect(workflow).not.toContain("inputs.max_count");
+    expect(workflow).not.toContain("EXPECTED_COUNTS_INPUT");
+    expect(workflow).not.toContain("SNAPSHOT_INPUT");
   });
 
   it("documents owner bootstrap, auth.users behavior, and human cleanup", () => {

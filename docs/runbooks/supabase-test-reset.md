@@ -29,7 +29,7 @@ to:
 4. verify that the migration set is exactly `0001` through `0010`;
 5. install a pinned Supabase CLI version;
 6. link only the authorized Supabase project;
-7. verify strict pre-reset row-count ceilings;
+7. verify the exact authorized pre-reset snapshot;
 8. run the official `supabase db reset --linked --no-seed --yes`;
 9. verify migration history, tables, RLS, privileges, functions, and PostgREST
    reload;
@@ -165,30 +165,35 @@ workflow as `authorized_sha`. This avoids hardcoding a future SHA in Git while
 still preventing the workflow from silently running whatever `main` happens to
 contain later.
 
-## Conservative pre-reset row-count ceilings
+## Exact authorized pre-reset snapshot
 
-The reset is allowed only if the target still looks like the known throwaway test
-database. The workflow prints counts only, never row data.
+The reset is allowed only if the target exactly matches the known throwaway test
+database snapshot. The workflow prints table names and counts only, never row
+data or personal data.
 
-| Table | Observed reference | Maximum allowed |
-| --- | ---: | ---: |
-| `auth.users` | 1 | 1 |
-| `storage.buckets` | 0 | 0 |
-| `storage.objects` | 0 | 0 |
-| `public.tenants` | 1 | 1 |
-| `public.tenant_users` | 1 | 1 |
-| `public.profiles` | 1 | 1 |
-| `public.people` | 1 | 1 |
-| `public.organizations` | 1 | 1 |
-| `public.relationships` | 1 | 1 |
-| `public.interactions` | 4 | 4 |
-| `public.tasks` | 4 | 4 |
-| `public.timeline_events` | 9 | 9 |
-| `public.audit_log` | 29 | 29 |
-| `public.action_plan_decisions` | 0 | 0 |
+| Table | Expected count |
+| --- | ---: |
+| `auth.users` | 1 |
+| `storage.buckets` | 0 |
+| `storage.objects` | 0 |
+| `public.tenants` | 1 |
+| `public.tenant_users` | 1 |
+| `public.profiles` | 1 |
+| `public.people` | 1 |
+| `public.organizations` | 1 |
+| `public.relationships` | 1 |
+| `public.interactions` | 4 |
+| `public.tasks` | 4 |
+| `public.timeline_events` | 9 |
+| `public.audit_log` | 29 |
+| `public.action_plan_decisions` | 0 |
 
-If any count differs from the historical test state, stop. Do not raise a limit
-in the same run. Review the database identity and data ownership first.
+If any count differs from the exact authorized snapshot, whether lower or
+higher, stop. Do not adjust counters only to make the workflow pass. Any real
+evolution of the test database requires a fresh human verification and a new
+commit updating the workflow and this runbook. The project ref remains locked to
+`aqmuvakvienfwzhgzhcw`; no workflow input can change the target or the expected
+snapshot.
 
 ## First owner procedure
 
@@ -242,8 +247,7 @@ The workflow stops before reset if:
 - the checked-out commit is not exactly `authorized_sha`;
 - the checked-out commit is not based on the validated main SHA;
 - the migration set is not exactly `0001` through `0010`;
-- the pre-reset table counts differ from the historical test state;
-- no Auth user exists before reset.
+- the pre-reset table counts differ from the exact authorized snapshot.
 
 After reset starts, the workflow uses `set -euo pipefail` and `ON_ERROR_STOP=1`.
 It stops at the first error and prints only non-sensitive diagnostics.
