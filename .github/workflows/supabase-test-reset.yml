@@ -175,7 +175,7 @@ jobs:
             echo "PGHOST=$SUPABASE_POOLER_HOST"
             echo "PGPORT=$SUPABASE_POOLER_PORT"
             echo "PGDATABASE=postgres"
-            echo "PGUSER=$SUPABASE_POOLER_USER"
+            echo "PGUSER=postgres.aqmuvakvienfwzhgzhcw"
             echo "PGPASSWORD=$SUPABASE_DB_PASSWORD"
             echo "PGSSLMODE=require"
           } >> "$GITHUB_ENV"
@@ -185,7 +185,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          psql \
+            --host="$SUPABASE_POOLER_HOST" \
+            --port="$SUPABASE_POOLER_PORT" \
+            --dbname=postgres \
+            --username="postgres.aqmuvakvienfwzhgzhcw" \
+            -X -v ON_ERROR_STOP=1 <<'SQL'
           set search_path = '';
 
           create temp table atlas_reset_expected_counts (
@@ -285,7 +290,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          psql \
+            --host="$SUPABASE_POOLER_HOST" \
+            --port="$SUPABASE_POOLER_PORT" \
+            --dbname=postgres \
+            --username="postgres.aqmuvakvienfwzhgzhcw" \
+            -X -v ON_ERROR_STOP=1 <<'SQL'
           set search_path = '';
 
           do $$
@@ -379,7 +389,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          psql -X -v ON_ERROR_STOP=1 \
+          psql \
+            --host="$SUPABASE_POOLER_HOST" \
+            --port="$SUPABASE_POOLER_PORT" \
+            --dbname=postgres \
+            --username="postgres.aqmuvakvienfwzhgzhcw" \
+            -X -v ON_ERROR_STOP=1 \
             -v owner_email="$ATLAS_TEST_OWNER_EMAIL" \
             -v tenant_name="Atlas Test Tenant" <<'SQL'
           set search_path = '';
@@ -473,7 +488,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          psql \
+            --host="$SUPABASE_POOLER_HOST" \
+            --port="$SUPABASE_POOLER_PORT" \
+            --dbname=postgres \
+            --username="postgres.aqmuvakvienfwzhgzhcw" \
+            -X -v ON_ERROR_STOP=1 <<'SQL'
           set search_path = '';
 
           do $$
