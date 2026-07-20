@@ -112,6 +112,12 @@ export function assertLocalOnlyEnvironment(env = process.env) {
     if (value) assertLocalUrl(name, value);
   }
   if (env.QA_DB_URL) assertLocalPostgresUrl("QA_DB_URL", env.QA_DB_URL);
+  for (const name of ["PGHOST", "SUPABASE_POOLER_HOST"]) {
+    const value = env[name];
+    if (value && !isLocalHost(value)) {
+      throw new Error(`${name} must not target a remote PostgreSQL host for reset simulation.`);
+    }
+  }
 }
 
 function assertLocalUrl(name, value) {
@@ -143,6 +149,36 @@ function adminClient() {
       autoRefreshToken: false
     }
   });
+}
+
+function describeAuthError(error) {
+  if (!error || typeof error !== "object") return String(error);
+  const entries = Object.entries({
+    name: error.name,
+    status: error.status,
+    code: error.code,
+    message: error.message
+  }).filter(([, value]) => value !== undefined && value !== "");
+  if (entries.length === 0) return JSON.stringify(error);
+  return entries.map(([key, value]) => `${key}=${String(value)}`).join(" ");
+}
+
+async function waitForLocalAuthReadiness() {
+  const deadline = Date.now() + 30000;
+  let lastError = "not checked";
+
+  while (Date.now() < deadline) {
+    try {
+      const { error } = await adminClient().auth.admin.listUsers({ page: 1, perPage: 1 });
+      if (!error) return;
+      lastError = describeAuthError(error);
+    } catch (error) {
+      lastError = describeAuthError(error);
+    }
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 1000));
+  }
+
+  throw new Error(`Local Auth service was not ready before bootstrap: ${lastError}`);
 }
 
 async function run(command, args, options = {}) {
@@ -253,6 +289,7 @@ function verifyMigrationSet() {
 }
 
 async function createAuthUser(email) {
+  await waitForLocalAuthReadiness();
   const supabase = adminClient();
   const { data, error } = await supabase.auth.admin.createUser({
     email,
@@ -262,7 +299,7 @@ async function createAuthUser(email) {
       full_name: "Atlas Local Reset Owner"
     }
   });
-  if (error) throw new Error(`create auth user ${email}: ${error.message}`);
+  if (error) throw new Error(`create auth user ${email}: ${describeAuthError(error)}`);
   if (!data.user?.id) throw new Error(`create auth user ${email}: missing user id`);
   return data.user.id;
 }

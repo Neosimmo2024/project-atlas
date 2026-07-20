@@ -197,4 +197,22 @@ describe("Supabase reset local simulation guards", () => {
       })
     ).toThrow("local PostgreSQL host");
   });
+
+  it("refuses remote PostgreSQL host environment variables during local simulation", () => {
+    expect(() =>
+      simulation.assertLocalOnlyEnvironment({
+        QA_SUPABASE_URL: "http://127.0.0.1:54321",
+        QA_DB_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+        PGHOST: "aws-0-eu-central-1.pooler.supabase.com"
+      })
+    ).toThrow("PGHOST must not target a remote PostgreSQL host");
+
+    expect(() =>
+      simulation.assertLocalOnlyEnvironment({
+        QA_SUPABASE_URL: "http://127.0.0.1:54321",
+        QA_DB_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+        SUPABASE_POOLER_HOST: "aws-0-eu-central-1.pooler.supabase.com"
+      })
+    ).toThrow("SUPABASE_POOLER_HOST must not target a remote PostgreSQL host");
+  });
 });
