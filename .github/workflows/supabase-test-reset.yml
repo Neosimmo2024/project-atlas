@@ -73,6 +73,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.authorized_sha }}
+          fetch-depth: 0
 
       - name: Verify repository base and canonical migrations
         shell: bash

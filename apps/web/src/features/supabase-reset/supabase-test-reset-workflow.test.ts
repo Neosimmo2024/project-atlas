@@ -20,9 +20,21 @@ describe("Supabase test reset workflow", () => {
     expect(workflow).toContain('if [ "$APPLY_RESET_INPUT" != "true" ]');
     expect(workflow).toContain('if ! [[ "$AUTHORIZED_SHA_INPUT" =~ ^[0-9a-f]{40}$ ]]');
     expect(workflow).toContain("ref: ${{ inputs.authorized_sha }}");
+    expect(workflow).toContain("fetch-depth: 0");
     expect(workflow).toContain('if [ "$actual_sha" != "$AUTHORIZED_SHA_INPUT" ]');
     expect(workflow).toContain("Refusing reset: unauthorized project_ref.");
     expect(workflow).toContain("Refusing reset: confirmation phrase does not match.");
+  });
+
+  it("fetches enough Git history to verify the validated main ancestry", () => {
+    const checkoutIndex = workflow.indexOf("uses: actions/checkout@v4");
+    const fetchDepthIndex = workflow.indexOf("fetch-depth: 0");
+    const ancestryGuardIndex = workflow.indexOf('git merge-base --is-ancestor "$EXPECTED_BASE_SHA" HEAD');
+
+    expect(checkoutIndex).toBeGreaterThan(-1);
+    expect(fetchDepthIndex).toBeGreaterThan(checkoutIndex);
+    expect(fetchDepthIndex).toBeLessThan(ancestryGuardIndex);
+    expect(workflow).toContain("Refusing reset: workflow checkout is not based on the validated main SHA.");
   });
 
   it("uses minimal GitHub permissions, environment approval, timeout, and concurrency", () => {
