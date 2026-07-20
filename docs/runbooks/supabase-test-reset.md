@@ -83,6 +83,12 @@ Supabase Shared Pooler in session mode for every remote `psql` check:
 - user: `postgres.aqmuvakvienfwzhgzhcw`;
 - SSL mode: `require`.
 
+Each remote `psql` invocation must pass the pooler user explicitly with
+`--username="postgres.aqmuvakvienfwzhgzhcw"`. Do not rely only on `PGUSER` or on
+libpq defaults; the user suffix is part of the Supabase Session Pooler identity
+and must remain visible in the command definition without printing any password
+or connection string.
+
 Do not switch `psql` checks back to the direct host
 `db.aqmuvakvienfwzhgzhcw.supabase.co`; that endpoint can resolve to IPv6 and is
 not reliable from GitHub-hosted runners without an IPv4 add-on. The workflow

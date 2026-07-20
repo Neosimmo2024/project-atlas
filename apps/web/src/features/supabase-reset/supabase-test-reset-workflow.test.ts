@@ -64,18 +64,35 @@ describe("Supabase test reset workflow", () => {
 
   it("uses the locked IPv4 Session Pooler for psql checks instead of the direct database host", () => {
     const configureConnectionIndex = workflow.indexOf("- name: Configure masked database connection");
-    const firstPsqlIndex = workflow.indexOf("psql -X -v ON_ERROR_STOP=1");
+    const firstPsqlIndex = workflow.indexOf("psql \\");
 
     expect(workflow).toContain("SUPABASE_POOLER_HOST: aws-0-eu-central-1.pooler.supabase.com");
     expect(workflow).toContain("SUPABASE_POOLER_PORT: 5432");
     expect(workflow).toContain("SUPABASE_POOLER_USER: postgres.aqmuvakvienfwzhgzhcw");
     expect(workflow).toContain('if [ "$SUPABASE_POOLER_HOST" != "aws-0-eu-central-1.pooler.supabase.com" ]');
     expect(workflow).toContain('if [ "$SUPABASE_POOLER_USER" != "postgres.$ALLOWED_PROJECT_REF" ]');
+    expect(workflow).toContain('echo "PGUSER=postgres.aqmuvakvienfwzhgzhcw"');
     expect(workflow).toContain('echo "PGSSLMODE=require"');
+    expect(workflow).toContain('--username="postgres.aqmuvakvienfwzhgzhcw"');
     expect(workflow).not.toContain("PGHOST=db.$ALLOWED_PROJECT_REF.supabase.co");
     expect(workflow).not.toContain("db.aqmuvakvienfwzhgzhcw.supabase.co");
+    expect(workflow).not.toContain('echo "PGUSER=postgres"');
+    expect(workflow).not.toMatch(/psql -X -v ON_ERROR_STOP=1/);
     expect(configureConnectionIndex).toBeGreaterThan(-1);
     expect(firstPsqlIndex).toBeGreaterThan(configureConnectionIndex);
+  });
+
+  it("passes the full Session Pooler username explicitly to every remote psql command", () => {
+    const remotePsqlCommands = [...workflow.matchAll(/\n\s+psql \\\n(?:\s+.*\\\n)+/g)];
+
+    expect(remotePsqlCommands).toHaveLength(4);
+    for (const [command] of remotePsqlCommands) {
+      expect(command).toContain("--host=\"$SUPABASE_POOLER_HOST\"");
+      expect(command).toContain("--port=\"$SUPABASE_POOLER_PORT\"");
+      expect(command).toContain("--dbname=postgres");
+      expect(command).toContain("--username=\"postgres.aqmuvakvienfwzhgzhcw\"");
+      expect(command).not.toContain("--username=\"postgres\"");
+    }
   });
 
   it("requires exactly canonical migrations 0001 through 0010", () => {
@@ -119,7 +136,7 @@ describe("Supabase test reset workflow", () => {
     expect(workflow).toContain("expected=");
     expect(workflow).toContain("observed=");
     expect(workflow).toContain("coalesce(o.observed_count::text, 'NULL')");
-    expect(workflow).toContain("psql -X -v ON_ERROR_STOP=1");
+    expect(workflow).toContain('psql \\\n            --host="$SUPABASE_POOLER_HOST"');
     expect(workflow).toContain("observed_count integer not null");
     expect(workflow).toContain("Refusing reset: pre-reset table counts differ from the exact authorized snapshot.");
     expect(workflow).not.toContain("max_count");
