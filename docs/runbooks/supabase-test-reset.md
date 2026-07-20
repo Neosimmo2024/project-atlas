@@ -25,7 +25,8 @@ to:
 1. validate the project ref and confirmation phrase before any Supabase
    connection;
 2. checkout the exact human-reviewed commit SHA supplied as `authorized_sha`;
-3. verify that the checkout is based on the validated main SHA;
+3. fetch repository history for that checkout and verify that it is based on the
+   validated main SHA;
 4. verify that the migration set is exactly `0001` through `0010`;
 5. install a pinned Supabase CLI version;
 6. link only the authorized Supabase project;
@@ -164,6 +165,11 @@ After this runbook is merged, use the exact merge commit SHA that contains the
 workflow as `authorized_sha`. This avoids hardcoding a future SHA in Git while
 still preventing the workflow from silently running whatever `main` happens to
 contain later.
+
+The workflow checkout intentionally uses full Git history so the validated main
+base SHA can be resolved during the ancestry guard. A shallow checkout can make
+Git report the validated base as an invalid commit name and must not be used for
+this workflow.
 
 ## Exact authorized pre-reset snapshot
 
