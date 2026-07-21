@@ -1,0 +1,453 @@
+name: Supabase Test Post-Reset Resume
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_ref:
+        description: "Must be exactly aqmuvakvienfwzhgzhcw"
+        required: true
+        type: string
+      confirmation:
+        description: "Must be exactly RESUME PLATEFORME RECRUTEMENT TEST"
+        required: true
+        type: string
+      apply_resume:
+        description: "Must be true to resume post-reset checks"
+        required: true
+        type: boolean
+      authorized_sha:
+        description: "Exact commit SHA reviewed and authorized for this post-reset resume"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-test-post-reset-resume-aqmuvakvienfwzhgzhcw
+  cancel-in-progress: false
+
+jobs:
+  resume-post-reset:
+    name: Resume authorized Supabase test project after reset
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: atlas-test-reset
+    env:
+      ALLOWED_PROJECT_REF: aqmuvakvienfwzhgzhcw
+      POST_RESET_BASE_SHA: 2300e42d6249ee15f537ffac41cb61693d4d6bc4
+      EXPECTED_CONFIRMATION: RESUME PLATEFORME RECRUTEMENT TEST
+      SUPABASE_POOLER_HOST: aws-0-eu-central-1.pooler.supabase.com
+      SUPABASE_POOLER_PORT: 5432
+      SUPABASE_POOLER_USER: postgres.aqmuvakvienfwzhgzhcw
+      POOLER_READY_MAX_ATTEMPTS: 24
+      POOLER_READY_DELAY_SECONDS: 15
+      PROJECT_REF_INPUT: ${{ inputs.project_ref }}
+      CONFIRMATION_INPUT: ${{ inputs.confirmation }}
+      APPLY_RESUME_INPUT: ${{ inputs.apply_resume }}
+      AUTHORIZED_SHA_INPUT: ${{ inputs.authorized_sha }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      ATLAS_TEST_OWNER_EMAIL: ${{ secrets.ATLAS_TEST_OWNER_EMAIL }}
+
+    steps:
+      - name: Validate resume inputs before any Supabase connection
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$PROJECT_REF_INPUT" != "$ALLOWED_PROJECT_REF" ]; then
+            echo "Refusing resume: unauthorized project_ref."
+            exit 1
+          fi
+          if [ "$CONFIRMATION_INPUT" != "$EXPECTED_CONFIRMATION" ]; then
+            echo "Refusing resume: confirmation phrase does not match."
+            exit 1
+          fi
+          if [ "$APPLY_RESUME_INPUT" != "true" ]; then
+            echo "Refusing resume: apply_resume must be true."
+            exit 1
+          fi
+          if ! [[ "$AUTHORIZED_SHA_INPUT" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Refusing resume: authorized_sha must be a full 40-character commit SHA."
+            exit 1
+          fi
+          echo "Manual post-reset resume inputs accepted for the authorized test project."
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.authorized_sha }}
+          fetch-depth: 0
+
+      - name: Verify repository base and canonical migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          if [ "$actual_sha" != "$AUTHORIZED_SHA_INPUT" ]; then
+            echo "Refusing resume: checked-out SHA does not match authorized_sha."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$POST_RESET_BASE_SHA" HEAD; then
+            echo "Refusing resume: workflow checkout is not based on the post-reset main SHA."
+            exit 1
+          fi
+
+          expected_migrations="$RUNNER_TEMP/expected-migrations.txt"
+          actual_migrations="$RUNNER_TEMP/actual-migrations.txt"
+          cat > "$expected_migrations" <<'EOF'
+          0001_core.sql
+          0002_organizations_module.sql
+          0003_relationships_module.sql
+          0004_interactions_module.sql
+          0005_tasks_module.sql
+          0006_timeline_events.sql
+          0007_action_plan_engine.sql
+          0008_projects_foundation.sql
+          0009_api_permissions_hardening.sql
+          0010_recruitment_pipeline_domain.sql
+          EOF
+          sed -i 's/^          //' "$expected_migrations"
+          find supabase/migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort > "$actual_migrations"
+          if ! diff -u "$expected_migrations" "$actual_migrations"; then
+            echo "Refusing resume: migration set is not exactly 0001 through 0010."
+            exit 1
+          fi
+
+      - name: Validate dedicated secrets without printing them
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          if [ -z "${SUPABASE_DB_PASSWORD:-}" ]; then
+            echo "Missing required GitHub secret: SUPABASE_DB_PASSWORD"
+            missing=1
+          fi
+          if [ -z "${ATLAS_TEST_OWNER_EMAIL:-}" ]; then
+            echo "Missing required GitHub secret: ATLAS_TEST_OWNER_EMAIL"
+            missing=1
+          fi
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+          echo "::add-mask::$SUPABASE_DB_PASSWORD"
+          echo "::add-mask::$ATLAS_TEST_OWNER_EMAIL"
+          echo "Required dedicated secrets are present."
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Configure masked database connection
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$SUPABASE_POOLER_HOST" != "aws-0-eu-central-1.pooler.supabase.com" ]; then
+            echo "Refusing resume: unexpected Supabase pooler host."
+            exit 1
+          fi
+          if [ "$SUPABASE_POOLER_PORT" != "5432" ]; then
+            echo "Refusing resume: unexpected Supabase pooler port."
+            exit 1
+          fi
+          if [ "$SUPABASE_POOLER_USER" != "postgres.$ALLOWED_PROJECT_REF" ]; then
+            echo "Refusing resume: unexpected Supabase pooler user."
+            exit 1
+          fi
+          {
+            echo "PGHOST=$SUPABASE_POOLER_HOST"
+            echo "PGPORT=$SUPABASE_POOLER_PORT"
+            echo "PGDATABASE=postgres"
+            echo "PGUSER=postgres.aqmuvakvienfwzhgzhcw"
+            echo "PGPASSWORD=$SUPABASE_DB_PASSWORD"
+            echo "PGSSLMODE=require"
+          } >> "$GITHUB_ENV"
+          echo "Database connection variables configured through the authorized IPv4 Session Pooler without printing a connection string."
+
+      - name: Wait for Session Pooler readiness after reset
+        shell: bash
+        run: |
+          set -euo pipefail
+          max_attempts="$POOLER_READY_MAX_ATTEMPTS"
+          delay_seconds="$POOLER_READY_DELAY_SECONDS"
+          echo "Waiting for Session Pooler readiness with $max_attempts attempt(s), $delay_seconds second(s) apart."
+          for attempt in $(seq 1 "$max_attempts"); do
+            if psql \
+              --host="$SUPABASE_POOLER_HOST" \
+              --port="$SUPABASE_POOLER_PORT" \
+              --dbname=postgres \
+              --username="postgres.aqmuvakvienfwzhgzhcw" \
+              -X -v ON_ERROR_STOP=1 -qAtc "select 1" >/dev/null 2>&1; then
+              echo "Session Pooler is ready."
+              exit 0
+            fi
+            echo "Session Pooler not ready yet: attempt $attempt/$max_attempts."
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              sleep "$delay_seconds"
+            fi
+          done
+          echo "Refusing resume: Session Pooler did not become ready within the bounded wait window."
+          exit 1
+
+      - name: Verify migrations, schema, RLS, privileges and PostgREST readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql \
+            --host="$SUPABASE_POOLER_HOST" \
+            --port="$SUPABASE_POOLER_PORT" \
+            --dbname=postgres \
+            --username="postgres.aqmuvakvienfwzhgzhcw" \
+            -X -v ON_ERROR_STOP=1 <<'SQL'
+          set search_path = '';
+
+          do $$
+          declare
+            expected_versions text[] := array[
+              '0001','0002','0003','0004','0005','0006','0007','0008','0009','0010'
+            ];
+            missing_version_count integer;
+            missing_table_count integer;
+            missing_rls_count integer;
+          begin
+            select count(*)
+            into missing_version_count
+            from unnest(expected_versions) as version_prefix
+            where not exists (
+              select 1
+              from supabase_migrations.schema_migrations sm
+              where sm.version like version_prefix || '%'
+            );
+            if missing_version_count > 0 then
+              raise exception 'Expected migration history 0001 through 0010 is incomplete.';
+            end if;
+
+            select count(*)
+            into missing_table_count
+            from unnest(array[
+              'public.roles',
+              'public.tenants',
+              'public.profiles',
+              'public.tenant_users',
+              'public.people',
+              'public.organizations',
+              'public.relationships',
+              'public.interaction_types',
+              'public.interactions',
+              'public.tasks',
+              'public.timeline_events',
+              'public.action_plan_decisions',
+              'public.projects',
+              'public.recruitment_pipeline_events'
+            ]) as table_name
+            where to_regclass(table_name) is null;
+            if missing_table_count > 0 then
+              raise exception 'Expected Atlas tables are missing after post-reset resume.';
+            end if;
+
+            select count(*)
+            into missing_rls_count
+            from unnest(array[
+              'tenants',
+              'profiles',
+              'tenant_users',
+              'people',
+              'organizations',
+              'relationships',
+              'interactions',
+              'tasks',
+              'timeline_events',
+              'action_plan_decisions',
+              'projects',
+              'recruitment_pipeline_events'
+            ]) as table_name
+            where not exists (
+              select 1
+              from pg_class c
+              join pg_namespace n on n.oid = c.relnamespace
+              where n.nspname = 'public'
+                and c.relname = table_name
+                and c.relrowsecurity
+            );
+            if missing_rls_count > 0 then
+              raise exception 'Expected RLS-enabled Atlas tables are missing RLS after post-reset resume.';
+            end if;
+
+            if not has_table_privilege('authenticated', 'public.people', 'select') then
+              raise exception 'authenticated role cannot select public.people.';
+            end if;
+            if not has_table_privilege('authenticated', 'public.projects', 'select') then
+              raise exception 'authenticated role cannot select public.projects.';
+            end if;
+            if not has_function_privilege('authenticated', 'public.transition_recruitment_pipeline(uuid, uuid, text, text, timestamp with time zone, boolean, text, timestamp with time zone, timestamp with time zone, text, text, boolean, timestamp with time zone, boolean, jsonb)', 'execute') then
+              raise exception 'authenticated role cannot execute transition_recruitment_pipeline.';
+            end if;
+          end $$;
+
+          notify pgrst, 'reload schema';
+          SQL
+          sleep 10
+
+      - name: Verify Auth user for first owner bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql \
+            --host="$SUPABASE_POOLER_HOST" \
+            --port="$SUPABASE_POOLER_PORT" \
+            --dbname=postgres \
+            --username="postgres.aqmuvakvienfwzhgzhcw" \
+            -X -v ON_ERROR_STOP=1 \
+            -v owner_email="$ATLAS_TEST_OWNER_EMAIL" <<'SQL'
+          set search_path = '';
+
+          create temp table atlas_resume_owner_input (
+            owner_email text not null
+          ) on commit preserve rows;
+
+          insert into atlas_resume_owner_input (owner_email)
+          values (:'owner_email');
+
+          do $$
+          declare
+            bootstrap_owner_email text;
+            matching_users integer;
+            total_users integer;
+          begin
+            select owner_email
+            into bootstrap_owner_email
+            from pg_temp.atlas_resume_owner_input;
+
+            select count(*) into total_users from auth.users;
+            if total_users < 1 then
+              raise exception 'Expected at least one Auth user before owner bootstrap.';
+            end if;
+            if total_users > 2 then
+              raise exception 'Refusing owner bootstrap: unexpected number of auth.users rows.';
+            end if;
+
+            select count(*)
+            into matching_users
+            from auth.users
+            where lower(email) = lower(bootstrap_owner_email);
+
+            if matching_users <> 1 then
+              raise exception 'Expected exactly one Auth user matching ATLAS_TEST_OWNER_EMAIL before owner bootstrap.';
+            end if;
+          end $$;
+          SQL
+
+      - name: Bootstrap first owner idempotently
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql \
+            --host="$SUPABASE_POOLER_HOST" \
+            --port="$SUPABASE_POOLER_PORT" \
+            --dbname=postgres \
+            --username="postgres.aqmuvakvienfwzhgzhcw" \
+            -X -v ON_ERROR_STOP=1 \
+            -v owner_email="$ATLAS_TEST_OWNER_EMAIL" \
+            -v tenant_name="Atlas Test Tenant" <<'SQL'
+          set search_path = '';
+
+          create temp table atlas_resume_bootstrap_input (
+            owner_email text not null,
+            tenant_name text not null
+          ) on commit preserve rows;
+
+          insert into atlas_resume_bootstrap_input (owner_email, tenant_name)
+          values (:'owner_email', :'tenant_name');
+
+          do $$
+          declare
+            bootstrap_owner_email text;
+            bootstrap_tenant_name text;
+            bootstrap_user_id uuid;
+            bootstrap_tenant_id uuid;
+            owner_role_id uuid;
+          begin
+            select owner_email, tenant_name
+            into bootstrap_owner_email, bootstrap_tenant_name
+            from pg_temp.atlas_resume_bootstrap_input;
+
+            select id
+            into bootstrap_user_id
+            from auth.users
+            where lower(email) = lower(bootstrap_owner_email)
+            limit 1;
+
+            if bootstrap_user_id is null then
+              raise exception 'Expected Auth user not found during owner bootstrap.';
+            end if;
+
+            select id
+            into owner_role_id
+            from public.roles
+            where slug = 'owner';
+
+            if owner_role_id is null then
+              raise exception 'Role owner not found after reset.';
+            end if;
+
+            select id
+            into bootstrap_tenant_id
+            from public.tenants
+            where name = bootstrap_tenant_name
+            order by created_at asc
+            limit 1;
+
+            if bootstrap_tenant_id is null then
+              insert into public.tenants (name, status)
+              values (bootstrap_tenant_name, 'active')
+              returning id into bootstrap_tenant_id;
+            end if;
+
+            insert into public.profiles (id, email, full_name)
+            select
+              u.id,
+              u.email,
+              coalesce(u.raw_user_meta_data ->> 'full_name', u.raw_user_meta_data ->> 'name', u.email)
+            from auth.users u
+            where u.id = bootstrap_user_id
+            on conflict (id) do update set
+              email = excluded.email,
+              full_name = excluded.full_name,
+              updated_at = now();
+
+            insert into public.tenant_users (tenant_id, user_id, role_id, status)
+            values (bootstrap_tenant_id, bootstrap_user_id, owner_role_id, 'active')
+            on conflict (tenant_id, user_id) do update set
+              role_id = excluded.role_id,
+              status = 'active',
+              updated_at = now();
+          end $$;
+          SQL
+
+      - name: Verify final Atlas post-reset state
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql \
+            --host="$SUPABASE_POOLER_HOST" \
+            --port="$SUPABASE_POOLER_PORT" \
+            --dbname=postgres \
+            --username="postgres.aqmuvakvienfwzhgzhcw" \
+            -X -v ON_ERROR_STOP=1 <<'SQL'
+          set search_path = '';
+
+          do $$
+          begin
+            if (select count(*) from public.tenants) <> 1 then
+              raise exception 'Expected exactly one tenant after post-reset owner bootstrap.';
+            end if;
+            if (select count(*) from public.tenant_users) <> 1 then
+              raise exception 'Expected exactly one tenant owner membership after post-reset owner bootstrap.';
+            end if;
+            if exists (select 1 from public.tenants where name like 'Atlas QA Tenant %') then
+              raise exception 'Unexpected CI QA tenant data found after post-reset resume.';
+            end if;
+            if exists (select 1 from public.profiles where email like 'qa-%@atlas.local.test') then
+              raise exception 'Unexpected CI QA user profile data found after post-reset resume.';
+            end if;
+          end $$;
+          SQL
+          echo "Supabase post-reset resume verification completed without exposing secrets."
