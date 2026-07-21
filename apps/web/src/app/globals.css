@@ -63,6 +63,11 @@ button, input, select, textarea { font: inherit; }
   box-shadow: 0 30px 100px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(18px);
 }
+.login-page .auth-single-panel {
+  width: min(520px, 100%);
+  min-height: auto;
+  grid-template-columns: 1fr;
+}
 .login-branding {
   position: relative;
   display: flex;
@@ -166,9 +171,26 @@ button, input, select, textarea { font: inherit; }
   font-size: 30px;
   line-height: 1.18;
 }
+.login-form-heading h1 {
+  margin: 10px 0 0;
+  color: #101828;
+  font-size: 30px;
+  line-height: 1.18;
+}
+.auth-helper {
+  margin: 10px 0 0;
+  color: #667085;
+  line-height: 1.5;
+}
 .form { display: grid; gap: 14px; }
 .form label { display: grid; gap: 6px; }
 .field { display: grid; gap: 6px; }
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
 .login-form-panel .form { gap: 18px; }
 .login-form-panel .form label,
 .login-form-panel .field label {
@@ -249,6 +271,21 @@ button, input, select, textarea { font: inherit; }
 }
 .button:disabled { cursor: not-allowed; opacity: 0.6; }
 .link-button { display: inline-flex; align-items: center; }
+.auth-link {
+  color: var(--accent-strong);
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+}
+.auth-link:hover,
+.auth-link:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+.auth-link-centered {
+  justify-content: center;
+  text-align: center;
+}
 .subtle-button { background: #edf5f2; color: var(--accent-strong); }
 .danger-button { background: var(--danger); }
 .error { color: var(--danger); }

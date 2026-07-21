@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { Button } from "@/components/ui/button";
@@ -53,7 +54,10 @@ export function LoginForm() {
       <label htmlFor="login-email">Email</label>
       <Input id="login-email" name="email" type="email" required autoComplete="email" />
       <div className="field">
-        <label htmlFor="login-password">Mot de passe</label>
+        <div className="field-label-row">
+          <label htmlFor="login-password">Mot de passe</label>
+          <Link className="auth-link" href="/forgot-password">Mot de passe oublié ?</Link>
+        </div>
         <span className="password-field">
           <Input
             id="login-password"
