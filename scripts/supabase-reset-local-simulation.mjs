@@ -41,6 +41,8 @@ const root = resolve(__filename, "..", "..");
 const ownerEmail = "local-reset-owner@atlas.local.test";
 const extraOwnerEmail = "local-reset-extra-owner@atlas.local.test";
 const ownerPassword = "LocalResetSimulationPassword-ChangeMe-OnlyLocal-1";
+const LOCAL_AUTH_READY_MAX_ATTEMPTS = 60;
+const LOCAL_AUTH_READY_DELAY_MS = 2000;
 let hasPsql;
 const ids = Object.freeze({
   tenant: "11111111-1111-4111-8111-111111111111",
@@ -163,22 +165,35 @@ function describeAuthError(error) {
   return entries.map(([key, value]) => `${key}=${String(value)}`).join(" ");
 }
 
-async function waitForLocalAuthReadiness() {
-  const deadline = Date.now() + 30000;
+export function isTemporaryLocalAuthReadinessError(error) {
+  if (!error || typeof error !== "object") return false;
+  const status = "status" in error ? Number(error.status) : undefined;
+  return status === 502 || status === 503 || status === 504;
+}
+
+export async function waitForLocalAuthReadiness({
+  clientFactory = adminClient,
+  maxAttempts = LOCAL_AUTH_READY_MAX_ATTEMPTS,
+  delayMs = LOCAL_AUTH_READY_DELAY_MS,
+  sleep = (durationMs) => new Promise((resolveDelay) => setTimeout(resolveDelay, durationMs))
+} = {}) {
   let lastError = "not checked";
 
-  while (Date.now() < deadline) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      const { error } = await adminClient().auth.admin.listUsers({ page: 1, perPage: 1 });
+      const { error } = await clientFactory().auth.admin.listUsers({ page: 1, perPage: 1 });
       if (!error) return;
       lastError = describeAuthError(error);
+      if (!isTemporaryLocalAuthReadinessError(error)) break;
     } catch (error) {
       lastError = describeAuthError(error);
     }
-    await new Promise((resolveDelay) => setTimeout(resolveDelay, 1000));
+    if (attempt < maxAttempts) await sleep(delayMs);
   }
 
-  throw new Error(`Local Auth service was not ready before bootstrap: ${lastError}`);
+  throw new Error(
+    `Local Auth service was not ready before bootstrap after ${maxAttempts} bounded attempt(s): ${lastError}`
+  );
 }
 
 async function run(command, args, options = {}) {
