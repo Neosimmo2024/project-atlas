@@ -7,6 +7,7 @@ import {
   PASSWORD_RESET_REDIRECT_TO,
   PASSWORD_UPDATE_ERROR_MESSAGE,
   PASSWORD_UPDATE_SUCCESS_MESSAGE,
+  ensurePasswordRecoverySession,
   requestPasswordReset,
   updatePassword,
   validateNewPassword,
@@ -16,6 +17,7 @@ import {
 type RecoveryClient = Parameters<typeof requestPasswordReset>[0];
 type ResetPasswordForEmail = RecoveryClient["auth"]["resetPasswordForEmail"];
 type UpdateUser = RecoveryClient["auth"]["updateUser"];
+type RecoverySessionClient = Parameters<typeof ensurePasswordRecoverySession>[0];
 
 function client(overrides: Partial<{
   resetPasswordForEmail: ResetPasswordForEmail;
@@ -88,6 +90,44 @@ describe("password recovery", () => {
     });
 
     expect(result).toEqual({ ok: false, message: PASSWORD_UPDATE_ERROR_MESSAGE });
+  });
+
+  it("accepts a PKCE recovery code when Supabase exchanges it successfully", async () => {
+    const exchangeCodeForSession = vi.fn<RecoverySessionClient["auth"]["exchangeCodeForSession"]>()
+      .mockResolvedValue({ error: null });
+    const getSession = vi.fn<RecoverySessionClient["auth"]["getSession"]>()
+      .mockResolvedValue({ data: { session: null } });
+
+    await expect(ensurePasswordRecoverySession({
+      auth: { exchangeCodeForSession, getSession }
+    }, "recovery-code")).resolves.toEqual({ ok: true });
+
+    expect(exchangeCodeForSession).toHaveBeenCalledWith("recovery-code");
+    expect(getSession).not.toHaveBeenCalled();
+  });
+
+  it("accepts an already detected Supabase SSR recovery session after a reused PKCE code", async () => {
+    const exchangeCodeForSession = vi.fn<RecoverySessionClient["auth"]["exchangeCodeForSession"]>()
+      .mockResolvedValue({ error: { message: "invalid code" } });
+    const getSession = vi.fn<RecoverySessionClient["auth"]["getSession"]>()
+      .mockResolvedValue({ data: { session: { user: { id: "user-a" } } } });
+
+    await expect(ensurePasswordRecoverySession({
+      auth: { exchangeCodeForSession, getSession }
+    }, "recovery-code")).resolves.toEqual({ ok: true });
+
+    expect(getSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects update-password when no recovery session is available", async () => {
+    const exchangeCodeForSession = vi.fn<RecoverySessionClient["auth"]["exchangeCodeForSession"]>()
+      .mockResolvedValue({ error: { message: "invalid code" } });
+    const getSession = vi.fn<RecoverySessionClient["auth"]["getSession"]>()
+      .mockResolvedValue({ data: { session: null } });
+
+    await expect(ensurePasswordRecoverySession({
+      auth: { exchangeCodeForSession, getSession }
+    }, "recovery-code")).resolves.toEqual({ ok: false });
   });
 
   it("keeps the login form using signInWithPassword", () => {

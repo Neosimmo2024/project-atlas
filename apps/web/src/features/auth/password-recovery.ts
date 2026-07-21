@@ -30,6 +30,13 @@ type SupabasePasswordRecoveryClient = {
   };
 };
 
+type SupabaseRecoverySessionClient = {
+  auth: {
+    exchangeCodeForSession: (code: string) => Promise<{ error: unknown | null }>;
+    getSession: () => Promise<{ data: { session: unknown | null } }>;
+  };
+};
+
 export function validatePasswordResetEmail(input: { email: string }) {
   return emailSchema.safeParse(input);
 }
@@ -61,4 +68,14 @@ export async function updatePassword(client: SupabasePasswordRecoveryClient, inp
   if (error) return { ok: false, message: PASSWORD_UPDATE_ERROR_MESSAGE };
 
   return { ok: true, message: PASSWORD_UPDATE_SUCCESS_MESSAGE };
+}
+
+export async function ensurePasswordRecoverySession(client: SupabaseRecoverySessionClient, code: string | null) {
+  if (code) {
+    const { error } = await client.auth.exchangeCodeForSession(code);
+    if (!error) return { ok: true };
+  }
+
+  const { data: { session } } = await client.auth.getSession();
+  return { ok: Boolean(session) };
 }

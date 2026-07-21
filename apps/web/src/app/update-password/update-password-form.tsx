@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  ensurePasswordRecoverySession,
   PASSWORD_UPDATE_ERROR_MESSAGE,
   updatePassword
 } from "@/features/auth/password-recovery";
@@ -28,18 +29,10 @@ export function UpdatePasswordForm() {
 
     async function prepareRecoverySession() {
       const code = searchParams.get("code");
-      if (code) {
-        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-        if (!mounted) return;
-        setRecoveryState(exchangeError ? "invalid" : "ready");
-        if (exchangeError) setError(PASSWORD_UPDATE_ERROR_MESSAGE);
-        return;
-      }
-
-      const { data: { session } } = await supabase.auth.getSession();
+      const { ok } = await ensurePasswordRecoverySession(supabase, code);
       if (!mounted) return;
-      setRecoveryState(session ? "ready" : "invalid");
-      if (!session) setError(PASSWORD_UPDATE_ERROR_MESSAGE);
+      setRecoveryState(ok ? "ready" : "invalid");
+      if (!ok) setError(PASSWORD_UPDATE_ERROR_MESSAGE);
     }
 
     void prepareRecoverySession();
