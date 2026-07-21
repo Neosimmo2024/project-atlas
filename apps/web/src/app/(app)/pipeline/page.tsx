@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { PipelinePageClient } from "@/components/recruitment-pipeline/pipeline-page-client";
 import { EmptyState, ErrorState, FilterBar, PageHeader, Pagination, SearchInput } from "@/components/ui";
 import { PIPELINE_STAGE_LABELS } from "@/features/recruitment-pipeline/pipeline-ui";
@@ -14,7 +13,14 @@ type PipelinePageProps = {
 export default async function PipelinePage({ searchParams }: PipelinePageProps) {
   const params = await searchParams;
   const context = await getTenantContext();
-  if (!context) notFound();
+  if (!context) {
+    return (
+      <div className="page stack">
+        <PageHeader eyebrow="Pipeline" title="Pipeline de recrutement" />
+        <EmptyState title="Aucun tenant actif" body="Votre session est valide, mais aucun tenant actif n'est associe a ce compte." />
+      </div>
+    );
+  }
 
   const filters = parsePipelineFilters(params);
   let result: RecruitmentPipelineResult;
