@@ -3,6 +3,12 @@ import { type NextRequest, NextResponse } from "next/server";
 import { validateMutationRequest } from "@/lib/security/csrf";
 import { applySecurityHeaders } from "@/lib/security/headers";
 
+const AUTH_PAGES = new Set(["/login", "/forgot-password", "/update-password"]);
+
+export function isAuthPage(pathname: string) {
+  return AUTH_PAGES.has(pathname);
+}
+
 export async function updateSession(request: NextRequest) {
   const csrfResponse = validateMutationRequest(request);
   if (csrfResponse) return csrfResponse;
@@ -27,10 +33,10 @@ export async function updateSession(request: NextRequest) {
   );
 
   const { data: { user } } = await supabase.auth.getUser();
-  const isAuthPage = request.nextUrl.pathname.startsWith("/login");
+  const isAuthRoute = isAuthPage(request.nextUrl.pathname);
   const isApiRoute = request.nextUrl.pathname.startsWith("/api");
 
-  if (!user && !isAuthPage && !isApiRoute) {
+  if (!user && !isAuthRoute && !isApiRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     const redirect = NextResponse.redirect(url);
@@ -38,7 +44,7 @@ export async function updateSession(request: NextRequest) {
     return redirect;
   }
 
-  if (user && isAuthPage) {
+  if (user && request.nextUrl.pathname === "/login") {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     const redirect = NextResponse.redirect(url);
