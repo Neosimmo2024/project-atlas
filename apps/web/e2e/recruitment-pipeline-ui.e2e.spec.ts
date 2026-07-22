@@ -27,6 +27,9 @@ test.describe("Recruitment pipeline UI authenticated flow", () => {
     await expect(page.getByRole("heading", { name: "Détection" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Refus" })).toBeVisible();
     await expect(page.getByText("Atlas QA Person A")).toBeVisible();
+    await expect(pipelineCard(page).locator(".pipeline-meta-label").filter({ hasText: /^Responsable$/ })).toHaveCount(1);
+    await expect(pipelineCard(page).locator(".pipeline-meta-label").filter({ hasText: /^Prochaine action$/ })).toHaveCount(1);
+    await expect(pipelineCard(page)).not.toContainText("Utilisateur courantAction");
     await capture(page, testInfo, "pipeline-desktop-kanban");
 
     const listButton = page.getByRole("button", { name: "Liste" });
@@ -43,6 +46,12 @@ test.describe("Recruitment pipeline UI authenticated flow", () => {
     await capture(page, testInfo, "pipeline-tablet-kanban");
     await page.setViewportSize({ width: 390, height: 844 });
     await capture(page, testInfo, "pipeline-mobile-kanban");
+    await pipelineCard(page).getByRole("button", { name: "Changer de phase" }).click();
+    const mobileDialog = page.getByRole("dialog", { name: "Changer la phase" });
+    await expect(mobileDialog.getByRole("button", { name: "Valider" })).toBeVisible();
+    await expect(mobileDialog.getByRole("button", { name: "Annuler" })).toBeVisible();
+    await mobileDialog.getByRole("button", { name: "Annuler" }).click();
+    await expect(mobileDialog).toBeHidden();
     await page.setViewportSize({ width: 1440, height: 900 });
 
     await page.goto(`/pipeline?query=${encodeURIComponent("No matching pipeline card")}`);

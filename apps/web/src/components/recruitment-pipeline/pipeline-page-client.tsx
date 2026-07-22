@@ -165,13 +165,26 @@ function PipelineCard({ card, role, loading, openDialog }: { card: PipelineCardM
         </div>
         {card.doNotContact ? <Badge tone="danger">Ne plus contacter</Badge> : null}
       </div>
-      <p>{card.organizationName}</p>
-      <div className="tag-list">
-        <Badge tone={card.ownerUserId ? "neutral" : "warning"}>{card.ownerName}</Badge>
-        {card.signatureScheduled ? <Badge tone="info">Signature programmée</Badge> : null}
-        {card.nextActionAt ? <Badge tone={isOverdue(card.nextActionAt) ? "danger" : isToday(card.nextActionAt) ? "info" : "neutral"}>Action {formatPipelineDate(card.nextActionAt)}</Badge> : <Badge tone="warning">Sans prochaine action</Badge>}
-        {card.lastInteractionAt ? <Badge>Activité {formatPipelineDate(card.lastInteractionAt)}</Badge> : null}
-        {card.rejectionRecontactable === true ? <Badge tone="info">Refus recontactable</Badge> : null}
+      <p className="pipeline-card-organization">{card.organizationName}</p>
+      <div className="pipeline-card-meta" aria-label={`Synthèse de ${card.personName}`}>
+        <div className="pipeline-meta-row">
+          <span className="pipeline-meta-label">Responsable</span>
+          <Badge tone={card.ownerUserId ? "neutral" : "warning"}>{card.ownerName}</Badge>
+        </div>
+        <div className="pipeline-meta-row">
+          <span className="pipeline-meta-label">Prochaine action</span>
+          {card.nextActionAt ? <Badge tone={isOverdue(card.nextActionAt) ? "danger" : isToday(card.nextActionAt) ? "info" : "neutral"}>{formatPipelineDate(card.nextActionAt)}</Badge> : <Badge tone="warning">Sans prochaine action</Badge>}
+        </div>
+        {card.lastInteractionAt ? (
+          <div className="pipeline-meta-row">
+            <span className="pipeline-meta-label">Dernière activité</span>
+            <Badge>{formatPipelineDate(card.lastInteractionAt)}</Badge>
+          </div>
+        ) : null}
+        <div className="tag-list pipeline-card-tags">
+          {card.signatureScheduled ? <Badge tone="info">Signature programmée</Badge> : null}
+          {card.rejectionRecontactable === true ? <Badge tone="info">Refus recontactable</Badge> : null}
+        </div>
       </div>
       <div className="actions pipeline-card-actions">
         <Link className="button subtle-button" href={card.href}>Ouvrir</Link>
@@ -275,7 +288,7 @@ function PipelineDialog({
               <label>Justification<textarea className="input textarea" name="justification" required /></label>
             </>
           ) : null}
-          <div className="actions">
+          <div className="actions pipeline-dialog-actions">
             <Button type="submit">Valider</Button>
             <Button type="button" variant="subtle" onClick={onClose}>Annuler</Button>
           </div>

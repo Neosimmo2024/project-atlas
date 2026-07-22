@@ -50,9 +50,12 @@ describe("pipeline UI helpers", () => {
       "ambassador",
       "rejected"
     ]);
+    expect(PIPELINE_STAGE_LABELS.detection).toBe("Détection");
     expect(PIPELINE_STAGE_LABELS.conversation).toBe("Conversation engagée");
     expect(PIPELINE_STAGE_LABELS.appointment).toBe("Rendez-vous obtenu");
     expect(PIPELINE_STAGE_LABELS.presentation).toBe("Présentation réalisée");
+    expect(PIPELINE_STAGE_LABELS.reflection).toBe("Réflexion");
+    expect(PIPELINE_STAGE_LABELS.negotiation).toBe("Négociation");
     expect(PIPELINE_STAGE_LABELS.rejected).toBe("Refus");
   });
 
