@@ -27,8 +27,8 @@ test.describe("Recruitment pipeline UI authenticated flow", () => {
     await expect(page.getByRole("heading", { name: "Détection" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Refus" })).toBeVisible();
     await expect(page.getByText("Atlas QA Person A")).toBeVisible();
-    await expect(pipelineCard(page).getByText("Responsable")).toBeVisible();
-    await expect(pipelineCard(page).getByText("Prochaine action")).toBeVisible();
+    await expect(pipelineCard(page).locator(".pipeline-meta-label").filter({ hasText: /^Responsable$/ })).toHaveCount(1);
+    await expect(pipelineCard(page).locator(".pipeline-meta-label").filter({ hasText: /^Prochaine action$/ })).toHaveCount(1);
     await expect(pipelineCard(page)).not.toContainText("Utilisateur courantAction");
     await capture(page, testInfo, "pipeline-desktop-kanban");
 
