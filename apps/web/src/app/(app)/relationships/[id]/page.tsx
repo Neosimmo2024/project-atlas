@@ -62,6 +62,8 @@ export default async function RelationshipDetailPage({ params, searchParams }: R
         </div>
         <Link className="button subtle-button" href="/relationships">Retour</Link>
       </header>
+      {valueOf(query, "relationshipCreated") === "1" ? <p className="success" aria-live="polite">Relation créée avec succès.</p> : null}
+      {valueOf(query, "relationshipSaved") === "1" ? <p className="success" aria-live="polite">Relation enregistrée avec succès.</p> : null}
 
       <div className="grid">
         <section className="card stack">

@@ -51,7 +51,7 @@ test.describe("Relationships authenticated flow", () => {
     await page.getByLabel("Personne").selectOption({ label: personName });
     await page.getByLabel("Organisation").selectOption({ label: organizationName });
     await page.getByRole("button", { name: "Enregistrer" }).click();
-    await expect(page.getByText("Relation active identique detectee")).toBeVisible();
+    await expect(page.getByText("Relation active identique détectée")).toBeVisible();
 
     await page.goto(`/relationships?query=${encodeURIComponent(marker)}`);
     await page.getByText(personName).click();

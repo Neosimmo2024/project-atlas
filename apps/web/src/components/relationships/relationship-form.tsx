@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,7 +38,7 @@ function toDateTimeLocal(value: string | null | undefined) {
   return date.toISOString().slice(0, 16);
 }
 
-function formToPayload(form: HTMLFormElement, confirmDuplicate = false) {
+function formToPayload(form: HTMLFormElement) {
   const data = new FormData(form);
   return {
     person_id: String(data.get("person_id") ?? ""),
@@ -55,8 +55,7 @@ function formToPayload(form: HTMLFormElement, confirmDuplicate = false) {
     last_interaction_at: String(data.get("last_interaction_at") ?? ""),
     notes: String(data.get("notes") ?? ""),
     tags: String(data.get("tags") ?? ""),
-    metadata: String(data.get("metadata") ?? ""),
-    confirmDuplicate
+    metadata: String(data.get("metadata") ?? "")
   };
 }
 
@@ -64,8 +63,10 @@ export function RelationshipForm({ mode, relationship, peopleOptions, organizati
   const router = useRouter();
   const [fieldErrors, setFieldErrors] = useState<FieldError[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<RelationshipDuplicateMatch[]>([]);
   const [loading, setLoading] = useState(false);
+  const submittingRef = useRef(false);
   const endpoint = mode === "create" ? "/api/relationships" : `/api/relationships/${relationship?.id}`;
   const errorsByField = fieldErrors.reduce<Record<string, string>>((acc, item) => {
     acc[item.field] = item.message;
@@ -88,9 +89,14 @@ export function RelationshipForm({ mode, relationship, peopleOptions, organizati
     }
   }
 
-  async function submitForm(form: HTMLFormElement, confirmDuplicate = false) {
+  async function submitForm(form: HTMLFormElement) {
+    if (submittingRef.current) return;
+
+    submittingRef.current = true;
+    let unlockSubmit = true;
     setLoading(true);
     setError(null);
+    setSuccess(null);
     setFieldErrors([]);
     setDuplicates([]);
 
@@ -98,12 +104,13 @@ export function RelationshipForm({ mode, relationship, peopleOptions, organizati
       const response = await fetch(endpoint, {
         method: mode === "create" ? "POST" : "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(formToPayload(form, confirmDuplicate))
+        body: JSON.stringify(formToPayload(form))
       });
       const result = await readResponseBody(response);
 
       if (response.status === 409) {
         setDuplicates(result.duplicates ?? []);
+        setError(result.error ?? "Une relation active identique existe déjà pour cette personne, cette organisation et ce type.");
         return;
       }
 
@@ -113,11 +120,19 @@ export function RelationshipForm({ mode, relationship, peopleOptions, organizati
         return;
       }
 
-      router.push(`/relationships/${result.data.id}`);
-      router.refresh();
+      const relationshipId = typeof result.data?.id === "string" ? result.data.id : null;
+      if (!relationshipId) {
+        setError("La relation a été enregistrée, mais la réponse serveur est incomplète. Ouvrez le Pipeline pour la retrouver.");
+        return;
+      }
+
+      unlockSubmit = false;
+      setSuccess(mode === "create" ? "Relation créée. Redirection en cours..." : "Relation enregistrée. Redirection en cours...");
+      router.push(`/relationships/${relationshipId}${mode === "create" ? "?relationshipCreated=1" : "?relationshipSaved=1"}`);
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Erreur reseau pendant l'enregistrement de la relation.");
+      setError(submitError instanceof Error ? submitError.message : "Erreur réseau pendant l'enregistrement de la relation.");
     } finally {
+      if (unlockSubmit) submittingRef.current = false;
       setLoading(false);
     }
   }
@@ -130,10 +145,11 @@ export function RelationshipForm({ mode, relationship, peopleOptions, organizati
   return (
     <form className="form relationship-form" onSubmit={submit}>
       {error ? <p className="error">{error}</p> : null}
+      {success ? <p className="success" role="status">{success}</p> : null}
       {duplicates.length > 0 ? (
         <div className="warning">
-          <strong>Relation active identique detectee</strong>
-          <p>Verifiez la relation existante avant de confirmer. Aucune fusion automatique n&apos;est effectuee.</p>
+          <strong>Relation active identique détectée</strong>
+          <p>Vérifiez la relation existante avant de continuer. Aucune fusion automatique n&apos;est effectuée.</p>
           <ul>
             {duplicates.map((duplicate) => (
               <li key={duplicate.relationship.id}>
@@ -200,7 +216,7 @@ export function RelationshipForm({ mode, relationship, peopleOptions, organizati
         </ul>
       ) : null}
       <div className="actions">
-        <Button type="submit" disabled={loading}>{loading ? "Enregistrement..." : "Enregistrer"}</Button>
+        <Button type="submit" disabled={loading || Boolean(success)}>{loading ? "Enregistrement..." : "Enregistrer"}</Button>
       </div>
     </form>
   );

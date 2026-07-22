@@ -35,8 +35,12 @@ export async function PUT(request: Request, context: RouteContext) {
     if (!parsed.success) return validationErrorResponse(parsed.error);
 
     const duplicates = await findPotentialRelationshipDuplicates(tenantContext, parsed.data, id);
-    if (duplicates.length > 0 && body.confirmDuplicate !== true) {
-      return NextResponse.json({ warning: "Potential duplicate found", duplicates }, { status: 409 });
+    if (duplicates.length > 0) {
+      return NextResponse.json({
+        error: "Une relation active identique existe déjà pour cette personne, cette organisation et ce type.",
+        warning: "Potential duplicate found",
+        duplicates
+      }, { status: 409 });
     }
 
     const relationship = await updateRelationship(tenantContext, id, parsed.data);
