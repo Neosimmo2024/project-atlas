@@ -30,6 +30,7 @@ test.describe("Recruitment pipeline UI authenticated flow", () => {
     await expect(pipelineCard(page).locator(".pipeline-meta-label").filter({ hasText: /^Responsable$/ })).toHaveCount(1);
     await expect(pipelineCard(page).locator(".pipeline-meta-label").filter({ hasText: /^Prochaine action$/ })).toHaveCount(1);
     await expect(pipelineCard(page)).not.toContainText("Utilisateur courantAction");
+    await expectPipelineResponsiveLayout(page, { expectKanbanScroll: true });
     await capture(page, testInfo, "pipeline-desktop-kanban");
 
     const listButton = page.getByRole("button", { name: "Liste" });
@@ -37,15 +38,39 @@ test.describe("Recruitment pipeline UI authenticated flow", () => {
     await expect(listButton).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/view=list/);
-    await expect(page.getByText("Atlas QA Organization A")).toBeVisible();
+    await expect(page.locator(".pipeline-table").getByText("Atlas QA Organization A")).toBeVisible();
+    await expectPipelineResponsiveLayout(page, { expectListScroll: true });
     await capture(page, testInfo, "pipeline-desktop-list");
 
     await page.getByRole("button", { name: "Kanban" }).click();
     await expect(page).toHaveURL(/view=kanban/);
     await page.setViewportSize({ width: 768, height: 1024 });
+    await expectPipelineResponsiveLayout(page, { expectKanbanScroll: true });
     await capture(page, testInfo, "pipeline-tablet-kanban");
     await page.setViewportSize({ width: 390, height: 844 });
+    await expectMobileMenu(page, false);
+    await capture(page, testInfo, "pipeline-mobile-menu-closed");
+    await page.getByRole("button", { name: "Menu" }).click();
+    await expectMobileMenu(page, true);
+    await capture(page, testInfo, "pipeline-mobile-menu-open");
+    await page.getByRole("button", { name: "Fermer", exact: true }).click();
+    await expectMobileMenu(page, false);
+    await expectPipelineAdvancedFilters(page, false);
+    await capture(page, testInfo, "pipeline-mobile-filters-closed");
+    await page.getByRole("button", { name: "Filtres" }).click();
+    await expectPipelineAdvancedFilters(page, true);
+    await capture(page, testInfo, "pipeline-mobile-filters-open");
+    await page.getByRole("button", { name: "Filtres" }).click();
+    await expectPipelineAdvancedFilters(page, false);
+    await expectPipelineResponsiveLayout(page, { expectKanbanScroll: true });
     await capture(page, testInfo, "pipeline-mobile-kanban");
+    await page.getByRole("button", { name: "Liste" }).click();
+    await expect(page).toHaveURL(/view=list/);
+    await expect(page.locator(".pipeline-list-cards").getByText("Atlas QA Organization A")).toBeVisible();
+    await expectPipelineResponsiveLayout(page, { expectMobileListCards: true });
+    await capture(page, testInfo, "pipeline-mobile-list-cards");
+    await page.getByRole("button", { name: "Kanban" }).click();
+    await expect(page).toHaveURL(/view=kanban/);
     await pipelineCard(page).getByRole("button", { name: "Changer de phase" }).click();
     const mobileDialog = page.getByRole("dialog", { name: "Changer la phase" });
     await expect(mobileDialog.getByRole("button", { name: "Valider" })).toBeVisible();
@@ -196,4 +221,61 @@ async function capture(page: Page, testInfo: TestInfo, name: string) {
   mkdirSync(dirname(path), { recursive: true });
   await page.screenshot({ path, fullPage: true });
   await testInfo.attach(name, { path, contentType: "image/png" });
+}
+
+async function expectPipelineResponsiveLayout(page: Page, options: { expectKanbanScroll?: boolean; expectListScroll?: boolean; expectMobileListCards?: boolean }) {
+  await expect(page.getByRole("button", { name: "Filtrer" })).toBeVisible();
+  await expect(page.locator(".pipeline-filters a[href='/pipeline']")).toBeVisible();
+
+  const layout = await page.evaluate(() => {
+    const viewportWidth = document.documentElement.clientWidth;
+    const filterButton = Array.from(document.querySelectorAll<HTMLElement>("button"))
+      .find((button) => button.textContent?.trim() === "Filtrer");
+    const resetLink = document.querySelector<HTMLElement>(".pipeline-filters a[href='/pipeline']");
+    const pipelineBoard = document.querySelector<HTMLElement>(".pipeline-board");
+    const pipelineTable = document.querySelector<HTMLElement>(".pipeline-table");
+    const mobileListCards = document.querySelector<HTMLElement>(".pipeline-list-cards");
+
+    function isInsideViewport(element: HTMLElement | null | undefined) {
+      if (!element) return false;
+      const rect = element.getBoundingClientRect();
+      return rect.left >= 0 && rect.right <= viewportWidth && rect.width > 0 && rect.height > 0;
+    }
+
+    return {
+      pageOverflowX: document.documentElement.scrollWidth - viewportWidth,
+      filterButtonVisible: isInsideViewport(filterButton),
+      resetLinkVisible: isInsideViewport(resetLink),
+      kanbanHasOwnScroll: pipelineBoard ? pipelineBoard.scrollWidth > pipelineBoard.clientWidth : false,
+      tableHasOwnScroll: pipelineTable ? pipelineTable.scrollWidth > pipelineTable.clientWidth : false,
+      mobileCardsVisible: mobileListCards ? getComputedStyle(mobileListCards).display !== "none" : false
+    };
+  });
+
+  expect(layout.pageOverflowX).toBeLessThanOrEqual(2);
+  expect(layout.filterButtonVisible).toBe(true);
+  expect(layout.resetLinkVisible).toBe(true);
+  if (options.expectKanbanScroll) expect(layout.kanbanHasOwnScroll).toBe(true);
+  if (options.expectListScroll) expect(layout.tableHasOwnScroll).toBe(true);
+  if (options.expectMobileListCards) expect(layout.mobileCardsVisible).toBe(true);
+}
+
+async function expectMobileMenu(page: Page, open: boolean) {
+  await expect(page.getByRole("button", { name: "Menu", exact: true })).toBeVisible();
+  await expect.poll(async () => page.evaluate(() => {
+    const sidebar = document.querySelector<HTMLElement>(".sidebar");
+    const backdrop = document.querySelector<HTMLElement>(".shell-backdrop");
+    if (!sidebar) return { sidebarVisible: false, backdropVisible: false };
+    const rect = sidebar.getBoundingClientRect();
+    return {
+      sidebarVisible: sidebar.classList.contains("sidebar-open") && rect.right > 0 && rect.left < window.innerWidth,
+      backdropVisible: Boolean(backdrop && getComputedStyle(backdrop).display !== "none")
+    };
+  })).toEqual({ sidebarVisible: open, backdropVisible: open });
+}
+
+async function expectPipelineAdvancedFilters(page: Page, open: boolean) {
+  await expect(page.getByRole("button", { name: "Filtres" })).toHaveAttribute("aria-expanded", open ? "true" : "false");
+  const visible = await page.locator("#pipeline-advanced-filters").evaluate((element) => getComputedStyle(element).display !== "none");
+  expect(visible).toBe(open);
 }

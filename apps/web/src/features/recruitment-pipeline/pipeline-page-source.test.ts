@@ -27,6 +27,45 @@ describe("pipeline page source", () => {
     expect(styles).toContain(".pipeline-card-actions .button");
   });
 
+  it("keeps Pipeline filters responsive without moving horizontal scroll to the whole page", () => {
+    const styles = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8");
+    const filters = readFileSync(join(process.cwd(), "src/components/recruitment-pipeline/pipeline-filters.tsx"), "utf8");
+
+    expect(styles).toContain(".pipeline-filters");
+    expect(styles).toContain(".pipeline-filter-primary");
+    expect(styles).toContain(".pipeline-filter-advanced[hidden]");
+    expect(styles).toContain(".pipeline-filter-actions");
+    expect(filters).toContain("aria-expanded={advancedOpen}");
+    expect(filters).toContain("id=\"pipeline-advanced-filters\"");
+    expect(styles).toContain("overscroll-behavior-x: contain");
+    expect(styles).not.toContain("repeat(6, minmax(130px, 0.8fr)) auto auto auto");
+  });
+
+  it("keeps the Atlas shell compact on mobile with a closeable overlay menu", () => {
+    const shell = readFileSync(join(process.cwd(), "src/components/app-shell.tsx"), "utf8");
+    const styles = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8");
+
+    expect(shell).toContain("aria-controls=\"atlas-sidebar\"");
+    expect(shell).toContain("aria-expanded={menuOpen}");
+    expect(shell).toContain("Fermer le menu");
+    expect(styles).toContain(".mobile-shell-bar");
+    expect(styles).toContain(".shell-backdrop");
+    expect(styles).toContain(".sidebar.sidebar-open");
+    expect(styles).toContain("transform: translateX(-105%)");
+    expect(styles).toContain("visibility: hidden");
+    expect(styles).toContain("visibility: visible");
+  });
+
+  it("renders Pipeline list as cards on mobile instead of forcing a wide table", () => {
+    const component = readFileSync(join(process.cwd(), "src/components/recruitment-pipeline/pipeline-page-client.tsx"), "utf8");
+    const styles = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8");
+
+    expect(component).toContain("pipeline-list-cards");
+    expect(component).toContain("pipeline-list-card");
+    expect(styles).toContain(".pipeline-table { display: none; }");
+    expect(styles).toContain(".pipeline-list-cards { display: grid; gap: 12px; }");
+  });
+
   it("keeps visible Pipeline French labels encoded as UTF-8", () => {
     const component = readFileSync(join(process.cwd(), "src/components/recruitment-pipeline/pipeline-page-client.tsx"), "utf8");
     const page = readFileSync(join(process.cwd(), "src/app/(app)/pipeline/page.tsx"), "utf8");

@@ -200,6 +200,7 @@ function PipelineCard({ card, role, loading, openDialog }: { card: PipelineCardM
 
 function PipelineList({ cards, owners, role, openDialog, loadingId }: { cards: PipelineCardModel[]; owners: PipelineOwnerOption[]; role: RoleSlug; openDialog: (dialog: DialogState) => void; loadingId: string | null }) {
   return (
+    <>
     <div className="data-table pipeline-table">
       <div className="table-head">
         <span>Personne</span><span>Organisation</span><span>Phase</span><span>Responsable</span><span>Prochaine action</span><span>Dernière activité</span><span>Contact</span><span>Actions</span>
@@ -218,6 +219,46 @@ function PipelineList({ cards, owners, role, openDialog, loadingId }: { cards: P
             <Button type="button" variant="subtle" disabled={loadingId === card.id || owners.length === 0 || !canManageOwner.has(role)} onClick={() => openDialog({ type: "owner", card })}>Responsable</Button>
           </span>
         </div>
+      ))}
+    </div>
+    <PipelineListCards cards={cards} owners={owners} role={role} openDialog={openDialog} loadingId={loadingId} />
+    </>
+  );
+}
+
+function PipelineListCards({ cards, owners, role, openDialog, loadingId }: { cards: PipelineCardModel[]; owners: PipelineOwnerOption[]; role: RoleSlug; openDialog: (dialog: DialogState) => void; loadingId: string | null }) {
+  return (
+    <div className="pipeline-list-cards" aria-label="Liste mobile du pipeline">
+      {cards.map((card) => (
+        <article className="card pipeline-list-card" key={card.id}>
+          <div className="pipeline-card-heading">
+            <div>
+              <p className="muted">{PIPELINE_STAGE_LABELS[card.stage]}</p>
+              <h3><Link href={card.href}>{card.personName}</Link></h3>
+            </div>
+            {card.doNotContact ? <Badge tone="danger">Ne plus contacter</Badge> : null}
+          </div>
+          <p className="pipeline-card-organization">{card.organizationName}</p>
+          <div className="pipeline-card-meta" aria-label={`Synthèse de ${card.personName}`}>
+            <div className="pipeline-meta-row">
+              <span className="pipeline-meta-label">Responsable</span>
+              <Badge tone={card.ownerUserId ? "neutral" : "warning"}>{card.ownerName}</Badge>
+            </div>
+            <div className="pipeline-meta-row">
+              <span className="pipeline-meta-label">Prochaine action</span>
+              {card.nextActionAt ? <Badge tone={isOverdue(card.nextActionAt) ? "danger" : isToday(card.nextActionAt) ? "info" : "neutral"}>{formatPipelineDate(card.nextActionAt)}</Badge> : <Badge tone="warning">Sans prochaine action</Badge>}
+            </div>
+            <div className="pipeline-meta-row">
+              <span className="pipeline-meta-label">Dernière activité</span>
+              <Badge>{formatPipelineDate(card.lastInteractionAt)}</Badge>
+            </div>
+          </div>
+          <div className="actions pipeline-card-actions">
+            <Link className="button subtle-button" href={card.href}>Ouvrir</Link>
+            <Button type="button" variant="subtle" disabled={loadingId === card.id || !canManagePipeline.has(role)} onClick={() => openDialog({ type: "stage", card })}>Phase</Button>
+            <Button type="button" variant="subtle" disabled={loadingId === card.id || owners.length === 0 || !canManageOwner.has(role)} onClick={() => openDialog({ type: "owner", card })}>Responsable</Button>
+          </div>
+        </article>
       ))}
     </div>
   );
