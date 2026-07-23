@@ -59,8 +59,36 @@ export function PipelinePageClient({ initialCards, owners, filters, role, invali
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [result, setResult] = useState<MutationResult>(null);
   const lastFocusedRef = useRef<HTMLElement | null>(null);
+  const boardRef = useRef<HTMLDivElement | null>(null);
   const grouped = useMemo(() => groupPipelineCards(cards), [cards]);
   const ownerNames = useMemo(() => new Map(owners.map((owner) => [owner.id, owner.label])), [owners]);
+
+  useEffect(() => {
+    if (view !== "kanban") return;
+    const board = boardRef.current;
+    if (!board) return;
+    const mobileQuery = window.matchMedia("(max-width: 760px)");
+
+    function scrollToFirstPopulatedColumn() {
+      if (!mobileQuery.matches) return;
+      const firstPopulatedColumn = grouped.find((column) => column.cards.length > 0);
+      if (!firstPopulatedColumn) {
+        board?.scrollTo({ left: 0, behavior: "auto" });
+        return;
+      }
+      const columnElement = board?.querySelector<HTMLElement>(`[data-stage="${firstPopulatedColumn.stage}"]`);
+      if (!columnElement) return;
+      board?.scrollTo({ left: columnElement.offsetLeft - board.offsetLeft, behavior: "auto" });
+    }
+
+    scrollToFirstPopulatedColumn();
+    window.addEventListener("resize", scrollToFirstPopulatedColumn);
+    mobileQuery.addEventListener("change", scrollToFirstPopulatedColumn);
+    return () => {
+      window.removeEventListener("resize", scrollToFirstPopulatedColumn);
+      mobileQuery.removeEventListener("change", scrollToFirstPopulatedColumn);
+    };
+  }, [grouped, view]);
 
   function openDialog(nextDialog: DialogState) {
     lastFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -102,10 +130,12 @@ export function PipelinePageClient({ initialCards, owners, filters, role, invali
       ) : view === "list" ? (
         <PipelineList cards={cards} owners={owners} role={role} openDialog={openDialog} loadingId={loadingId} />
       ) : (
-        <div className="pipeline-board" aria-label="Kanban du pipeline de recrutement">
+        <div ref={boardRef} className="pipeline-board" aria-label="Kanban du pipeline de recrutement">
           {grouped.map((column) => (
             <section
               className="pipeline-column"
+              data-has-cards={column.cards.length > 0 ? "true" : "false"}
+              data-stage={column.stage}
               key={column.stage}
               aria-labelledby={`pipeline-column-${column.stage}`}
               onDragOver={(event) => event.preventDefault()}

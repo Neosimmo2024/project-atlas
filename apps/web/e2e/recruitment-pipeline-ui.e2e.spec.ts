@@ -63,11 +63,13 @@ test.describe("Recruitment pipeline UI authenticated flow", () => {
     await page.getByRole("button", { name: "Filtres" }).click();
     await expectPipelineAdvancedFilters(page, false);
     await expectPipelineResponsiveLayout(page, { expectKanbanScroll: true });
+    await expectMobileKanbanCards(page);
     await capture(page, testInfo, "pipeline-mobile-kanban");
     await page.getByRole("button", { name: "Liste" }).click();
     await expect(page).toHaveURL(/view=list/);
     await expect(page.locator(".pipeline-list-cards").getByText("Atlas QA Organization A")).toBeVisible();
     await expectPipelineResponsiveLayout(page, { expectMobileListCards: true });
+    await expectMobileListCardsMatchKanban(page);
     await capture(page, testInfo, "pipeline-mobile-list-cards");
     await page.getByRole("button", { name: "Kanban" }).click();
     await expect(page).toHaveURL(/view=kanban/);
@@ -272,6 +274,36 @@ async function expectMobileMenu(page: Page, open: boolean) {
       backdropVisible: Boolean(backdrop && getComputedStyle(backdrop).display !== "none")
     };
   })).toEqual({ sidebarVisible: open, backdropVisible: open });
+}
+
+async function expectMobileKanbanCards(page: Page) {
+  await expect.poll(async () => page.evaluate(() => {
+    const board = document.querySelector<HTMLElement>(".pipeline-board");
+    if (!board) return false;
+    const boardRect = board.getBoundingClientRect();
+    const cards = Array.from(board.querySelectorAll<HTMLElement>(".pipeline-card"));
+    const visibleCards = cards.filter((card) => {
+      const rect = card.getBoundingClientRect();
+      return rect.right > boardRect.left && rect.left < boardRect.right && rect.bottom > boardRect.top && rect.top < boardRect.bottom;
+    }).length;
+    return cards.length === 1
+      && visibleCards === 1
+      && board.querySelectorAll(".pipeline-column[data-has-cards='true']").length === 1
+      && board.querySelectorAll(".pipeline-column[data-has-cards='false']").length === 12
+      && document.documentElement.scrollWidth - document.documentElement.clientWidth <= 2;
+  })).toBe(true);
+  await expect(pipelineCard(page)).toBeVisible();
+}
+
+async function expectMobileListCardsMatchKanban(page: Page) {
+  const state = await page.evaluate(() => ({
+    mobileListCards: document.querySelectorAll(".pipeline-list-cards .pipeline-list-card").length,
+    desktopRows: document.querySelectorAll(".pipeline-table .table-row").length,
+    pageOverflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth
+  }));
+  expect(state.mobileListCards).toBe(1);
+  expect(state.desktopRows).toBe(1);
+  expect(state.pageOverflowX).toBeLessThanOrEqual(2);
 }
 
 async function expectPipelineAdvancedFilters(page: Page, open: boolean) {
