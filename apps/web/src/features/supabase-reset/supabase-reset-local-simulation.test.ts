@@ -17,6 +17,19 @@ type SimulationModule = {
     actualSha?: string;
     allowedProjectRef?: string;
   }) => void;
+  isTemporaryLocalAuthReadinessError: (error: { status?: number | string } | null | undefined) => boolean;
+  waitForLocalAuthReadiness: (options: {
+    clientFactory: () => {
+      auth: {
+        admin: {
+          listUsers: (args: { page: number; perPage: number }) => Promise<{ error: { status?: number; message?: string } | null }>;
+        };
+      };
+    };
+    maxAttempts: number;
+    delayMs: number;
+    sleep: (durationMs: number) => Promise<void>;
+  }) => Promise<void>;
 };
 
 const validSha = "2f3ed0dd951b9698ca931b705daec1806477444a";
@@ -214,5 +227,64 @@ describe("Supabase reset local simulation guards", () => {
         SUPABASE_POOLER_HOST: "aws-0-eu-central-1.pooler.supabase.com"
       })
     ).toThrow("SUPABASE_POOLER_HOST must not target a remote PostgreSQL host");
+  });
+
+  it("treats local Auth 502, 503 and 504 responses as temporary readiness failures", () => {
+    expect(simulation.isTemporaryLocalAuthReadinessError({ status: 502 })).toBe(true);
+    expect(simulation.isTemporaryLocalAuthReadinessError({ status: 503 })).toBe(true);
+    expect(simulation.isTemporaryLocalAuthReadinessError({ status: 504 })).toBe(true);
+    expect(simulation.isTemporaryLocalAuthReadinessError({ status: 401 })).toBe(false);
+  });
+
+  it("retries bounded temporary local Auth 502 responses before bootstrap", async () => {
+    let attempts = 0;
+    const slept: number[] = [];
+
+    await expect(
+      simulation.waitForLocalAuthReadiness({
+        clientFactory: () => ({
+          auth: {
+            admin: {
+              listUsers: async () => {
+                attempts += 1;
+                return { error: attempts < 3 ? { status: 502, message: "{}" } : null };
+              }
+            }
+          }
+        }),
+        maxAttempts: 4,
+        delayMs: 25,
+        sleep: async (durationMs) => {
+          slept.push(durationMs);
+        }
+      })
+    ).resolves.toBeUndefined();
+
+    expect(attempts).toBe(3);
+    expect(slept).toEqual([25, 25]);
+  });
+
+  it("fails with a readable bounded diagnostic when local Auth never becomes ready", async () => {
+    let attempts = 0;
+
+    await expect(
+      simulation.waitForLocalAuthReadiness({
+        clientFactory: () => ({
+          auth: {
+            admin: {
+              listUsers: async () => {
+                attempts += 1;
+                return { error: { status: 502, message: "{}" } };
+              }
+            }
+          }
+        }),
+        maxAttempts: 2,
+        delayMs: 25,
+        sleep: async () => undefined
+      })
+    ).rejects.toThrow("after 2 bounded attempt(s): status=502 message={}");
+
+    expect(attempts).toBe(2);
   });
 });
