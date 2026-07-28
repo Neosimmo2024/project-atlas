@@ -35,6 +35,12 @@ export const EXPECTED_COUNTS = Object.freeze({
   "public.audit_log": 29,
   "public.action_plan_decisions": 0
 });
+export const LOCAL_AUTH_READINESS = Object.freeze({
+  timeoutMs: 120000,
+  retryDelayMs: 2000,
+  requestTimeoutMs: 5000,
+  healthPath: "/auth/v1/health"
+});
 
 const __filename = fileURLToPath(import.meta.url);
 const root = resolve(__filename, "..", "..");
@@ -151,6 +157,21 @@ function adminClient() {
   });
 }
 
+function localSupabaseUrl() {
+  const url = process.env.QA_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) throw new Error("Missing QA_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL");
+  assertLocalUrl("QA_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL", url);
+  return url.replace(/\/$/, "");
+}
+
+export function localAuthHealthUrl(url) {
+  const parsed = new URL(url);
+  if (!isLocalHost(parsed.hostname)) {
+    throw new Error("Local Auth readiness must use a localhost or 127.0.0.1 URL.");
+  }
+  return `${url.replace(/\/$/, "")}${LOCAL_AUTH_READINESS.healthPath}`;
+}
+
 function describeAuthError(error) {
   if (!error || typeof error !== "object") return String(error);
   const entries = Object.entries({
@@ -163,22 +184,65 @@ function describeAuthError(error) {
   return entries.map(([key, value]) => `${key}=${String(value)}`).join(" ");
 }
 
+export function isRetryableLocalAuthStatus(status) {
+  return status === 502 || status === 503 || status === 504;
+}
+
+export function describeLocalAuthReadiness({ gatewayStatus, gatewayBody, adminError }) {
+  const parts = [];
+  if (gatewayStatus !== undefined) parts.push(`gateway=${gatewayStatus}`);
+  if (gatewayBody) parts.push(`gateway_body=${gatewayBody}`);
+  if (adminError) parts.push(`admin=${adminError}`);
+  return parts.join(" ") || "not checked";
+}
+
+async function checkLocalAuthGateway() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), LOCAL_AUTH_READINESS.requestTimeoutMs);
+  try {
+    const response = await fetch(localAuthHealthUrl(localSupabaseUrl()), { signal: controller.signal });
+    const body = (await response.text()).replace(/\s+/g, " ").slice(0, 120);
+    return {
+      ready: response.ok,
+      status: response.status,
+      body: response.ok || isRetryableLocalAuthStatus(response.status) ? body : `unexpected status ${response.status}`
+    };
+  } catch (error) {
+    return {
+      ready: false,
+      status: undefined,
+      body: describeAuthError(error)
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function waitForLocalAuthReadiness() {
-  const deadline = Date.now() + 30000;
-  let lastError = "not checked";
+  const deadline = Date.now() + LOCAL_AUTH_READINESS.timeoutMs;
+  let lastGatewayStatus;
+  let lastGatewayBody = "";
+  let lastAdminError = "not checked";
 
   while (Date.now() < deadline) {
+    const gateway = await checkLocalAuthGateway();
+    lastGatewayStatus = gateway.status;
+    lastGatewayBody = gateway.body;
     try {
       const { error } = await adminClient().auth.admin.listUsers({ page: 1, perPage: 1 });
       if (!error) return;
-      lastError = describeAuthError(error);
+      lastAdminError = describeAuthError(error);
     } catch (error) {
-      lastError = describeAuthError(error);
+      lastAdminError = describeAuthError(error);
     }
-    await new Promise((resolveDelay) => setTimeout(resolveDelay, 1000));
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, LOCAL_AUTH_READINESS.retryDelayMs));
   }
 
-  throw new Error(`Local Auth service was not ready before bootstrap: ${lastError}`);
+  throw new Error(`Local Auth service was not ready before bootstrap: ${describeLocalAuthReadiness({
+    gatewayStatus: lastGatewayStatus,
+    gatewayBody: lastGatewayBody,
+    adminError: lastAdminError
+  })}`);
 }
 
 async function run(command, args, options = {}) {
