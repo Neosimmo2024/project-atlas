@@ -66,6 +66,23 @@ describe("pipeline page source", () => {
     expect(styles).toContain(".pipeline-list-cards { display: grid; gap: 12px; }");
   });
 
+  it("keeps mobile Kanban focused on the first phase that actually has cards", () => {
+    const component = readFileSync(join(process.cwd(), "src/components/recruitment-pipeline/pipeline-page-client.tsx"), "utf8");
+    const e2e = readFileSync(join(process.cwd(), "e2e/recruitment-pipeline-ui.e2e.spec.ts"), "utf8");
+
+    expect(component).toContain("boardRef");
+    expect(component).toContain("window.matchMedia(\"(max-width: 760px)\")");
+    expect(component).toContain("firstPopulatedColumn");
+    expect(component).toContain("data-has-cards");
+    expect(component).toContain("data-stage");
+    expect(component).toContain("board?.scrollTo");
+    expect(component).toContain("window.addEventListener(\"resize\", scrollToFirstPopulatedColumn)");
+    expect(component).toContain("mobileQuery.addEventListener(\"change\", scrollToFirstPopulatedColumn)");
+    expect(e2e).toContain("expectMobileKanbanCards");
+    expect(e2e).toContain("visibleCards === 1");
+    expect(e2e).toContain("pipeline-column[data-has-cards='false']");
+  });
+
   it("keeps visible Pipeline French labels encoded as UTF-8", () => {
     const component = readFileSync(join(process.cwd(), "src/components/recruitment-pipeline/pipeline-page-client.tsx"), "utf8");
     const page = readFileSync(join(process.cwd(), "src/app/(app)/pipeline/page.tsx"), "utf8");
