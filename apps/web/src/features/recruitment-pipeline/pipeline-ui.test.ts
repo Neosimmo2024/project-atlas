@@ -83,6 +83,10 @@ describe("pipeline UI helpers", () => {
     expect(formatPipelineDate(null)).toBe("Aucune date");
   });
 
+  it("formats pipeline timestamps with an explicit Atlas timezone to avoid hydration drift", () => {
+    expect(formatPipelineDate("2026-07-19T08:00:00Z")).toBe("19 juil. 2026, 10:00");
+  });
+
   it("never exposes a UUID as the visible owner fallback", () => {
     const owners = new Map([["11111111-1111-4111-8111-111111111111", "Utilisateur courant"]]);
 
