@@ -35,6 +35,14 @@ button, input, select, textarea { font: inherit; }
 .sidebar nav { display: grid; gap: 8px; }
 .sidebar a { border-radius: 6px; color: var(--muted); padding: 10px 12px; }
 .sidebar a:hover { background: #edf5f2; color: var(--accent-strong); }
+.account-indicator { display: grid; gap: 12px; margin-top: auto; border-top: 1px solid var(--line); padding-top: 16px; }
+.account-status-row { display: inline-flex; align-items: center; gap: 8px; color: #067647; font-size: 13px; font-weight: 700; }
+.account-status-dot { display: inline-block; width: 9px; height: 9px; border-radius: 999px; background: #12b76a; box-shadow: 0 0 0 3px #dcfae6; }
+.account-details { display: grid; gap: 4px; min-width: 0; }
+.account-details strong, .account-details span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-details span { color: var(--muted); font-size: 13px; }
+.account-signout { width: 100%; justify-content: center; }
+.account-error { margin: 0; color: var(--danger); font-size: 13px; }
 .card, .empty-state, .login-panel { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 20px; }
 .card h2, .empty-state h2 { margin: 0 0 8px; font-size: 16px; }
 .card p, .empty-state p { margin: 0; color: var(--muted); }

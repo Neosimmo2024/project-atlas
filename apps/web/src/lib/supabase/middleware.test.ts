@@ -50,9 +50,12 @@ describe("Supabase middleware auth pages", () => {
     mockUser(null);
 
     const response = await updateSession(request("/dashboard"));
+    const projectsResponse = await updateSession(request("/projects"));
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("http://localhost:3000/login");
+    expect(projectsResponse.status).toBe(307);
+    expect(projectsResponse.headers.get("location")).toBe("http://localhost:3000/login");
   });
 
   it("keeps redirecting authenticated users away from login only", async () => {
