@@ -1,6 +1,8 @@
 import type { RelationshipPipelineStage } from "@/types/domain";
 import { RECRUITMENT_PIPELINE_STAGE_LABELS, RECRUITMENT_PIPELINE_STAGES } from "./options";
 
+const ATLAS_DISPLAY_TIME_ZONE = "Europe/Paris";
+
 export type PipelineViewMode = "kanban" | "list";
 export type PipelineActionFilter = "overdue" | "today" | "none";
 export type PipelineContactFilter = "blocked" | "allowed";
@@ -80,7 +82,7 @@ export function isToday(value: string | null, now = new Date()) {
 
 export function formatPipelineDate(value: string | null) {
   if (!value) return "Aucune date";
-  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short", timeZone: ATLAS_DISPLAY_TIME_ZONE }).format(new Date(value));
 }
 
 export function ownerLabel(ownerUserId: string | null, ownerNames: Map<string, string>) {
