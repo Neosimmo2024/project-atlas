@@ -3,12 +3,25 @@ import { beforeAll, describe, expect, it } from "vitest";
 type SimulationModule = {
   EXPECTED_CONFIRMATION: string;
   EXPECTED_COUNTS: Record<string, number>;
+  LOCAL_AUTH_READINESS: {
+    timeoutMs: number;
+    retryDelayMs: number;
+    requestTimeoutMs: number;
+    healthPath: string;
+  };
   LOCAL_PROJECT_REF: string;
   assertExactSnapshotCounts: (observedCounts: Record<string, number | undefined | null>) => void;
   assertLocalOnlyEnvironment: (env?: Record<string, string | undefined>) => void;
+  describeLocalAuthReadiness: (input: {
+    gatewayStatus?: number;
+    gatewayBody?: string;
+    adminError?: string;
+  }) => string;
   evaluateSnapshotCounts: (
     observedCounts: Record<string, number | undefined | null>
   ) => Array<{ tableName: string; expected: number; observed: number | null }>;
+  isRetryableLocalAuthStatus: (status: number) => boolean;
+  localAuthHealthUrl: (url: string) => string;
   validateManualResetInputs: (input: {
     projectRef: string;
     confirmation: string;
@@ -214,5 +227,30 @@ describe("Supabase reset local simulation guards", () => {
         SUPABASE_POOLER_HOST: "aws-0-eu-central-1.pooler.supabase.com"
       })
     ).toThrow("SUPABASE_POOLER_HOST must not target a remote PostgreSQL host");
+  });
+
+  it("checks local Auth readiness through the gateway with bounded retries", () => {
+    expect(simulation.LOCAL_AUTH_READINESS).toEqual({
+      timeoutMs: 120000,
+      retryDelayMs: 2000,
+      requestTimeoutMs: 5000,
+      healthPath: "/auth/v1/health"
+    });
+    expect(simulation.localAuthHealthUrl("http://127.0.0.1:54321")).toBe("http://127.0.0.1:54321/auth/v1/health");
+    expect(simulation.localAuthHealthUrl("http://localhost:54321/")).toBe("http://localhost:54321/auth/v1/health");
+    expect(() => simulation.localAuthHealthUrl("https://aqmuvakvienfwzhgzhcw.supabase.co")).toThrow("localhost or 127.0.0.1");
+  });
+
+  it("treats temporary gateway failures as retryable but keeps diagnostics explicit", () => {
+    expect(simulation.isRetryableLocalAuthStatus(502)).toBe(true);
+    expect(simulation.isRetryableLocalAuthStatus(503)).toBe(true);
+    expect(simulation.isRetryableLocalAuthStatus(504)).toBe(true);
+    expect(simulation.isRetryableLocalAuthStatus(401)).toBe(false);
+
+    expect(simulation.describeLocalAuthReadiness({
+      gatewayStatus: 502,
+      gatewayBody: "{}",
+      adminError: "name=AuthRetryableFetchError status=502 message={}"
+    })).toBe("gateway=502 gateway_body={} admin=name=AuthRetryableFetchError status=502 message={}");
   });
 });

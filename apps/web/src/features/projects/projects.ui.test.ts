@@ -43,7 +43,7 @@ describe("projects UI helpers", () => {
   });
 
   it("returns textual signals without relying only on color", () => {
-    expect(projectSignals(project(), true, "overdue")).toEqual(expect.arrayContaining(["Action en retard", "Cloture prevue prochainement"]));
+    expect(projectSignals(project(), true, "overdue", new Date("2026-07-18T08:00:00Z"))).toEqual(expect.arrayContaining(["Action en retard", "Cloture prevue prochainement"]));
     expect(projectSignals(project({ archived_at: "2026-07-18T08:00:00Z" }), false)).toEqual(expect.arrayContaining(["Projet archive", "Aucune action planifiee"]));
     expect(projectSignals(project({ status: "won", won_at: "2026-07-18T08:00:00Z" }), true)).toEqual(expect.arrayContaining(["Projet gagne"]));
     expect(projectSignals(project({ status: "lost", lost_at: "2026-07-18T08:00:00Z" }), true)).toEqual(expect.arrayContaining(["Projet perdu"]));

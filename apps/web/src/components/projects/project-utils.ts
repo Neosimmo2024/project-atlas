@@ -28,7 +28,12 @@ export function projectStageLabel(value: ProjectStage) {
   return PROJECT_STAGE_LABELS[value] ?? value;
 }
 
-export function projectSignals(project: Pick<Project, "status" | "archived_at" | "expected_close_at">, hasNextAction: boolean, nextActionReason?: string | null) {
+export function projectSignals(
+  project: Pick<Project, "status" | "archived_at" | "expected_close_at">,
+  hasNextAction: boolean,
+  nextActionReason?: string | null,
+  referenceDate = new Date()
+) {
   const signals: string[] = [];
   if (project.archived_at) signals.push("Projet archive");
   if (project.status === "won") signals.push("Projet gagne");
@@ -37,8 +42,8 @@ export function projectSignals(project: Pick<Project, "status" | "archived_at" |
   if (project.status === "open" && !hasNextAction) signals.push("Aucune action planifiee");
   if (project.expected_close_at) {
     const due = new Date(project.expected_close_at);
-    const now = new Date();
-    const soon = new Date();
+    const now = referenceDate;
+    const soon = new Date(referenceDate);
     soon.setDate(now.getDate() + 14);
     if (due >= now && due <= soon) signals.push("Cloture prevue prochainement");
   }
