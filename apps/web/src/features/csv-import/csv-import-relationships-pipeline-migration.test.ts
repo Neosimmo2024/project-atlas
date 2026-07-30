@@ -22,6 +22,11 @@ describe("CSV import relationships and pipeline migration", () => {
     expect(migration).toContain("p_actor_user_id is null or not public._csv_import_actor_has_tenant_role");
   });
 
+  it("guards relationship cancellation scans against malformed historical row reports", () => {
+    expect(migration).toContain("jsonb_typeof(v_run.report->'rows') = 'array'");
+    expect(migration).toContain("jsonb_typeof(other_run.report->'rows') = 'array'");
+  });
+
   it("creates only recruiting relationships in the detection stage when person and organization are known", () => {
     expect(migration).toContain("relationship_type,");
     expect(migration).toContain("pipeline_stage,");

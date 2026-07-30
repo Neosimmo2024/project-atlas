@@ -573,7 +573,7 @@ begin
 
   for v_row in
     select distinct row_value
-    from jsonb_array_elements(coalesce(v_run.report->'rows', '[]'::jsonb)) as rows(row_value)
+    from jsonb_array_elements(case when jsonb_typeof(v_run.report->'rows') = 'array' then v_run.report->'rows' else '[]'::jsonb end) as rows(row_value)
     where row_value->>'personCreated' = 'true'
       and nullif(row_value->>'personId', '') is not null
   loop
@@ -587,7 +587,7 @@ begin
 
   for v_row in
     select distinct row_value
-    from jsonb_array_elements(coalesce(v_run.report->'rows', '[]'::jsonb)) as rows(row_value)
+    from jsonb_array_elements(case when jsonb_typeof(v_run.report->'rows') = 'array' then v_run.report->'rows' else '[]'::jsonb end) as rows(row_value)
     where row_value->>'organizationCreated' = 'true'
       and nullif(row_value->>'organizationId', '') is not null
   loop
@@ -601,7 +601,7 @@ begin
 
   for v_row in
     select distinct row_value
-    from jsonb_array_elements(coalesce(v_run.report->'rows', '[]'::jsonb)) as rows(row_value)
+    from jsonb_array_elements(case when jsonb_typeof(v_run.report->'rows') = 'array' then v_run.report->'rows' else '[]'::jsonb end) as rows(row_value)
     where row_value->>'relationshipCreated' = 'true'
       and nullif(row_value->>'relationshipId', '') is not null
   loop
@@ -669,7 +669,7 @@ begin
     elsif exists (
       select 1
       from public.csv_import_runs other_run,
-        jsonb_array_elements(coalesce(other_run.report->'rows', '[]'::jsonb)) as other_rows(other_row)
+        jsonb_array_elements(case when jsonb_typeof(other_run.report->'rows') = 'array' then other_run.report->'rows' else '[]'::jsonb end) as other_rows(other_row)
       where other_run.tenant_id = p_tenant_id
         and other_run.id <> p_import_run_id
         and public._csv_import_safe_uuid(other_row->>'relationshipId') = v_relationship.id
@@ -714,7 +714,7 @@ begin
     elsif exists (
       select 1
       from public.csv_import_runs other_run,
-        jsonb_array_elements(coalesce(other_run.report->'rows', '[]'::jsonb)) as other_rows(other_row)
+        jsonb_array_elements(case when jsonb_typeof(other_run.report->'rows') = 'array' then other_run.report->'rows' else '[]'::jsonb end) as other_rows(other_row)
       where other_run.tenant_id = p_tenant_id
         and other_run.id <> p_import_run_id
         and public._csv_import_safe_uuid(other_row->>'personId') = v_person.id
@@ -763,7 +763,7 @@ begin
     elsif exists (
       select 1
       from public.csv_import_runs other_run,
-        jsonb_array_elements(coalesce(other_run.report->'rows', '[]'::jsonb)) as other_rows(other_row)
+        jsonb_array_elements(case when jsonb_typeof(other_run.report->'rows') = 'array' then other_run.report->'rows' else '[]'::jsonb end) as other_rows(other_row)
       where other_run.tenant_id = p_tenant_id
         and other_run.id <> p_import_run_id
         and public._csv_import_safe_uuid(other_row->>'organizationId') = v_organization.id
