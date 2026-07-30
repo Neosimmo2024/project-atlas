@@ -106,4 +106,47 @@ describeIntegration("csv import execution RLS integration", () => {
 
     expect(execution.error).not.toBeNull();
   });
+
+  it("rejects direct link_existing RPC calls without an accessible target", async () => {
+    const execution = await tenantA.rpc("execute_csv_import", {
+      p_tenant_id: tenantAContext.tenant_id,
+      p_idempotency_key: `${marker}-missing-target`,
+      p_source_name: "contacts.csv",
+      p_analysis_fingerprint: "[]",
+      p_actor_user_id: tenantAContext.user_id,
+      p_rows: [{
+        lineNumber: 2,
+        decision: "link_existing",
+        classification: "existing_contact_enrichment",
+        normalizedValues: {},
+        targetPersonId: null,
+        targetOrganizationId: null
+      }]
+    });
+
+    expect(execution.error).not.toBeNull();
+  });
+
+  it("rejects reusing an idempotency key with a different payload fingerprint", async () => {
+    const first = await tenantA.rpc("execute_csv_import", {
+      p_tenant_id: tenantAContext.tenant_id,
+      p_idempotency_key: `${marker}-changed-payload`,
+      p_source_name: "contacts.csv",
+      p_analysis_fingerprint: "fingerprint-a",
+      p_actor_user_id: tenantAContext.user_id,
+      p_rows: []
+    });
+    expect(first.error).toBeNull();
+
+    const changed = await tenantA.rpc("execute_csv_import", {
+      p_tenant_id: tenantAContext.tenant_id,
+      p_idempotency_key: `${marker}-changed-payload`,
+      p_source_name: "contacts.csv",
+      p_analysis_fingerprint: "fingerprint-b",
+      p_actor_user_id: tenantAContext.user_id,
+      p_rows: []
+    });
+
+    expect(changed.error).not.toBeNull();
+  });
 });

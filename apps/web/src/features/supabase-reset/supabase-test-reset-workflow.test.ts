@@ -113,6 +113,13 @@ describe("Supabase test reset workflow", () => {
     expect(workflow).toContain("Refusing reset: migration set is not exactly 0001 through 0011.");
   });
 
+  it("verifies the CSV import execution schema and RPC privileges after reset", () => {
+    expect(workflow).toContain("public.csv_import_runs.payload_fingerprint is missing.");
+    expect(workflow).toContain("authenticated role cannot execute execute_csv_import.");
+    expect(workflow).toContain("anon role must not execute execute_csv_import.");
+    expect(workflow).toContain("has_function_privilege('anon', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)', 'execute')");
+  });
+
   it("stops unless the exact authorized pre-reset snapshot matches", () => {
     for (const [table, count] of [
       ["auth.users", 1],

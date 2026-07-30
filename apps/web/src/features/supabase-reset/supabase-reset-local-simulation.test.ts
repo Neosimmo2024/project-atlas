@@ -265,4 +265,11 @@ describe("Supabase reset local simulation guards", () => {
     const resetToRestartMatches = source.match(/await runLocalReset\(\);\s+await restartLocalSupabaseAfterReset\(\);/g) ?? [];
     expect(resetToRestartMatches).toHaveLength(2);
   });
+
+  it("verifies CSV import execution schema and RPC privileges after local reset", () => {
+    expect(source).toContain("public.csv_import_runs.payload_fingerprint is missing.");
+    expect(source).toContain("authenticated role cannot execute execute_csv_import.");
+    expect(source).toContain("anon role must not execute execute_csv_import.");
+    expect(source).toContain("has_function_privilege('anon', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)', 'execute')");
+  });
 });

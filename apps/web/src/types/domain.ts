@@ -323,6 +323,7 @@ export type CsvImportRun = TenantScoped & {
   idempotency_key: string;
   source_name: string | null;
   analysis_fingerprint: string;
+  payload_fingerprint: string;
   status: "succeeded";
   total_rows: number;
   people_created: number;

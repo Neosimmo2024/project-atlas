@@ -29,6 +29,8 @@ Si une erreur survient, PostgreSQL annule la transaction complete.
 
 La table `csv_import_runs` impose une unicite `(tenant_id, idempotency_key)`. Une repetition de la meme demande retourne le rapport existant avec `idempotent: true` au lieu de recreer des donnees.
 
+La meme cle avec une empreinte d'analyse ou une empreinte de payload differente est refusee. La verification est faite dans PostgreSQL, apres la contrainte unique, afin de couvrir les doubles clics, les requetes simultanees et les reessais apres perte de reponse.
+
 ## Decisions
 
 - `create_new` cree une personne et, si le nom d'organisation est present et sans cible existante, une organisation.
@@ -51,6 +53,7 @@ Sprint 11D ne cree pas automatiquement de Relationship. Le rapport expose `relat
 - cle d'idempotence ;
 - nom non sensible du fichier ;
 - empreinte d'analyse ;
+- empreinte technique du payload execute ;
 - compteurs d'execution ;
 - rapport JSON sans fichier CSV brut.
 

@@ -231,11 +231,22 @@ jobs:
             if not has_table_privilege('authenticated', 'public.csv_import_runs', 'select') then
               raise exception 'authenticated role cannot select public.csv_import_runs';
             end if;
+            if not exists (
+              select 1 from information_schema.columns
+              where table_schema = 'public'
+                and table_name = 'csv_import_runs'
+                and column_name = 'payload_fingerprint'
+            ) then
+              raise exception 'public.csv_import_runs.payload_fingerprint is missing';
+            end if;
             if has_table_privilege('authenticated', 'public.csv_import_runs', 'insert') then
               raise exception 'authenticated role must not insert public.csv_import_runs directly';
             end if;
             if not has_function_privilege('authenticated', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)', 'execute') then
               raise exception 'authenticated role cannot execute execute_csv_import';
+            end if;
+            if has_function_privilege('anon', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)', 'execute') then
+              raise exception 'anon role must not execute execute_csv_import';
             end if;
           end $$;
           notify pgrst, 'reload schema';

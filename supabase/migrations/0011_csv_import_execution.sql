@@ -5,6 +5,7 @@ create table if not exists public.csv_import_runs (
   idempotency_key text not null,
   source_name text,
   analysis_fingerprint text not null,
+  payload_fingerprint text not null,
   status text not null default 'succeeded'
     check (status in ('succeeded')),
   total_rows integer not null default 0 check (total_rows >= 0),
@@ -52,6 +53,7 @@ as $$
 declare
   v_import_id uuid;
   v_existing public.csv_import_runs%rowtype;
+  v_payload_fingerprint text;
   v_row jsonb;
   v_values jsonb;
   v_decision text;
@@ -105,12 +107,15 @@ begin
     raise exception 'Rows payload must be a JSON array.';
   end if;
 
+  v_payload_fingerprint := md5(p_rows::text);
+
   insert into public.csv_import_runs (
     tenant_id,
     requested_by,
     idempotency_key,
     source_name,
     analysis_fingerprint,
+    payload_fingerprint,
     total_rows,
     report
   )
@@ -120,6 +125,7 @@ begin
     p_idempotency_key,
     nullif(btrim(coalesce(p_source_name, '')), ''),
     p_analysis_fingerprint,
+    v_payload_fingerprint,
     jsonb_array_length(p_rows),
     jsonb_build_object('status', 'processing')
   )
@@ -132,6 +138,12 @@ begin
     from public.csv_import_runs
     where tenant_id = p_tenant_id
       and idempotency_key = p_idempotency_key;
+
+    if v_existing.analysis_fingerprint <> p_analysis_fingerprint
+      or v_existing.payload_fingerprint <> v_payload_fingerprint
+      or v_existing.total_rows <> jsonb_array_length(p_rows) then
+      raise exception 'Idempotency key already belongs to a different import payload.';
+    end if;
 
     return v_existing.report || jsonb_build_object(
       'id', v_existing.id,
@@ -191,6 +203,10 @@ begin
     end if;
 
     if v_decision = 'link_existing' then
+      if v_person_id is null and v_organization_id is null then
+        raise exception 'Line % must include an accessible target to link.', v_line_number;
+      end if;
+
       if v_person_id is not null then
         v_people_linked := v_people_linked + 1;
       end if;
@@ -329,7 +345,7 @@ begin
     v_rows_report := v_rows_report || jsonb_build_object(
       'lineNumber', v_line_number,
       'decision', v_decision,
-      'outcome', 'created',
+      'outcome', case when v_created_person_id is not null or v_created_organization_id is not null then 'created' else 'linked' end,
       'personId', v_person_id,
       'organizationId', v_organization_id,
       'personCreated', v_created_person_id is not null,
@@ -381,4 +397,5 @@ exception
 end;
 $$;
 
+revoke execute on function public.execute_csv_import(uuid, text, text, text, jsonb, uuid) from public, anon;
 grant execute on function public.execute_csv_import(uuid, text, text, text, jsonb, uuid) to authenticated, service_role;

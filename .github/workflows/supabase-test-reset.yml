@@ -382,6 +382,20 @@ jobs:
             if not has_function_privilege('authenticated', 'public.transition_recruitment_pipeline(uuid, uuid, text, text, timestamp with time zone, boolean, text, timestamp with time zone, timestamp with time zone, text, text, boolean, timestamp with time zone, boolean, jsonb)', 'execute') then
               raise exception 'authenticated role cannot execute transition_recruitment_pipeline.';
             end if;
+            if not exists (
+              select 1 from information_schema.columns
+              where table_schema = 'public'
+                and table_name = 'csv_import_runs'
+                and column_name = 'payload_fingerprint'
+            ) then
+              raise exception 'public.csv_import_runs.payload_fingerprint is missing.';
+            end if;
+            if not has_function_privilege('authenticated', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)', 'execute') then
+              raise exception 'authenticated role cannot execute execute_csv_import.';
+            end if;
+            if has_function_privilege('anon', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)', 'execute') then
+              raise exception 'anon role must not execute execute_csv_import.';
+            end if;
           end $$;
 
           notify pgrst, 'reload schema';
