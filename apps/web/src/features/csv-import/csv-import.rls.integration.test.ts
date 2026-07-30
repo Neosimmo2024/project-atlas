@@ -326,16 +326,17 @@ describeIntegration("csv import execution RLS integration", () => {
   it("revokes direct execute_csv_import privileges from public, anon, authenticated and legacy service-role execution", () => {
     const privilegeRows = querySql(`
 with public_privileges as (
-  select 'public:' || signature || ':' ||
+  select 'public:' || signature || ':' || (
     case
-      when p.proacl is null then 'true'
+      when p.proacl is null then true
       else exists (
         select 1
         from aclexplode(p.proacl) acl
         where acl.grantee = 0
           and acl.privilege_type = 'EXECUTE'
-      )::text
-    end as result
+      )
+    end
+  )::text as result
   from (
     values
       ('execute_csv_import', 'uuid, text, text, text, jsonb, uuid', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)'),
