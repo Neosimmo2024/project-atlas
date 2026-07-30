@@ -317,6 +317,9 @@ export type TimelineEvent = TenantScoped & {
   idempotency_key: string;
 };
 
+export type CsvImportRunStatus = "succeeded";
+export type CsvImportCancellationStatus = "processing" | "complete" | "partial" | "none" | "failed";
+
 export type CsvImportRun = TenantScoped & {
   id: string;
   requested_by: string;
@@ -324,7 +327,7 @@ export type CsvImportRun = TenantScoped & {
   source_name: string | null;
   analysis_fingerprint: string;
   payload_fingerprint: string;
-  status: "succeeded";
+  status: CsvImportRunStatus;
   total_rows: number;
   people_created: number;
   people_linked: number;
@@ -336,6 +339,23 @@ export type CsvImportRun = TenantScoped & {
   rows_rejected: number;
   errors_count: number;
   report: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CsvImportCancellation = TenantScoped & {
+  id: string;
+  import_run_id: string;
+  requested_by: string;
+  idempotency_key: string;
+  status: CsvImportCancellationStatus;
+  people_deleted: number;
+  people_kept: number;
+  organizations_deleted: number;
+  organizations_kept: number;
+  report: Record<string, unknown>;
+  failure_message: string | null;
+  executed_at: string | null;
   created_at: string;
   updated_at: string;
 };

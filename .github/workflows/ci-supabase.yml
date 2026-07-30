@@ -248,6 +248,22 @@ jobs:
             if has_function_privilege('anon', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)', 'execute') then
               raise exception 'anon role must not execute execute_csv_import';
             end if;
+            if not exists (
+              select 1 from pg_class c
+              join pg_namespace n on n.oid = c.relnamespace
+              where n.nspname = 'public' and c.relname = 'csv_import_cancellations' and c.relrowsecurity
+            ) then
+              raise exception 'RLS is not enabled on public.csv_import_cancellations';
+            end if;
+            if has_table_privilege('authenticated', 'public.csv_import_cancellations', 'insert') then
+              raise exception 'authenticated role must not insert public.csv_import_cancellations directly';
+            end if;
+            if not has_function_privilege('authenticated', 'public.cancel_csv_import(uuid, uuid, text, uuid, boolean)', 'execute') then
+              raise exception 'authenticated role cannot execute cancel_csv_import';
+            end if;
+            if has_function_privilege('anon', 'public.cancel_csv_import(uuid, uuid, text, uuid, boolean)', 'execute') then
+              raise exception 'anon role must not execute cancel_csv_import';
+            end if;
           end $$;
           notify pgrst, 'reload schema';
           SQL

@@ -4,7 +4,11 @@ import type { TenantContext } from "@/types/domain";
 const mocks = vi.hoisted(() => ({
   getTenantContextMock: vi.fn(),
   previewTenantCsvImportMock: vi.fn(),
-  executeTenantCsvImportMock: vi.fn()
+  executeTenantCsvImportMock: vi.fn(),
+  listCsvImportHistoryMock: vi.fn(),
+  getCsvImportDetailMock: vi.fn(),
+  analyzeCsvImportCancellationMock: vi.fn(),
+  cancelCsvImportMock: vi.fn()
 }));
 
 vi.mock("@/repositories/tenant-context", () => ({
@@ -19,6 +23,13 @@ vi.mock("@/repositories/csv-import-execution", () => ({
   executeTenantCsvImport: mocks.executeTenantCsvImportMock
 }));
 
+vi.mock("@/repositories/csv-import-history", () => ({
+  listCsvImportHistory: mocks.listCsvImportHistoryMock,
+  getCsvImportDetail: mocks.getCsvImportDetailMock,
+  analyzeCsvImportCancellation: mocks.analyzeCsvImportCancellationMock,
+  cancelCsvImport: mocks.cancelCsvImportMock
+}));
+
 const context: TenantContext = {
   tenantId: "tenant-a",
   tenant: { id: "tenant-a", name: "Tenant A" },
@@ -31,6 +42,10 @@ describe("CSV import preview API", () => {
     mocks.getTenantContextMock.mockReset();
     mocks.previewTenantCsvImportMock.mockReset();
     mocks.executeTenantCsvImportMock.mockReset();
+    mocks.listCsvImportHistoryMock.mockReset();
+    mocks.getCsvImportDetailMock.mockReset();
+    mocks.analyzeCsvImportCancellationMock.mockReset();
+    mocks.cancelCsvImportMock.mockReset();
     mocks.getTenantContextMock.mockResolvedValue(context);
     mocks.previewTenantCsvImportMock.mockResolvedValue({
       headers: ["First", "Email"],
@@ -73,6 +88,29 @@ describe("CSV import preview API", () => {
       rows: [],
       errors: [],
       createdAt: "2026-07-30T12:00:00Z"
+    });
+    mocks.listCsvImportHistoryMock.mockResolvedValue({ imports: [], total: 0, page: 1, pageSize: 10, pageCount: 1 });
+    mocks.getCsvImportDetailMock.mockResolvedValue({ run: { id: "import-1" }, requestedByLabel: "Ada", cancellation: null, eligibility: { status: "cancellable" } });
+    mocks.analyzeCsvImportCancellationMock.mockResolvedValue({
+      importId: "import-1",
+      status: "cancellable",
+      traceInsufficient: false,
+      people: [],
+      organizations: [],
+      summary: { deletable: 0, kept: 0, peopleCreated: 0, organizationsCreated: 0 },
+      cancellation: null
+    });
+    mocks.cancelCsvImportMock.mockResolvedValue({
+      id: "cancel-1",
+      importId: "import-1",
+      idempotent: false,
+      status: "none",
+      summary: { peopleDeleted: 0, peopleKept: 0, organizationsDeleted: 0, organizationsKept: 0 },
+      peopleDeleted: [],
+      peopleKept: [],
+      organizationsDeleted: [],
+      organizationsKept: [],
+      executedAt: "2026-07-30T12:00:00Z"
     });
   });
 
@@ -170,5 +208,65 @@ describe("CSV import preview API", () => {
     expect(response.status).toBe(403);
     expect(mocks.previewTenantCsvImportMock).not.toHaveBeenCalled();
     expect(mocks.executeTenantCsvImportMock).not.toHaveBeenCalled();
+  });
+
+  it("lists import history using the authenticated tenant context", async () => {
+    const { GET } = await import("../../app/api/imports/route");
+
+    const response = await GET(new Request("http://localhost/api/imports?page=2&pageSize=5"));
+
+    expect(response.status).toBe(200);
+    expect(mocks.listCsvImportHistoryMock).toHaveBeenCalledWith(context, { page: 2, pageSize: 5 });
+  });
+
+  it("loads import details only from the authenticated tenant context", async () => {
+    const { GET } = await import("../../app/api/imports/[id]/route");
+
+    const response = await GET(new Request("http://localhost/api/imports/import-1"), {
+      params: Promise.resolve({ id: "import-1" })
+    });
+
+    expect(response.status).toBe(200);
+    expect(mocks.getCsvImportDetailMock).toHaveBeenCalledWith(context, "import-1");
+  });
+
+  it("requires owner or admin before analyzing cancellation eligibility", async () => {
+    const { GET } = await import("../../app/api/imports/[id]/cancellation/route");
+    mocks.getTenantContextMock.mockResolvedValue({ ...context, role: "reader" });
+
+    const response = await GET(new Request("http://localhost/api/imports/import-1/cancellation"), {
+      params: Promise.resolve({ id: "import-1" })
+    });
+
+    expect(response.status).toBe(403);
+    expect(mocks.analyzeCsvImportCancellationMock).not.toHaveBeenCalled();
+  });
+
+  it("executes cancellation with server tenant context and an idempotency key", async () => {
+    const { POST } = await import("../../app/api/imports/[id]/cancellation/route");
+
+    const response = await POST(new Request("http://localhost/api/imports/import-1/cancellation", {
+      method: "POST",
+      body: JSON.stringify({ confirm: true, idempotencyKey: "cancel-request-1", personIds: ["malicious"] })
+    }), {
+      params: Promise.resolve({ id: "import-1" })
+    });
+
+    expect(response.status).toBe(200);
+    expect(mocks.cancelCsvImportMock).toHaveBeenCalledWith(context, "import-1", "cancel-request-1");
+  });
+
+  it("rejects cancellation without explicit confirmation", async () => {
+    const { POST } = await import("../../app/api/imports/[id]/cancellation/route");
+
+    const response = await POST(new Request("http://localhost/api/imports/import-1/cancellation", {
+      method: "POST",
+      body: JSON.stringify({ confirm: false, idempotencyKey: "cancel-request-1" })
+    }), {
+      params: Promise.resolve({ id: "import-1" })
+    });
+
+    expect(response.status).toBe(400);
+    expect(mocks.cancelCsvImportMock).not.toHaveBeenCalled();
   });
 });

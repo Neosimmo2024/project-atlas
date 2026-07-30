@@ -57,11 +57,56 @@ Sprint 11D ne cree pas automatiquement de Relationship. Le rapport expose `relat
 - compteurs d'execution ;
 - rapport JSON sans fichier CSV brut.
 
+## Sprint 11E
+
+Sprint 11E ajoute l'historique consultable des imports et une annulation securisee.
+
+Les routes `/imports` et `/imports/[id]` permettent de consulter les imports du tenant, le rapport final, les lignes creees, les lignes rattachees, les lignes ignorees ou rejetees et l'etat d'annulation.
+
+## Annulation securisee
+
+L'annulation n'est pas un retour global de la base a un etat precedent. Elle ne supprime que les People et Organizations explicitement creees par l'import, identifiees dans le rapport 11D par `personCreated`, `organizationCreated`, `personId` et `organizationId`.
+
+Les donnees seulement rattachees ne sont jamais supprimees. Sprint 11D ne cree aucune Relationship, donc Sprint 11E ne supprime aucune Relationship au titre d'un import CSV.
+
+Une Person ou une Organization creee par import est conservee si au moins une condition de securite existe :
+
+- elle n'existe plus ;
+- elle appartient a un autre tenant ;
+- son `updated_at` differe de son `created_at`, ce qui indique une modification posterieure ou une tracabilite insuffisante ;
+- une Relationship, Task, Interaction, Project, Timeline, Action Plan ou organisation enfant la reference ;
+- un autre import la reference ;
+- PostgreSQL ou une regle metier empeche la suppression.
+
+En cas de doute, Atlas conserve la donnee et indique le motif dans le rapport.
+
+## Transaction et idempotence d'annulation
+
+L'annulation finale passe par la fonction PostgreSQL `public.cancel_csv_import`. Elle est `SECURITY DEFINER` avec `search_path = public, pg_temp`.
+
+La transaction couvre :
+
+- la creation de l'historique `csv_import_cancellations` ;
+- les suppressions autorisees ;
+- les compteurs ;
+- le rapport final ;
+- le statut final.
+
+La table `csv_import_cancellations` impose l'unicite `(tenant_id, import_run_id)` et `(tenant_id, idempotency_key)`. Une repetition legitime avec la meme cle retourne le meme rapport sans refaire les suppressions. Une meme cle utilisee pour un import different est refusee.
+
+Les roles autorises pour l'annulation sont `owner` et `admin`. Le role `reader` est refuse. Les autres roles capables d'executer un import ne sont pas autorises a l'annuler en V1, car l'annulation est plus sensible.
+
+Les utilisateurs authentifies peuvent lire l'historique de leur tenant via RLS. Ils ne peuvent pas inserer ou modifier directement `csv_import_cancellations`; l'etat est modifie uniquement par RPC.
+
+## Retrocompatibilite
+
+Les imports Sprint 11D sont annulables uniquement lorsque le rapport contient les identifiants de creation explicites. Si un ancien rapport annonce des creations sans IDs exploitables, Atlas le rend consultable mais refuse l'annulation automatique avec une tracabilite insuffisante.
+
 ## Hors Perimetre
 
 Le sprint ne couvre pas :
 
-- annulation ou restauration d'import ;
+- restauration arbitraire d'anciennes valeurs ;
 - Brevo ;
 - SMS ;
 - n8n ;
