@@ -93,6 +93,10 @@ function querySql(sql: string) {
   }).trim();
 }
 
+function sqlLiteral(value: string) {
+  return `'${value.replace(/'/g, "''")}'`;
+}
+
 async function firstTenantUser(client: SupabaseClient) {
   const { data, error } = await client.from("tenant_users").select("tenant_id, user_id").eq("status", "active").limit(1).maybeSingle();
   if (error) throw error;
@@ -250,21 +254,35 @@ async function insertImportRun(context: TenantUserContext, suffix: string, repor
   relationships_created: number;
 }>) {
   const id = randomUUID();
-  const { error } = await serviceClient().from("csv_import_runs").insert({
-    id,
-    tenant_id: context.tenant_id,
-    requested_by: context.user_id,
-    idempotency_key: `${marker}-${suffix}`,
-    source_name: "contacts.csv",
-    analysis_fingerprint: suffix,
-    payload_fingerprint: suffix,
-    total_rows: Array.isArray(report.rows) ? report.rows.length : 1,
-    people_created: counts?.people_created ?? 0,
-    organizations_created: counts?.organizations_created ?? 0,
-    relationships_created: counts?.relationships_created ?? 0,
-    report
-  });
-  if (error) throw error;
+  executeSql(`
+    insert into public.csv_import_runs (
+      id,
+      tenant_id,
+      requested_by,
+      idempotency_key,
+      source_name,
+      analysis_fingerprint,
+      payload_fingerprint,
+      total_rows,
+      people_created,
+      organizations_created,
+      relationships_created,
+      report
+    ) values (
+      ${sqlLiteral(id)}::uuid,
+      ${sqlLiteral(context.tenant_id)}::uuid,
+      ${sqlLiteral(context.user_id)}::uuid,
+      ${sqlLiteral(`${marker}-${suffix}`)},
+      'contacts.csv',
+      ${sqlLiteral(suffix)},
+      ${sqlLiteral(suffix)},
+      ${Array.isArray(report.rows) ? report.rows.length : 1},
+      ${counts?.people_created ?? 0},
+      ${counts?.organizations_created ?? 0},
+      ${counts?.relationships_created ?? 0},
+      ${sqlLiteral(JSON.stringify(report))}::jsonb
+    );
+  `);
   return id;
 }
 
