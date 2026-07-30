@@ -71,6 +71,56 @@ button, input, select, textarea { font: inherit; }
 .import-validation-success { border-color: #abefc6; background: #ecfdf3; color: #067647; }
 .import-validation-success p { margin: 6px 0 0; }
 .import-actions { display: flex; justify-content: space-between; gap: 12px; }
+.import-review-summary .card { display: grid; gap: 6px; }
+.import-review-list { display: grid; gap: 14px; }
+.import-review-row { display: grid; gap: 16px; }
+.import-review-heading {
+  display: grid;
+  align-items: start;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.45fr);
+}
+.import-review-heading h3,
+.import-review-heading p { margin: 0; }
+.import-review-heading h3 { margin-top: 4px; font-size: 18px; }
+.import-review-heading label { display: grid; gap: 6px; font-weight: 700; }
+.import-review-values {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.import-review-values > div,
+.import-match-list {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbfa;
+  padding: 12px;
+}
+.import-review-values dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+.import-review-values dl div {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: minmax(120px, 0.35fr) minmax(0, 1fr);
+}
+.import-review-values dt { color: var(--muted); font-size: 12px; font-weight: 700; }
+.import-review-values dd { margin: 0; overflow-wrap: anywhere; }
+.import-match {
+  display: grid;
+  gap: 4px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.import-match:first-of-type { border-top: 0; padding-top: 0; }
+.import-match p { margin: 0; color: var(--foreground); }
+.import-match span,
+.import-warning-list { color: var(--muted); font-size: 13px; }
+.import-warning-list { margin: 0; padding-left: 20px; }
 .login-page {
   display: grid;
   min-height: 100vh;
@@ -619,7 +669,8 @@ button, input, select, textarea { font: inherit; }
   .pipeline-meta-row { grid-template-columns: 1fr; }
   .import-steps { grid-template-columns: 1fr; }
   .import-upload, .import-actions { align-items: stretch; flex-direction: column; }
-  .import-file-summary, .import-mapping-row { grid-template-columns: 1fr; }
+  .import-file-summary, .import-mapping-row, .import-review-heading, .import-review-values { grid-template-columns: 1fr; }
+  .import-review-values dl div { grid-template-columns: 1fr; }
   .import-file-summary div:not(:first-child) { border-top: 1px solid var(--line); border-left: 0; padding-top: 12px; padding-left: 0; }
 }
 
