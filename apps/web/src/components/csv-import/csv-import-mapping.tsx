@@ -71,8 +71,21 @@ export function CsvImportMapping() {
     [mapping, preview]
   );
   const preparedDecisions = useMemo<CsvImportPreparedDecision[]>(
-    () => Object.entries(decisions).map(([lineNumber, decision]) => ({ lineNumber: Number(lineNumber), decision })),
-    [decisions]
+    () => Object.entries(decisions).map(([lineNumber, decision]) => {
+      const row = preview?.rows.find((item) => item.lineNumber === Number(lineNumber));
+      const personTargets = row ? [row.existingPersonId, ...row.duplicatePersonIds, ...row.possibleDuplicatePersonIds].filter(Boolean) : [];
+      const organizationTargets = row ? [...row.duplicateOrganizationIds, ...row.possibleDuplicateOrganizationIds].filter(Boolean) : [];
+      const uniquePersonTargets = [...new Set(personTargets)] as string[];
+      const uniqueOrganizationTargets = [...new Set(organizationTargets)];
+
+      return {
+        lineNumber: Number(lineNumber),
+        decision,
+        targetPersonId: decision === "link_existing" && uniquePersonTargets.length === 1 ? uniquePersonTargets[0] : null,
+        targetOrganizationId: decision === "link_existing" && uniqueOrganizationTargets.length === 1 ? uniqueOrganizationTargets[0] : null
+      };
+    }),
+    [decisions, preview]
   );
   const decisionValidation = useMemo(
     () => preview ? validateCsvImportDecisions(preview, preparedDecisions, preview.analysisFingerprint) : { valid: false, errors: [], pendingDecisions: 0 },

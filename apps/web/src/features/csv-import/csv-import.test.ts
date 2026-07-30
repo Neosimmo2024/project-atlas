@@ -234,6 +234,48 @@ describe("csv import preview", () => {
     expect(result.rows[0].organizationMatches.map((match) => match.reasons).flat()).toEqual(expect.arrayContaining(["siren", "siret", "email", "phone"]));
     expect(result.rows[1].possibleDuplicateOrganizationIds).toEqual(["org-1"]);
     expect(result.rows[1].organizationMatches.map((match) => match.reasons).flat()).toEqual(expect.arrayContaining(["name_city", "name_postal_code"]));
+    expect(result.rows[1].decisionRequired).toBe(true);
+  });
+
+  it("reports only the criteria that matched each Atlas record", () => {
+    const result = previewCsvImport({
+      content: "PrÃ©nom,Nom,Email,TÃ©lÃ©phone\nA,A,email@example.test,0601020304",
+      mapping: { "PrÃ©nom": "first_name", Nom: "last_name", Email: "email", "TÃ©lÃ©phone": "phone" }
+    }, atlas({
+      people: [
+        {
+          id: "email-person",
+          tenant_id: tenantId,
+          first_name: "Email",
+          last_name: "Person",
+          display_name: "Email Person",
+          primary_email: "email@example.test",
+          primary_phone: null,
+          city: null,
+          postal_code: null,
+          source: null,
+          comments: null,
+          do_not_contact: false
+        },
+        {
+          id: "phone-person",
+          tenant_id: tenantId,
+          first_name: "Phone",
+          last_name: "Person",
+          display_name: "Phone Person",
+          primary_email: null,
+          primary_phone: "0601020304",
+          city: null,
+          postal_code: null,
+          source: null,
+          comments: null,
+          do_not_contact: false
+        }
+      ]
+    }), { tenantId });
+
+    expect(result.rows[0].matches.find((match) => match.entityId === "email-person")?.reasons).toEqual(["email"]);
+    expect(result.rows[0].matches.find((match) => match.entityId === "phone-person")?.reasons).toEqual(["phone"]);
   });
 
   it("explains the fields that produced person and organization matches", () => {

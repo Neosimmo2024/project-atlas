@@ -575,38 +575,75 @@ function organizationDifferences(organization: CsvImportPreviewOrganization, val
   return differences;
 }
 
-function atlasPersonMatches(people: CsvImportPreviewPerson[], values: CsvImportNormalizedValues, reasons: string[], strength: CsvImportMatchStrength): CsvImportMatch[] {
-  const fields = reasons.map((reason) => reason === "identity" ? "prenom + nom + ville" : reason);
-  return people.map((person) => ({
-    entityType: "person",
-    kind: "atlas_existing",
-    strength,
-    entityId: person.id,
-    lineNumber: null,
-    reasons,
-    fields,
-    differences: personDifferences(person, values),
-    explanation: strength === "certain"
-      ? `Personne Atlas rapprochee par ${fields.join(", ")}.`
-      : `Personne Atlas potentiellement similaire par ${fields.join(", ")}.`
-  }));
+function atlasPersonMatches(people: CsvImportPreviewPerson[], values: CsvImportNormalizedValues, reasonsFor: (person: CsvImportPreviewPerson) => string[], strength: CsvImportMatchStrength): CsvImportMatch[] {
+  return people.map((person) => {
+    const reasons = reasonsFor(person);
+    const fields = reasons.map((reason) => reason === "identity" ? "prenom + nom + ville" : reason);
+
+    return {
+      entityType: "person",
+      kind: "atlas_existing",
+      strength,
+      entityId: person.id,
+      lineNumber: null,
+      reasons,
+      fields,
+      differences: personDifferences(person, values),
+      explanation: strength === "certain"
+        ? `Personne Atlas rapprochee par ${fields.join(", ")}.`
+        : `Personne Atlas potentiellement similaire par ${fields.join(", ")}.`
+    };
+  });
 }
 
-function atlasOrganizationMatches(organizations: CsvImportPreviewOrganization[], values: CsvImportNormalizedValues, reasons: string[], strength: CsvImportMatchStrength): CsvImportMatch[] {
-  const fields = reasons.map((reason) => reason.replaceAll("_", " + "));
-  return organizations.map((organization) => ({
-    entityType: "organization",
-    kind: "atlas_existing",
-    strength,
-    entityId: organization.id,
-    lineNumber: null,
-    reasons,
-    fields,
-    differences: organizationDifferences(organization, values),
-    explanation: strength === "certain"
-      ? `Organisation Atlas rapprochee par ${fields.join(", ")}.`
-      : `Organisation Atlas potentiellement similaire par ${fields.join(", ")}.`
-  }));
+function atlasOrganizationMatches(organizations: CsvImportPreviewOrganization[], values: CsvImportNormalizedValues, reasonsFor: (organization: CsvImportPreviewOrganization) => string[], strength: CsvImportMatchStrength): CsvImportMatch[] {
+  return organizations.map((organization) => {
+    const reasons = reasonsFor(organization);
+    const fields = reasons.map((reason) => reason.replaceAll("_", " + "));
+
+    return {
+      entityType: "organization",
+      kind: "atlas_existing",
+      strength,
+      entityId: organization.id,
+      lineNumber: null,
+      reasons,
+      fields,
+      differences: organizationDifferences(organization, values),
+      explanation: strength === "certain"
+        ? `Organisation Atlas rapprochee par ${fields.join(", ")}.`
+        : `Organisation Atlas potentiellement similaire par ${fields.join(", ")}.`
+    };
+  });
+}
+
+function personMatchReasons(person: CsvImportPreviewPerson, emailMatches: CsvImportPreviewPerson[], phoneMatches: CsvImportPreviewPerson[], possibleMatches: CsvImportPreviewPerson[]) {
+  const reasons: string[] = [];
+  if (emailMatches.some((match) => match.id === person.id)) reasons.push("email");
+  if (phoneMatches.some((match) => match.id === person.id)) reasons.push("phone");
+  if (possibleMatches.some((match) => match.id === person.id)) reasons.push("identity");
+  return reasons;
+}
+
+function organizationMatchReasons(
+  organization: CsvImportPreviewOrganization,
+  matches: {
+    siren: CsvImportPreviewOrganization[];
+    siret: CsvImportPreviewOrganization[];
+    email: CsvImportPreviewOrganization[];
+    phone: CsvImportPreviewOrganization[];
+    nameCity: CsvImportPreviewOrganization[];
+    namePostalCode: CsvImportPreviewOrganization[];
+  }
+) {
+  const reasons: string[] = [];
+  if (matches.siren.some((match) => match.id === organization.id)) reasons.push("siren");
+  if (matches.siret.some((match) => match.id === organization.id)) reasons.push("siret");
+  if (matches.email.some((match) => match.id === organization.id)) reasons.push("email");
+  if (matches.phone.some((match) => match.id === organization.id)) reasons.push("phone");
+  if (matches.nameCity.some((match) => match.id === organization.id)) reasons.push("name_city");
+  if (matches.namePostalCode.some((match) => match.id === organization.id)) reasons.push("name_postal_code");
+  return reasons;
 }
 
 function chooseDecision(classification: CsvImportClassification, existingPersonId: string | null): { recommendedDecision: CsvImportDecision; decisionRequired: boolean } {
@@ -734,11 +771,18 @@ export function previewCsvImport(request: CsvImportRequest, atlas: CsvImportAtla
     for (const lineNumber of otherLines(internalNameLines, personIdentity, row.lineNumber)) {
       pushInternalMatch(matches, lineNumber, ["identity"], ["prenom + nom + ville"], "Une autre ligne du fichier partage le même prénom, nom et ville.", "possible");
     }
-    matches.push(...atlasPersonMatches(duplicateMatches, values, [
-      ...(emailMatches.length > 0 ? ["email"] : []),
-      ...(phoneMatches.length > 0 ? ["phone"] : [])
-    ], duplicateMatches.length > 1 ? "ambiguous" : "certain"));
-    matches.push(...atlasPersonMatches(possibleDuplicateMatches, values, ["identity"], "possible"));
+    matches.push(...atlasPersonMatches(
+      duplicateMatches,
+      values,
+      (person) => personMatchReasons(person, emailMatches, phoneMatches, possibleMatches),
+      duplicateMatches.length > 1 ? "ambiguous" : "certain"
+    ));
+    matches.push(...atlasPersonMatches(
+      possibleDuplicateMatches,
+      values,
+      (person) => personMatchReasons(person, emailMatches, phoneMatches, possibleMatches),
+      "possible"
+    ));
 
     const siren = typeof values.organization_siren === "string" ? values.organization_siren : "";
     const siret = typeof values.organization_siret === "string" ? values.organization_siret : "";
@@ -765,26 +809,36 @@ export function previewCsvImport(request: CsvImportRequest, atlas: CsvImportAtla
       pushInternalMatch(organizationMatches, lineNumber, ["name_postal_code"], ["nom + code postal"], "Une autre ligne du fichier partage le même nom d'organisation et le même code postal.", "possible");
     }
 
+    const organizationMatchesByCriterion = {
+      siren: siren ? indexes.organizationsBySiren.get(siren) ?? [] : [],
+      siret: siret ? indexes.organizationsBySiret.get(siret) ?? [] : [],
+      email: organizationEmail ? indexes.organizationsByEmail.get(organizationEmail) ?? [] : [],
+      phone: organizationPhone ? indexes.organizationsByPhone.get(organizationPhone) ?? [] : [],
+      nameCity: organizationNameCity ? indexes.organizationsByNameCity.get(organizationNameCity) ?? [] : [],
+      namePostalCode: organizationNamePostal ? indexes.organizationsByNamePostalCode.get(organizationNamePostal) ?? [] : []
+    };
     const organizationCertainMatches = uniqueOrganizations([
-      ...(siren ? indexes.organizationsBySiren.get(siren) ?? [] : []),
-      ...(siret ? indexes.organizationsBySiret.get(siret) ?? [] : []),
-      ...(organizationEmail ? indexes.organizationsByEmail.get(organizationEmail) ?? [] : []),
-      ...(organizationPhone ? indexes.organizationsByPhone.get(organizationPhone) ?? [] : [])
+      ...organizationMatchesByCriterion.siren,
+      ...organizationMatchesByCriterion.siret,
+      ...organizationMatchesByCriterion.email,
+      ...organizationMatchesByCriterion.phone
     ]);
     const organizationPossibleMatches = uniqueOrganizations([
-      ...(organizationNameCity ? indexes.organizationsByNameCity.get(organizationNameCity) ?? [] : []),
-      ...(organizationNamePostal ? indexes.organizationsByNamePostalCode.get(organizationNamePostal) ?? [] : [])
+      ...organizationMatchesByCriterion.nameCity,
+      ...organizationMatchesByCriterion.namePostalCode
     ].filter((organization) => !organizationCertainMatches.some((certain) => certain.id === organization.id)));
-    organizationMatches.push(...atlasOrganizationMatches(organizationCertainMatches, values, [
-      ...(siren ? ["siren"] : []),
-      ...(siret ? ["siret"] : []),
-      ...(organizationEmail ? ["email"] : []),
-      ...(organizationPhone ? ["phone"] : [])
-    ], organizationCertainMatches.length > 1 ? "ambiguous" : "certain"));
-    organizationMatches.push(...atlasOrganizationMatches(organizationPossibleMatches, values, [
-      ...(organizationNameCity ? ["name_city"] : []),
-      ...(organizationNamePostal ? ["name_postal_code"] : [])
-    ], "possible"));
+    organizationMatches.push(...atlasOrganizationMatches(
+      organizationCertainMatches,
+      values,
+      (organization) => organizationMatchReasons(organization, organizationMatchesByCriterion),
+      organizationCertainMatches.length > 1 ? "ambiguous" : "certain"
+    ));
+    organizationMatches.push(...atlasOrganizationMatches(
+      organizationPossibleMatches,
+      values,
+      (organization) => organizationMatchReasons(organization, organizationMatchesByCriterion),
+      "possible"
+    ));
     const internalOrganizationDuplicate =
       hasDuplicate(internalSirenCounts, siren) ||
       hasDuplicate(internalSiretCounts, siret) ||
@@ -832,7 +886,10 @@ export function previewCsvImport(request: CsvImportRequest, atlas: CsvImportAtla
     if (classification === "new_contact" && (organizationCertainMatches.length > 0 || organizationPossibleMatches.length > 0 || internalOrganizationDuplicate)) {
       warnings.push("Une correspondance organisation est detectee et devra etre confirmee avant l'import final.");
     }
-    const decision = chooseDecision(classification, existingPerson?.id ?? null);
+    const organizationReviewRequired = organizationMatches.length > 0 || internalOrganizationDuplicate;
+    const decision = classification === "new_contact" && organizationReviewRequired
+      ? { recommendedDecision: "review_later" as const, decisionRequired: true }
+      : chooseDecision(classification, existingPerson?.id ?? null);
 
     return {
       lineNumber: row.lineNumber,
