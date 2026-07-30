@@ -91,7 +91,7 @@ export function CsvImportMapping() {
         <section className="card import-upload">
           <div>
             <h2>Choisir le fichier à préparer</h2>
-            <p>Le fichier est lu pour afficher ses colonnes. Aucune donnée n'est créée dans Atlas.</p>
+            <p>Le fichier est lu pour afficher ses colonnes. Aucune donnée n&apos;est créée dans Atlas.</p>
           </div>
           <label className="button link-button import-file-button">
             {loading ? "Lecture en cours…" : "Sélectionner un CSV"}
@@ -178,7 +178,7 @@ export function CsvImportMapping() {
           {step === "validated" ? (
             <section className="import-validation-success" role="status">
               <strong>Correspondance validée</strong>
-              <p>Le mapping est prêt pour l'étape suivante. Aucune personne ni relation n'a été créée.</p>
+              <p>Le mapping est prêt pour l&apos;étape suivante. Aucune personne ni relation n&apos;a été créée.</p>
             </section>
           ) : null}
 
