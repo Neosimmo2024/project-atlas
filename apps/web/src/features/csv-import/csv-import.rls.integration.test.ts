@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 type TestUser = {
   email: string;
@@ -49,6 +49,10 @@ const requiredEnv = [
 const hasIntegrationEnv = requiredEnv.every((key) => Boolean(process.env[key]));
 const describeIntegration = hasIntegrationEnv ? describe : describe.skip;
 const marker = `csv-import-rls-${Date.now()}`;
+
+if (hasIntegrationEnv) {
+  vi.setConfig({ hookTimeout: 30_000, testTimeout: 30_000 });
+}
 
 function supabaseForUser(user: TestUser) {
   const client = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
