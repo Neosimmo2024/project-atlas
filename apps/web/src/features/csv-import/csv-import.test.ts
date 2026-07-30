@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CSV_IMPORT_MAX_ROWS, previewCsvImport, type CsvImportAtlasData } from "./csv-import";
+import { CSV_IMPORT_MAX_ROWS, previewCsvImport, validateCsvImportDecisions, type CsvImportAtlasData } from "./csv-import";
 
 const tenantId = "tenant-a";
 const otherTenantId = "tenant-b";
@@ -8,7 +8,19 @@ function atlas(overrides: Partial<CsvImportAtlasData> = {}): CsvImportAtlasData 
   return {
     people: [],
     organizations: [
-      { id: "org-1", tenant_id: tenantId, name: "Neos Immo", status: "active" }
+      {
+        id: "org-1",
+        tenant_id: tenantId,
+        name: "Neos Immo",
+        siren: "123456789",
+        siret: "12345678900011",
+        primary_email: "contact@neos.test",
+        primary_phone: "0601020304",
+        city: "Paris",
+        postal_code: "75008",
+        status: "active",
+        do_not_contact: false
+      }
     ],
     owners: [
       { userId: "owner-1", label: "Renato Ponzio", email: "renato@example.test" }
@@ -197,6 +209,99 @@ describe("csv import preview", () => {
     ]));
   });
 
+  it("detects organization duplicates by SIREN, SIRET, email, phone, name city and name postal code", () => {
+    const result = previewCsvImport({
+      content: [
+        "PrÃ©nom,Nom,Email,Organisation,SIREN organisation,SIRET organisation,Email organisation,TÃ©lÃ©phone organisation,Ville,Code postal",
+        "A,A,a@example.test,Neos Immo,123 456 789,12345678900011,CONTACT@NEOS.TEST,+33 6 01 02 03 04,Paris,75008",
+        "B,B,b@example.test,Neos Immo,,,,,Paris,75008"
+      ].join("\n"),
+      mapping: {
+        "PrÃ©nom": "first_name",
+        Nom: "last_name",
+        Email: "email",
+        Organisation: "organization",
+        "SIREN organisation": "organization_siren",
+        "SIRET organisation": "organization_siret",
+        "Email organisation": "organization_email",
+        "TÃ©lÃ©phone organisation": "organization_phone",
+        Ville: "city",
+        "Code postal": "postal_code"
+      }
+    }, atlas(), { tenantId });
+
+    expect(result.rows[0].duplicateOrganizationIds).toEqual(["org-1"]);
+    expect(result.rows[0].organizationMatches.map((match) => match.reasons).flat()).toEqual(expect.arrayContaining(["siren", "siret", "email", "phone"]));
+    expect(result.rows[1].possibleDuplicateOrganizationIds).toEqual(["org-1"]);
+    expect(result.rows[1].organizationMatches.map((match) => match.reasons).flat()).toEqual(expect.arrayContaining(["name_city", "name_postal_code"]));
+  });
+
+  it("explains the fields that produced person and organization matches", () => {
+    const result = previewCsvImport({
+      content: "PrÃ©nom,Nom,Email,Organisation,SIREN organisation\nAda,Lovelace,ada@example.test,Neos Immo,123456789"
+    }, atlas({
+      people: [{
+        id: "person-4",
+        tenant_id: tenantId,
+        first_name: "Ada",
+        last_name: "Lovelace",
+        display_name: "Ada Lovelace",
+        primary_email: "ada@example.test",
+        primary_phone: null,
+        city: null,
+        postal_code: null,
+        source: null,
+        comments: null,
+        do_not_contact: false
+      }]
+    }), { tenantId });
+
+    expect(result.rows[0].matches[0]).toMatchObject({
+      entityType: "person",
+      kind: "atlas_existing",
+      fields: ["email"]
+    });
+    expect(result.rows[0].organizationMatches[0]).toMatchObject({
+      entityType: "organization",
+      kind: "atlas_existing"
+    });
+  });
+
+  it("requires user decisions for ambiguous and existing matches before preparing the next step", () => {
+    const result = previewCsvImport({
+      content: "PrÃ©nom,Nom,Email\nAda,Lovelace,ada@example.test"
+    }, atlas({
+      people: [{
+        id: "person-5",
+        tenant_id: tenantId,
+        first_name: "Ada",
+        last_name: "Lovelace",
+        display_name: "Ada Lovelace",
+        primary_email: "ada@example.test",
+        primary_phone: null,
+        city: null,
+        postal_code: null,
+        source: null,
+        comments: null,
+        do_not_contact: false
+      }]
+    }), { tenantId });
+
+    expect(result.summary.pendingDecisions).toBe(1);
+    expect(validateCsvImportDecisions(result, [], result.analysisFingerprint)).toMatchObject({ valid: false, pendingDecisions: 1 });
+    expect(validateCsvImportDecisions(result, [{ lineNumber: 2, decision: "link_existing", targetPersonId: "person-5" }], result.analysisFingerprint).valid).toBe(true);
+  });
+
+  it("blocks stale analyses when the mapping fingerprint changed", () => {
+    const result = previewCsvImport({
+      content: "PrÃ©nom,Nom,Email\nAda,Lovelace,ada@example.test"
+    }, atlas(), { tenantId });
+
+    const validation = validateCsvImportDecisions(result, [{ lineNumber: 2, decision: "create_new" }], "stale");
+    expect(validation.valid).toBe(false);
+    expect(validation.errors[0]).toContain("Relancez la vérification");
+  });
+
   it("rejects unknown pipeline stages", () => {
     const result = previewCsvImport({
       content: "Prénom,Nom,Phase de recrutement\nA,A,Phase magique"
@@ -239,7 +344,12 @@ describe("csv import preview", () => {
       certainDuplicates: 0,
       possibleDuplicates: 0,
       criticalConflicts: 0,
-      rejectedRows: 0
+      rejectedRows: 0,
+      cleanRows: 2,
+      internalDuplicates: 0,
+      atlasMatches: 0,
+      ambiguousRows: 0,
+      pendingDecisions: 0
     });
     expect(result.rows.every((row) => row.existingPersonId === null)).toBe(true);
   });

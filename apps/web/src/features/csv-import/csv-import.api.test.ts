@@ -38,8 +38,14 @@ describe("CSV import preview API", () => {
         certainDuplicates: 0,
         possibleDuplicates: 0,
         criticalConflicts: 0,
-        rejectedRows: 0
-      }
+        rejectedRows: 0,
+        cleanRows: 0,
+        internalDuplicates: 0,
+        atlasMatches: 0,
+        ambiguousRows: 0,
+        pendingDecisions: 0
+      },
+      analysisFingerprint: "[]"
     });
   });
 

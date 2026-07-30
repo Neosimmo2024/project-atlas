@@ -14,6 +14,10 @@ export const CSV_IMPORT_FIELDS = [
   "postal_code",
   "real_estate_network",
   "organization",
+  "organization_siren",
+  "organization_siret",
+  "organization_email",
+  "organization_phone",
   "vat_status",
   "source",
   "comments",
@@ -31,6 +35,23 @@ export type CsvImportClassification =
   | "possible_duplicate"
   | "critical_conflict"
   | "rejected_row";
+
+export type CsvImportDecision = "create_new" | "link_existing" | "ignore_row" | "review_later";
+export type CsvImportMatchEntity = "person" | "organization" | "import_row";
+export type CsvImportMatchKind = "internal_duplicate" | "atlas_existing";
+export type CsvImportMatchStrength = "certain" | "possible" | "ambiguous";
+
+export type CsvImportMatch = {
+  entityType: CsvImportMatchEntity;
+  kind: CsvImportMatchKind;
+  strength: CsvImportMatchStrength;
+  entityId: string | null;
+  lineNumber: number | null;
+  reasons: string[];
+  fields: string[];
+  differences: string[];
+  explanation: string;
+};
 
 export type CsvImportRequest = {
   content: string;
@@ -52,7 +73,19 @@ export type CsvImportPreviewPerson = Pick<Person,
   | "do_not_contact"
 >;
 
-export type CsvImportPreviewOrganization = Pick<Organization, "id" | "tenant_id" | "name" | "status">;
+export type CsvImportPreviewOrganization = Pick<Organization,
+  | "id"
+  | "tenant_id"
+  | "name"
+  | "siren"
+  | "siret"
+  | "primary_email"
+  | "primary_phone"
+  | "city"
+  | "postal_code"
+  | "status"
+  | "do_not_contact"
+>;
 
 export type CsvImportPreviewOwner = {
   userId: string;
@@ -78,8 +111,14 @@ export type CsvImportRowPreview = {
   existingPersonId: string | null;
   fieldsToEnrich: Record<string, string | boolean>;
   fieldConflicts: Record<string, { existing: string | boolean | null; incoming: string | boolean }>;
+  matches: CsvImportMatch[];
+  organizationMatches: CsvImportMatch[];
+  recommendedDecision: CsvImportDecision;
+  decisionRequired: boolean;
   duplicatePersonIds: string[];
   possibleDuplicatePersonIds: string[];
+  duplicateOrganizationIds: string[];
+  possibleDuplicateOrganizationIds: string[];
   warnings: string[];
   errors: string[];
 };
@@ -92,6 +131,11 @@ export type CsvImportSummary = {
   possibleDuplicates: number;
   criticalConflicts: number;
   rejectedRows: number;
+  cleanRows: number;
+  internalDuplicates: number;
+  atlasMatches: number;
+  ambiguousRows: number;
+  pendingDecisions: number;
 };
 
 export type CsvImportPreviewResult = {
@@ -100,6 +144,7 @@ export type CsvImportPreviewResult = {
   unmappedHeaders: string[];
   rows: CsvImportRowPreview[];
   summary: CsvImportSummary;
+  analysisFingerprint: string;
 };
 
 type ParsedCsv = {
@@ -116,6 +161,10 @@ const fieldVariants: Record<CsvImportField, string[]> = {
   postal_code: ["code postal", "cp", "postal code", "zipcode", "zip"],
   real_estate_network: ["reseau immobilier", "réseau immobilier", "reseau", "réseau", "network"],
   organization: ["organisation", "organization", "agence", "societe", "société"],
+  organization_siren: ["siren", "siren organisation", "siren societe", "siren société"],
+  organization_siret: ["siret", "siret organisation", "siret societe", "siret société"],
+  organization_email: ["email organisation", "e-mail organisation", "mail organisation", "email agence"],
+  organization_phone: ["telephone organisation", "téléphone organisation", "tel organisation", "telephone agence"],
   vat_status: ["statut tva", "tva", "vat status"],
   source: ["source", "source du contact", "origine"],
   comments: ["commentaire", "commentaires", "notes", "note"],
@@ -176,6 +225,11 @@ export function normalizeFrenchPhone(value: string) {
 export function normalizePostalCode(value: string) {
   const trimmed = value.trim();
   return /^\d{5}$/.test(trimmed) ? trimmed : "";
+}
+
+export function normalizeBusinessIdentifier(value: string, expectedLength: 9 | 14) {
+  const digits = value.replace(/\D/g, "");
+  return digits.length === expectedLength ? digits : "";
 }
 
 function normalizeBoolean(value: string) {
@@ -260,6 +314,22 @@ function normalizeRow(originalValues: Record<string, string>, mapping: CsvImport
       const normalized = normalizePostalCode(value);
       if (!normalized) errors.push(`Code postal invalide: ${value}`);
       else normalizedValues.postal_code = normalized;
+    } else if (field === "organization_siren") {
+      const normalized = normalizeBusinessIdentifier(value, 9);
+      if (!normalized) errors.push(`SIREN invalide: ${value}`);
+      else normalizedValues.organization_siren = normalized;
+    } else if (field === "organization_siret") {
+      const normalized = normalizeBusinessIdentifier(value, 14);
+      if (!normalized) errors.push(`SIRET invalide: ${value}`);
+      else normalizedValues.organization_siret = normalized;
+    } else if (field === "organization_email") {
+      const normalized = normalizeEmail(value);
+      if (!normalized) errors.push(`Email organisation invalide: ${value}`);
+      else normalizedValues.organization_email = normalized;
+    } else if (field === "organization_phone") {
+      const normalized = normalizeFrenchPhone(value);
+      if (!normalized) errors.push(`Telephone organisation invalide: ${value}`);
+      else normalizedValues.organization_phone = normalized;
     } else if (field === "vat_status") {
       const normalized = normalizeBoolean(value);
       if (normalized === null) warnings.push(`Statut TVA non reconnu: ${value}`);
@@ -271,7 +341,7 @@ function normalizeRow(originalValues: Record<string, string>, mapping: CsvImport
       const stage = stageByLabel.get(normalizeComparable(value));
       if (!stage) errors.push(`Phase de recrutement inconnue: ${value}`);
       else normalizedValues.pipeline_stage = stage;
-    } else if (field === "first_name" || field === "last_name" || field === "city") {
+    } else if (field === "first_name" || field === "last_name" || field === "city" || field === "organization") {
       normalizedValues[field] = value.replace(/\s+/g, " ");
     } else {
       normalizedValues[field] = value;
@@ -304,11 +374,53 @@ function atlasPersonNameCityKey(person: CsvImportPreviewPerson) {
   });
 }
 
+function organizationSirenKey(organization: CsvImportPreviewOrganization) {
+  return organization.siren ? normalizeBusinessIdentifier(organization.siren, 9) : "";
+}
+
+function organizationSiretKey(organization: CsvImportPreviewOrganization) {
+  return organization.siret ? normalizeBusinessIdentifier(organization.siret, 14) : "";
+}
+
+function organizationEmailKey(organization: CsvImportPreviewOrganization) {
+  return organization.primary_email ? normalizeEmail(organization.primary_email) : "";
+}
+
+function organizationPhoneKey(organization: CsvImportPreviewOrganization) {
+  return organization.primary_phone ? normalizeFrenchPhone(organization.primary_phone) : "";
+}
+
+function organizationNameCityKey(values: Pick<CsvImportNormalizedValues, "organization" | "city">) {
+  const name = typeof values.organization === "string" ? normalizeComparable(values.organization) : "";
+  const city = typeof values.city === "string" ? normalizeComparable(values.city) : "";
+  return name && city ? `${name}|${city}` : "";
+}
+
+function organizationNamePostalCodeKey(values: Pick<CsvImportNormalizedValues, "organization" | "postal_code">) {
+  const name = typeof values.organization === "string" ? normalizeComparable(values.organization) : "";
+  const postalCode = typeof values.postal_code === "string" ? normalizeComparable(values.postal_code) : "";
+  return name && postalCode ? `${name}|${postalCode}` : "";
+}
+
+function atlasOrganizationNameCityKey(organization: CsvImportPreviewOrganization) {
+  return organizationNameCityKey({ organization: organization.name, city: organization.city ?? "" });
+}
+
+function atlasOrganizationNamePostalCodeKey(organization: CsvImportPreviewOrganization) {
+  return organizationNamePostalCodeKey({ organization: organization.name, postal_code: organization.postal_code ?? "" });
+}
+
 function collectIndexes(atlas: CsvImportAtlasData) {
   const peopleByEmail = new Map<string, CsvImportPreviewPerson[]>();
   const peopleByPhone = new Map<string, CsvImportPreviewPerson[]>();
   const peopleByNameCity = new Map<string, CsvImportPreviewPerson[]>();
   const organizationsByName = new Map(atlas.organizations.map((organization) => [normalizeComparable(organization.name), organization]));
+  const organizationsBySiren = new Map<string, CsvImportPreviewOrganization[]>();
+  const organizationsBySiret = new Map<string, CsvImportPreviewOrganization[]>();
+  const organizationsByEmail = new Map<string, CsvImportPreviewOrganization[]>();
+  const organizationsByPhone = new Map<string, CsvImportPreviewOrganization[]>();
+  const organizationsByNameCity = new Map<string, CsvImportPreviewOrganization[]>();
+  const organizationsByNamePostalCode = new Map<string, CsvImportPreviewOrganization[]>();
   const ownersByKey = new Map<string, CsvImportPreviewOwner>();
 
   for (const owner of atlas.owners) {
@@ -326,7 +438,34 @@ function collectIndexes(atlas: CsvImportAtlasData) {
     if (nameCity) peopleByNameCity.set(nameCity, [...(peopleByNameCity.get(nameCity) ?? []), person]);
   }
 
-  return { peopleByEmail, peopleByPhone, peopleByNameCity, organizationsByName, ownersByKey };
+  for (const organization of atlas.organizations) {
+    const siren = organizationSirenKey(organization);
+    const siret = organizationSiretKey(organization);
+    const email = organizationEmailKey(organization);
+    const phone = organizationPhoneKey(organization);
+    const nameCity = atlasOrganizationNameCityKey(organization);
+    const namePostalCode = atlasOrganizationNamePostalCodeKey(organization);
+    if (siren) organizationsBySiren.set(siren, [...(organizationsBySiren.get(siren) ?? []), organization]);
+    if (siret) organizationsBySiret.set(siret, [...(organizationsBySiret.get(siret) ?? []), organization]);
+    if (email) organizationsByEmail.set(email, [...(organizationsByEmail.get(email) ?? []), organization]);
+    if (phone) organizationsByPhone.set(phone, [...(organizationsByPhone.get(phone) ?? []), organization]);
+    if (nameCity) organizationsByNameCity.set(nameCity, [...(organizationsByNameCity.get(nameCity) ?? []), organization]);
+    if (namePostalCode) organizationsByNamePostalCode.set(namePostalCode, [...(organizationsByNamePostalCode.get(namePostalCode) ?? []), organization]);
+  }
+
+  return {
+    peopleByEmail,
+    peopleByPhone,
+    peopleByNameCity,
+    organizationsByName,
+    organizationsBySiren,
+    organizationsBySiret,
+    organizationsByEmail,
+    organizationsByPhone,
+    organizationsByNameCity,
+    organizationsByNamePostalCode,
+    ownersByKey
+  };
 }
 
 function enrichmentsFor(person: CsvImportPreviewPerson, values: CsvImportNormalizedValues) {
@@ -360,6 +499,176 @@ function uniquePeople(people: CsvImportPreviewPerson[]) {
   return [...new Map(people.map((person) => [person.id, person])).values()];
 }
 
+function uniqueOrganizations(organizations: CsvImportPreviewOrganization[]) {
+  return [...new Map(organizations.map((organization) => [organization.id, organization])).values()];
+}
+
+function collectLineNumbers(rows: Array<{ lineNumber: number; normalizedValues: CsvImportNormalizedValues }>, keyFor: (values: CsvImportNormalizedValues) => string) {
+  const lineNumbers = new Map<string, number[]>();
+  for (const row of rows) {
+    const key = keyFor(row.normalizedValues);
+    if (key) lineNumbers.set(key, [...(lineNumbers.get(key) ?? []), row.lineNumber]);
+  }
+  return lineNumbers;
+}
+
+function otherLines(lineNumbers: Map<string, number[]>, key: string, currentLine: number) {
+  return (lineNumbers.get(key) ?? []).filter((lineNumber) => lineNumber !== currentLine);
+}
+
+function pushInternalMatch(matches: CsvImportMatch[], lineNumber: number, reasons: string[], fields: string[], explanation: string, strength: CsvImportMatchStrength = "certain") {
+  matches.push({
+    entityType: "import_row",
+    kind: "internal_duplicate",
+    strength,
+    entityId: null,
+    lineNumber,
+    reasons,
+    fields,
+    differences: [],
+    explanation
+  });
+}
+
+function personDifferences(person: CsvImportPreviewPerson, values: CsvImportNormalizedValues) {
+  const differences: string[] = [];
+  const comparisons: Array<[keyof CsvImportNormalizedValues, keyof CsvImportPreviewPerson, string]> = [
+    ["first_name", "first_name", "prenom"],
+    ["last_name", "last_name", "nom"],
+    ["email", "primary_email", "email"],
+    ["phone", "primary_phone", "telephone"],
+    ["city", "city", "ville"],
+    ["postal_code", "postal_code", "code postal"]
+  ];
+
+  for (const [incomingField, personField, label] of comparisons) {
+    const incoming = values[incomingField];
+    const existing = person[personField];
+    if (typeof incoming === "string" && incoming && existing && normalizeComparable(String(existing)) !== normalizeComparable(incoming)) {
+      differences.push(`${label}: Atlas "${String(existing)}" / fichier "${incoming}"`);
+    }
+  }
+
+  return differences;
+}
+
+function organizationDifferences(organization: CsvImportPreviewOrganization, values: CsvImportNormalizedValues) {
+  const differences: string[] = [];
+  const comparisons: Array<[keyof CsvImportNormalizedValues, keyof CsvImportPreviewOrganization, string]> = [
+    ["organization", "name", "nom"],
+    ["organization_siren", "siren", "SIREN"],
+    ["organization_siret", "siret", "SIRET"],
+    ["organization_email", "primary_email", "email"],
+    ["organization_phone", "primary_phone", "telephone"],
+    ["city", "city", "ville"],
+    ["postal_code", "postal_code", "code postal"]
+  ];
+
+  for (const [incomingField, organizationField, label] of comparisons) {
+    const incoming = values[incomingField];
+    const existing = organization[organizationField];
+    if (typeof incoming === "string" && incoming && existing && normalizeComparable(String(existing)) !== normalizeComparable(incoming)) {
+      differences.push(`${label}: Atlas "${String(existing)}" / fichier "${incoming}"`);
+    }
+  }
+
+  return differences;
+}
+
+function atlasPersonMatches(people: CsvImportPreviewPerson[], values: CsvImportNormalizedValues, reasons: string[], strength: CsvImportMatchStrength): CsvImportMatch[] {
+  const fields = reasons.map((reason) => reason === "identity" ? "prenom + nom + ville" : reason);
+  return people.map((person) => ({
+    entityType: "person",
+    kind: "atlas_existing",
+    strength,
+    entityId: person.id,
+    lineNumber: null,
+    reasons,
+    fields,
+    differences: personDifferences(person, values),
+    explanation: strength === "certain"
+      ? `Personne Atlas rapprochee par ${fields.join(", ")}.`
+      : `Personne Atlas potentiellement similaire par ${fields.join(", ")}.`
+  }));
+}
+
+function atlasOrganizationMatches(organizations: CsvImportPreviewOrganization[], values: CsvImportNormalizedValues, reasons: string[], strength: CsvImportMatchStrength): CsvImportMatch[] {
+  const fields = reasons.map((reason) => reason.replaceAll("_", " + "));
+  return organizations.map((organization) => ({
+    entityType: "organization",
+    kind: "atlas_existing",
+    strength,
+    entityId: organization.id,
+    lineNumber: null,
+    reasons,
+    fields,
+    differences: organizationDifferences(organization, values),
+    explanation: strength === "certain"
+      ? `Organisation Atlas rapprochee par ${fields.join(", ")}.`
+      : `Organisation Atlas potentiellement similaire par ${fields.join(", ")}.`
+  }));
+}
+
+function chooseDecision(classification: CsvImportClassification, existingPersonId: string | null): { recommendedDecision: CsvImportDecision; decisionRequired: boolean } {
+  if (classification === "new_contact") return { recommendedDecision: "create_new", decisionRequired: false };
+  if (classification === "existing_contact_enrichment" && existingPersonId) return { recommendedDecision: "link_existing", decisionRequired: true };
+  if (classification === "rejected_row") return { recommendedDecision: "ignore_row", decisionRequired: true };
+  return { recommendedDecision: "review_later", decisionRequired: true };
+}
+
+export type CsvImportPreparedDecision = {
+  lineNumber: number;
+  decision: CsvImportDecision | "";
+  targetPersonId?: string | null;
+  targetOrganizationId?: string | null;
+};
+
+export type CsvImportDecisionValidation = {
+  valid: boolean;
+  errors: string[];
+  pendingDecisions: number;
+};
+
+export function validateCsvImportDecisions(preview: CsvImportPreviewResult, decisions: CsvImportPreparedDecision[], analysisFingerprint: string): CsvImportDecisionValidation {
+  const errors: string[] = [];
+  const decisionsByLine = new Map(decisions.map((decision) => [decision.lineNumber, decision]));
+
+  if (analysisFingerprint !== preview.analysisFingerprint) {
+    errors.push("La correspondance des colonnes a changé. Relancez la vérification avant de poursuivre.");
+  }
+
+  let pendingDecisions = 0;
+  for (const row of preview.rows) {
+    const decision = decisionsByLine.get(row.lineNumber);
+    if (row.decisionRequired && (!decision || !decision.decision)) {
+      pendingDecisions += 1;
+      errors.push(`Ligne ${row.lineNumber}: une décision est obligatoire.`);
+      continue;
+    }
+    if (row.classification === "critical_conflict" && decision?.decision !== "review_later" && decision?.decision !== "ignore_row") {
+      errors.push(`Ligne ${row.lineNumber}: le conflit doit rester à examiner ou être ignoré.`);
+    }
+    if (row.classification === "rejected_row" && decision?.decision !== "ignore_row") {
+      errors.push(`Ligne ${row.lineNumber}: une ligne invalide ne peut pas être importée.`);
+    }
+    if (decision?.decision === "link_existing") {
+      const allowedPersonIds = new Set([row.existingPersonId, ...row.duplicatePersonIds, ...row.possibleDuplicatePersonIds].filter(Boolean));
+      const allowedOrganizationIds = new Set([...row.duplicateOrganizationIds, ...row.possibleDuplicateOrganizationIds]);
+      if (decision.targetPersonId && !allowedPersonIds.has(decision.targetPersonId)) {
+        errors.push(`Ligne ${row.lineNumber}: la personne cible n'est pas accessible dans cette analyse.`);
+      }
+      if (decision.targetOrganizationId && !allowedOrganizationIds.has(decision.targetOrganizationId)) {
+        errors.push(`Ligne ${row.lineNumber}: l'organisation cible n'est pas accessible dans cette analyse.`);
+      }
+      if (!decision.targetPersonId && !decision.targetOrganizationId) {
+        errors.push(`Ligne ${row.lineNumber}: choisissez un enregistrement Atlas accessible à rattacher.`);
+      }
+    }
+  }
+
+  return { valid: errors.length === 0, errors, pendingDecisions };
+}
+
 export function previewCsvImport(request: CsvImportRequest, atlas: CsvImportAtlasData, context?: Pick<TenantContext, "tenantId">): CsvImportPreviewResult {
   const parsed = parseCsv(request.content);
   const proposedMapping = proposeCsvImportMapping(parsed.headers, request.mapping);
@@ -380,6 +689,21 @@ export function previewCsvImport(request: CsvImportRequest, atlas: CsvImportAtla
   const internalEmailCounts = countKeys(normalizedRows.map((row) => typeof row.normalizedValues.email === "string" ? row.normalizedValues.email : ""));
   const internalPhoneCounts = countKeys(normalizedRows.map((row) => typeof row.normalizedValues.phone === "string" ? row.normalizedValues.phone : ""));
   const internalNameCounts = countKeys(normalizedRows.map((row) => personNameCityKey(row.normalizedValues)));
+  const internalEmailLines = collectLineNumbers(normalizedRows, (values) => typeof values.email === "string" ? values.email : "");
+  const internalPhoneLines = collectLineNumbers(normalizedRows, (values) => typeof values.phone === "string" ? values.phone : "");
+  const internalNameLines = collectLineNumbers(normalizedRows, personNameCityKey);
+  const internalSirenCounts = countKeys(normalizedRows.map((row) => typeof row.normalizedValues.organization_siren === "string" ? row.normalizedValues.organization_siren : ""));
+  const internalSiretCounts = countKeys(normalizedRows.map((row) => typeof row.normalizedValues.organization_siret === "string" ? row.normalizedValues.organization_siret : ""));
+  const internalOrganizationEmailCounts = countKeys(normalizedRows.map((row) => typeof row.normalizedValues.organization_email === "string" ? row.normalizedValues.organization_email : ""));
+  const internalOrganizationPhoneCounts = countKeys(normalizedRows.map((row) => typeof row.normalizedValues.organization_phone === "string" ? row.normalizedValues.organization_phone : ""));
+  const internalOrganizationNameCityCounts = countKeys(normalizedRows.map((row) => organizationNameCityKey(row.normalizedValues)));
+  const internalOrganizationNamePostalCounts = countKeys(normalizedRows.map((row) => organizationNamePostalCodeKey(row.normalizedValues)));
+  const internalSirenLines = collectLineNumbers(normalizedRows, (values) => typeof values.organization_siren === "string" ? values.organization_siren : "");
+  const internalSiretLines = collectLineNumbers(normalizedRows, (values) => typeof values.organization_siret === "string" ? values.organization_siret : "");
+  const internalOrganizationEmailLines = collectLineNumbers(normalizedRows, (values) => typeof values.organization_email === "string" ? values.organization_email : "");
+  const internalOrganizationPhoneLines = collectLineNumbers(normalizedRows, (values) => typeof values.organization_phone === "string" ? values.organization_phone : "");
+  const internalOrganizationNameCityLines = collectLineNumbers(normalizedRows, organizationNameCityKey);
+  const internalOrganizationNamePostalLines = collectLineNumbers(normalizedRows, organizationNamePostalCodeKey);
 
   const rows = normalizedRows.map((row): CsvImportRowPreview => {
     const warnings = [...row.warnings];
@@ -390,12 +714,84 @@ export function previewCsvImport(request: CsvImportRequest, atlas: CsvImportAtla
     const possibleMatches = indexes.peopleByNameCity.get(personNameCityKey(values)) ?? [];
     const duplicateMatches = uniquePeople([...emailMatches, ...phoneMatches]);
     const possibleDuplicateMatches = uniquePeople(possibleMatches.filter((person) => !duplicateMatches.some((duplicate) => duplicate.id === person.id)));
+    const matches: CsvImportMatch[] = [];
+    const organizationMatches: CsvImportMatch[] = [];
 
     const emailPersonIds = new Set(emailMatches.map((person) => person.id));
     const phonePersonIds = new Set(phoneMatches.map((person) => person.id));
     const emailPhoneConflict = emailPersonIds.size > 0 && phonePersonIds.size > 0 && [...emailPersonIds].some((id) => !phonePersonIds.has(id));
     const internalCertain = hasDuplicate(internalEmailCounts, values.email) || hasDuplicate(internalPhoneCounts, values.phone);
     const internalPossible = hasDuplicate(internalNameCounts, personNameCityKey(values));
+    const email = typeof values.email === "string" ? values.email : "";
+    const phone = typeof values.phone === "string" ? values.phone : "";
+    const personIdentity = personNameCityKey(values);
+    for (const lineNumber of otherLines(internalEmailLines, email, row.lineNumber)) {
+      pushInternalMatch(matches, lineNumber, ["email"], ["email"], "Une autre ligne du fichier utilise le même e-mail.");
+    }
+    for (const lineNumber of otherLines(internalPhoneLines, phone, row.lineNumber)) {
+      pushInternalMatch(matches, lineNumber, ["phone"], ["telephone"], "Une autre ligne du fichier utilise le même téléphone.");
+    }
+    for (const lineNumber of otherLines(internalNameLines, personIdentity, row.lineNumber)) {
+      pushInternalMatch(matches, lineNumber, ["identity"], ["prenom + nom + ville"], "Une autre ligne du fichier partage le même prénom, nom et ville.", "possible");
+    }
+    matches.push(...atlasPersonMatches(duplicateMatches, values, [
+      ...(emailMatches.length > 0 ? ["email"] : []),
+      ...(phoneMatches.length > 0 ? ["phone"] : [])
+    ], duplicateMatches.length > 1 ? "ambiguous" : "certain"));
+    matches.push(...atlasPersonMatches(possibleDuplicateMatches, values, ["identity"], "possible"));
+
+    const siren = typeof values.organization_siren === "string" ? values.organization_siren : "";
+    const siret = typeof values.organization_siret === "string" ? values.organization_siret : "";
+    const organizationEmail = typeof values.organization_email === "string" ? values.organization_email : "";
+    const organizationPhone = typeof values.organization_phone === "string" ? values.organization_phone : "";
+    const organizationNameCity = organizationNameCityKey(values);
+    const organizationNamePostal = organizationNamePostalCodeKey(values);
+    for (const lineNumber of otherLines(internalSirenLines, siren, row.lineNumber)) {
+      pushInternalMatch(organizationMatches, lineNumber, ["siren"], ["SIREN"], "Une autre ligne du fichier utilise le même SIREN.");
+    }
+    for (const lineNumber of otherLines(internalSiretLines, siret, row.lineNumber)) {
+      pushInternalMatch(organizationMatches, lineNumber, ["siret"], ["SIRET"], "Une autre ligne du fichier utilise le même SIRET.");
+    }
+    for (const lineNumber of otherLines(internalOrganizationEmailLines, organizationEmail, row.lineNumber)) {
+      pushInternalMatch(organizationMatches, lineNumber, ["email"], ["email organisation"], "Une autre ligne du fichier utilise le même e-mail d'organisation.");
+    }
+    for (const lineNumber of otherLines(internalOrganizationPhoneLines, organizationPhone, row.lineNumber)) {
+      pushInternalMatch(organizationMatches, lineNumber, ["phone"], ["telephone organisation"], "Une autre ligne du fichier utilise le même téléphone d'organisation.");
+    }
+    for (const lineNumber of otherLines(internalOrganizationNameCityLines, organizationNameCity, row.lineNumber)) {
+      pushInternalMatch(organizationMatches, lineNumber, ["name_city"], ["nom + ville"], "Une autre ligne du fichier partage le même nom d'organisation et la même ville.", "possible");
+    }
+    for (const lineNumber of otherLines(internalOrganizationNamePostalLines, organizationNamePostal, row.lineNumber)) {
+      pushInternalMatch(organizationMatches, lineNumber, ["name_postal_code"], ["nom + code postal"], "Une autre ligne du fichier partage le même nom d'organisation et le même code postal.", "possible");
+    }
+
+    const organizationCertainMatches = uniqueOrganizations([
+      ...(siren ? indexes.organizationsBySiren.get(siren) ?? [] : []),
+      ...(siret ? indexes.organizationsBySiret.get(siret) ?? [] : []),
+      ...(organizationEmail ? indexes.organizationsByEmail.get(organizationEmail) ?? [] : []),
+      ...(organizationPhone ? indexes.organizationsByPhone.get(organizationPhone) ?? [] : [])
+    ]);
+    const organizationPossibleMatches = uniqueOrganizations([
+      ...(organizationNameCity ? indexes.organizationsByNameCity.get(organizationNameCity) ?? [] : []),
+      ...(organizationNamePostal ? indexes.organizationsByNamePostalCode.get(organizationNamePostal) ?? [] : [])
+    ].filter((organization) => !organizationCertainMatches.some((certain) => certain.id === organization.id)));
+    organizationMatches.push(...atlasOrganizationMatches(organizationCertainMatches, values, [
+      ...(siren ? ["siren"] : []),
+      ...(siret ? ["siret"] : []),
+      ...(organizationEmail ? ["email"] : []),
+      ...(organizationPhone ? ["phone"] : [])
+    ], organizationCertainMatches.length > 1 ? "ambiguous" : "certain"));
+    organizationMatches.push(...atlasOrganizationMatches(organizationPossibleMatches, values, [
+      ...(organizationNameCity ? ["name_city"] : []),
+      ...(organizationNamePostal ? ["name_postal_code"] : [])
+    ], "possible"));
+    const internalOrganizationDuplicate =
+      hasDuplicate(internalSirenCounts, siren) ||
+      hasDuplicate(internalSiretCounts, siret) ||
+      hasDuplicate(internalOrganizationEmailCounts, organizationEmail) ||
+      hasDuplicate(internalOrganizationPhoneCounts, organizationPhone) ||
+      hasDuplicate(internalOrganizationNameCityCounts, organizationNameCity) ||
+      hasDuplicate(internalOrganizationNamePostalCounts, organizationNamePostal);
 
     if (typeof values.organization === "string" && values.organization && !indexes.organizationsByName.has(normalizeComparable(values.organization))) {
       warnings.push(`Organisation inconnue dans le tenant: ${values.organization}`);
@@ -433,6 +829,10 @@ export function previewCsvImport(request: CsvImportRequest, atlas: CsvImportAtla
       classification = "certain_duplicate";
       reason = "Contact existant detecte, mais aucune donnee vide ne peut etre completee automatiquement.";
     }
+    if (classification === "new_contact" && (organizationCertainMatches.length > 0 || organizationPossibleMatches.length > 0 || internalOrganizationDuplicate)) {
+      warnings.push("Une correspondance organisation est detectee et devra etre confirmee avant l'import final.");
+    }
+    const decision = chooseDecision(classification, existingPerson?.id ?? null);
 
     return {
       lineNumber: row.lineNumber,
@@ -444,14 +844,27 @@ export function previewCsvImport(request: CsvImportRequest, atlas: CsvImportAtla
       existingPersonId: existingPerson?.id ?? null,
       fieldsToEnrich: enrichment.fieldsToEnrich,
       fieldConflicts: enrichment.fieldConflicts,
+      matches,
+      organizationMatches,
+      recommendedDecision: decision.recommendedDecision,
+      decisionRequired: decision.decisionRequired,
       duplicatePersonIds: duplicateMatches.map((person) => person.id),
       possibleDuplicatePersonIds: possibleDuplicateMatches.map((person) => person.id),
+      duplicateOrganizationIds: organizationCertainMatches.map((organization) => organization.id),
+      possibleDuplicateOrganizationIds: organizationPossibleMatches.map((organization) => organization.id),
       warnings,
       errors
     };
   });
 
-  return { headers: parsed.headers, proposedMapping, unmappedHeaders, rows, summary: summarizeRows(rows) };
+  return {
+    headers: parsed.headers,
+    proposedMapping,
+    unmappedHeaders,
+    rows,
+    summary: summarizeRows(rows),
+    analysisFingerprint: createAnalysisFingerprint(proposedMapping)
+  };
 }
 
 function countKeys(keys: string[]) {
@@ -464,6 +877,10 @@ function hasDuplicate(counts: Map<string, number>, value: unknown) {
   return typeof value === "string" && value !== "" && (counts.get(value) ?? 0) > 1;
 }
 
+function createAnalysisFingerprint(mapping: CsvImportMapping) {
+  return JSON.stringify(Object.entries(mapping).sort(([left], [right]) => left.localeCompare(right)));
+}
+
 function summarizeRows(rows: CsvImportRowPreview[]): CsvImportSummary {
   return {
     totalRows: rows.length,
@@ -472,6 +889,11 @@ function summarizeRows(rows: CsvImportRowPreview[]): CsvImportSummary {
     certainDuplicates: rows.filter((row) => row.classification === "certain_duplicate").length,
     possibleDuplicates: rows.filter((row) => row.classification === "possible_duplicate").length,
     criticalConflicts: rows.filter((row) => row.classification === "critical_conflict").length,
-    rejectedRows: rows.filter((row) => row.classification === "rejected_row").length
+    rejectedRows: rows.filter((row) => row.classification === "rejected_row").length,
+    cleanRows: rows.filter((row) => row.classification === "new_contact" && row.organizationMatches.length === 0 && row.errors.length === 0).length,
+    internalDuplicates: rows.filter((row) => [...row.matches, ...row.organizationMatches].some((match) => match.kind === "internal_duplicate")).length,
+    atlasMatches: rows.filter((row) => [...row.matches, ...row.organizationMatches].some((match) => match.kind === "atlas_existing")).length,
+    ambiguousRows: rows.filter((row) => row.classification === "critical_conflict" || [...row.matches, ...row.organizationMatches].some((match) => match.strength === "ambiguous")).length,
+    pendingDecisions: rows.filter((row) => row.decisionRequired).length
   };
 }
