@@ -548,6 +548,13 @@ async function runLocalReset() {
   console.log("Local Supabase reset completed with canonical migrations and no seed.");
 }
 
+async function restartLocalSupabaseAfterReset() {
+  const cli = supabaseCliParts();
+  await run(cli.command, [...cli.args, "stop"]);
+  await run(cli.command, [...cli.args, "start"]);
+  console.log("Local Supabase services restarted after reset before Auth bootstrap.");
+}
+
 async function verifyPostResetReadiness() {
   await executeSql(`
 set search_path = '';
@@ -731,11 +738,13 @@ async function simulate() {
   await runGuardFailureScenarios(ownerUserId);
 
   await runLocalReset();
+  await restartLocalSupabaseAfterReset();
   const secondOwnerUserId = await seedExactSnapshot();
   await assertActualSnapshotPass("Success-path local pre-reset guard");
   await deleteAuthUser(secondOwnerUserId);
 
   await runLocalReset();
+  await restartLocalSupabaseAfterReset();
   await verifyPostResetReadiness();
   await bootstrapFirstOwner();
   await verifyNoQaSeedData();
