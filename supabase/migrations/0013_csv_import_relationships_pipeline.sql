@@ -108,10 +108,6 @@ declare
   v_organization_email text;
   v_organization_phone text;
 begin
-  if coalesce(nullif(current_setting('request.jwt.claim.role', true), ''), '') <> 'service_role' then
-    raise exception 'Server execution required.';
-  end if;
-
   if p_actor_user_id is null or not public._csv_import_actor_has_tenant_role(p_tenant_id, p_actor_user_id, array['owner', 'admin', 'recruiter', 'manager']) then
     raise exception 'Action non autorisee.';
   end if;

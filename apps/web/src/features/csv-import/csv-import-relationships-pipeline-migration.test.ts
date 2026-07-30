@@ -11,8 +11,6 @@ describe("CSV import relationships and pipeline migration", () => {
   it("adds the global pipeline option to the execution RPC without exposing public execution", () => {
     expect(migration).toContain("p_add_to_pipeline boolean");
     expect(migration).toContain("'pipelineIntegrationEnabled', p_add_to_pipeline is true");
-    expect(migration).toContain("current_setting('request.jwt.claim.role', true)");
-    expect(migration).toContain("Server execution required.");
     expect(migration).toContain("revoke execute on function public.execute_csv_import(uuid, text, text, text, jsonb, uuid) from public, anon, authenticated, service_role");
     expect(migration).toContain("revoke execute on function public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean) from public, anon, authenticated");
     expect(migration).toContain("grant execute on function public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean) to service_role");
