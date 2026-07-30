@@ -159,37 +159,44 @@ async function cancelImport(client: SupabaseClient, context: TenantUserContext, 
 }
 
 async function createPipelineImport(context: TenantUserContext, suffix: string) {
-  const execution = await executeImportAsServer(context, `${marker}-${suffix}`, [{
-    lineNumber: 2,
+  const fixtures = await createPipelineImportRows(context, suffix, 1);
+  return fixtures[0];
+}
+
+async function createPipelineImportRows(context: TenantUserContext, suffix: string, count: number) {
+  const execution = await executeImportAsServer(context, `${marker}-${suffix}`, Array.from({ length: count }, (_, index) => ({
+    lineNumber: index + 2,
     decision: "create_new",
     classification: "new_contact",
     normalizedValues: {
       first_name: "Pipeline",
-      last_name: suffix,
-      email: `${marker}-${suffix}@example.test`,
-      organization: `${marker} ${suffix} Org`
+      last_name: `${suffix}-${index}`,
+      email: `${marker}-${suffix}-${index}@example.test`,
+      organization: `${marker} ${suffix} ${index} Org`
     },
     targetPersonId: null,
     targetOrganizationId: null
-  }], true);
+  })), true);
   if (execution.error) throw execution.error;
 
   const report = execution.data as ImportReport;
   const importId = report.id;
-  const personId = report.rows?.[0]?.personId;
-  const organizationId = report.rows?.[0]?.organizationId;
-  const relationshipId = report.rows?.[0]?.relationshipId;
-  if (!importId || !personId || !organizationId || !relationshipId) {
+  if (!importId || !report.rows || report.rows.length < count) {
     throw new Error(`Missing created import trace for ${suffix}`);
   }
 
-  return {
-    report,
-    importId,
-    personId,
-    organizationId,
-    relationshipId
-  };
+  return report.rows.slice(0, count).map((row) => {
+    if (!row.personId || !row.organizationId || !row.relationshipId) {
+      throw new Error(`Missing created row trace for ${suffix}`);
+    }
+    return {
+      report,
+      importId,
+      personId: row.personId,
+      organizationId: row.organizationId,
+      relationshipId: row.relationshipId
+    };
+  });
 }
 
 async function createManualRelationship(context: TenantUserContext, suffix: string) {
@@ -535,9 +542,7 @@ order by result;
     expect(mutation.error).toBeNull();
 
     const cancellation = await cancelImport(tenantA, tenantAContext, fixture.importId, `${marker}-keep-${_reason}-cancel`);
-    expect(cancellation.error).toBeNull();
-    expect((cancellation.data as ImportReport).status).toBe("partial");
-    expect((cancellation.data as ImportReport).summary?.relationshipsKept).toBe(1);
+    expect(cancellation.error).not.toBeNull();
     await expectRelationshipExists(fixture.relationshipId, true);
   });
 
@@ -548,8 +553,8 @@ order by result;
       summary: { relationshipsLinked: 1 }
     });
     const referencedCancel = await cancelImport(tenantA, tenantAContext, referenced.importId, `${marker}-referenced-cancel`);
-    expect(referencedCancel.error).toBeNull();
-    expect((referencedCancel.data as ImportReport).summary?.relationshipsKept).toBe(1);
+    expect(referencedCancel.error).not.toBeNull();
+    await expectRelationshipExists(referenced.relationshipId, true);
 
     const contradictory = await createManualRelationship(tenantAContext, "contradictory");
     const contradictoryImportId = await insertImportRun(tenantAContext, "contradictory-run", relationshipCreatedReport({
@@ -610,17 +615,19 @@ order by result;
   });
 
   it("keeps imported relationships after partial cancellation and returns the same result on repeated calls", async () => {
-    const fixture = await createPipelineImport(tenantAContext, "partial-repeat");
-    const mutation = await serviceClient().from("relationships").update({ pipeline_stage: "qualification" }).eq("id", fixture.relationshipId);
+    const [keptFixture, deletedFixture] = await createPipelineImportRows(tenantAContext, "partial-repeat", 2);
+    const mutation = await serviceClient().from("relationships").update({ pipeline_stage: "qualification" }).eq("id", keptFixture.relationshipId);
     expect(mutation.error).toBeNull();
 
-    const first = await cancelImport(tenantA, tenantAContext, fixture.importId, `${marker}-partial-repeat-cancel`);
+    const first = await cancelImport(tenantA, tenantAContext, keptFixture.importId, `${marker}-partial-repeat-cancel`);
     expect(first.error).toBeNull();
     expect((first.data as ImportReport).status).toBe("partial");
-    const second = await cancelImport(tenantA, tenantAContext, fixture.importId, `${marker}-partial-repeat-cancel`);
+    expect((first.data as ImportReport).summary).toMatchObject({ relationshipsDeleted: 1, relationshipsKept: 1 });
+    const second = await cancelImport(tenantA, tenantAContext, keptFixture.importId, `${marker}-partial-repeat-cancel`);
     expect(second.error).toBeNull();
     expect((second.data as ImportReport).idempotent).toBe(true);
-    await expectRelationshipExists(fixture.relationshipId, true);
+    await expectRelationshipExists(keptFixture.relationshipId, true);
+    await expectRelationshipExists(deletedFixture.relationshipId, false);
   });
 
   it("serializes concurrent cancellation calls and prevents idempotency key reuse on another import while allowing the same key in another tenant", async () => {
