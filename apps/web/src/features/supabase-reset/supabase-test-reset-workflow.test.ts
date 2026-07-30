@@ -95,7 +95,7 @@ describe("Supabase test reset workflow", () => {
     }
   });
 
-  it("requires exactly canonical migrations 0001 through 0010", () => {
+  it("requires exactly canonical migrations 0001 through 0011", () => {
     const migrations = readdirSync(resolve(root, "supabase/migrations")).filter((name) => name.endsWith(".sql")).sort();
     expect(migrations).toEqual([
       "0001_core.sql",
@@ -107,9 +107,10 @@ describe("Supabase test reset workflow", () => {
       "0007_action_plan_engine.sql",
       "0008_projects_foundation.sql",
       "0009_api_permissions_hardening.sql",
-      "0010_recruitment_pipeline_domain.sql"
+      "0010_recruitment_pipeline_domain.sql",
+      "0011_csv_import_execution.sql"
     ]);
-    expect(workflow).toContain("Refusing reset: migration set is not exactly 0001 through 0010.");
+    expect(workflow).toContain("Refusing reset: migration set is not exactly 0001 through 0011.");
   });
 
   it("stops unless the exact authorized pre-reset snapshot matches", () => {

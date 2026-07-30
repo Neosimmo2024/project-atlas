@@ -105,11 +105,12 @@ jobs:
           0008_projects_foundation.sql
           0009_api_permissions_hardening.sql
           0010_recruitment_pipeline_domain.sql
+          0011_csv_import_execution.sql
           EOF
           sed -i 's/^          //' "$expected_migrations"
           find supabase/migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort > "$actual_migrations"
           if ! diff -u "$expected_migrations" "$actual_migrations"; then
-            echo "Refusing reset: migration set is not exactly 0001 through 0010."
+            echo "Refusing reset: migration set is not exactly 0001 through 0011."
             exit 1
           fi
 
@@ -301,7 +302,7 @@ jobs:
           do $$
           declare
             expected_versions text[] := array[
-              '0001','0002','0003','0004','0005','0006','0007','0008','0009','0010'
+              '0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011'
             ];
             missing_version_count integer;
             missing_table_count integer;
@@ -316,7 +317,7 @@ jobs:
               where sm.version like version_prefix || '%'
             );
             if missing_version_count > 0 then
-              raise exception 'Expected migration history 0001 through 0010 is incomplete.';
+              raise exception 'Expected migration history 0001 through 0011 is incomplete.';
             end if;
 
             select count(*)
@@ -335,7 +336,8 @@ jobs:
               'public.timeline_events',
               'public.action_plan_decisions',
               'public.projects',
-              'public.recruitment_pipeline_events'
+              'public.recruitment_pipeline_events',
+              'public.csv_import_runs'
             ]) as table_name
             where to_regclass(table_name) is null;
             if missing_table_count > 0 then
@@ -356,7 +358,8 @@ jobs:
               'timeline_events',
               'action_plan_decisions',
               'projects',
-              'recruitment_pipeline_events'
+              'recruitment_pipeline_events',
+              'csv_import_runs'
             ]) as table_name
             where not exists (
               select 1

@@ -218,6 +218,25 @@ jobs:
             if not has_function_privilege('authenticated', 'public.transition_recruitment_pipeline(uuid, uuid, text, text, timestamp with time zone, boolean, text, timestamp with time zone, timestamp with time zone, text, text, boolean, timestamp with time zone, boolean, jsonb)', 'execute') then
               raise exception 'authenticated role cannot execute transition_recruitment_pipeline';
             end if;
+            if to_regclass('public.csv_import_runs') is null then
+              raise exception 'public.csv_import_runs is missing';
+            end if;
+            if not exists (
+              select 1 from pg_class c
+              join pg_namespace n on n.oid = c.relnamespace
+              where n.nspname = 'public' and c.relname = 'csv_import_runs' and c.relrowsecurity
+            ) then
+              raise exception 'RLS is not enabled on public.csv_import_runs';
+            end if;
+            if not has_table_privilege('authenticated', 'public.csv_import_runs', 'select') then
+              raise exception 'authenticated role cannot select public.csv_import_runs';
+            end if;
+            if has_table_privilege('authenticated', 'public.csv_import_runs', 'insert') then
+              raise exception 'authenticated role must not insert public.csv_import_runs directly';
+            end if;
+            if not has_function_privilege('authenticated', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)', 'execute') then
+              raise exception 'authenticated role cannot execute execute_csv_import';
+            end if;
           end $$;
           notify pgrst, 'reload schema';
           SQL

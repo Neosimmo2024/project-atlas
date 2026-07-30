@@ -3,7 +3,8 @@ import type { TenantContext } from "@/types/domain";
 
 const mocks = vi.hoisted(() => ({
   getTenantContextMock: vi.fn(),
-  previewTenantCsvImportMock: vi.fn()
+  previewTenantCsvImportMock: vi.fn(),
+  executeTenantCsvImportMock: vi.fn()
 }));
 
 vi.mock("@/repositories/tenant-context", () => ({
@@ -12,6 +13,10 @@ vi.mock("@/repositories/tenant-context", () => ({
 
 vi.mock("@/repositories/csv-import-preview", () => ({
   previewTenantCsvImport: mocks.previewTenantCsvImportMock
+}));
+
+vi.mock("@/repositories/csv-import-execution", () => ({
+  executeTenantCsvImport: mocks.executeTenantCsvImportMock
 }));
 
 const context: TenantContext = {
@@ -25,10 +30,11 @@ describe("CSV import preview API", () => {
   beforeEach(() => {
     mocks.getTenantContextMock.mockReset();
     mocks.previewTenantCsvImportMock.mockReset();
+    mocks.executeTenantCsvImportMock.mockReset();
     mocks.getTenantContextMock.mockResolvedValue(context);
     mocks.previewTenantCsvImportMock.mockResolvedValue({
-      headers: ["Email"],
-      proposedMapping: { Email: "email" },
+      headers: ["First", "Email"],
+      proposedMapping: { First: "first_name", Email: "email" },
       unmappedHeaders: [],
       rows: [],
       summary: {
@@ -46,6 +52,27 @@ describe("CSV import preview API", () => {
         pendingDecisions: 0
       },
       analysisFingerprint: "[]"
+    });
+    mocks.executeTenantCsvImportMock.mockResolvedValue({
+      id: "import-1",
+      idempotent: false,
+      sourceName: "contacts.csv",
+      analysisFingerprint: "[]",
+      summary: {
+        totalRows: 0,
+        peopleCreated: 0,
+        peopleLinked: 0,
+        organizationsCreated: 0,
+        organizationsLinked: 0,
+        relationshipsCreated: 0,
+        rowsIgnored: 0,
+        rowsReviewLater: 0,
+        rowsRejected: 0,
+        errorsCount: 0
+      },
+      rows: [],
+      errors: [],
+      createdAt: "2026-07-30T12:00:00Z"
     });
   });
 
@@ -74,5 +101,74 @@ describe("CSV import preview API", () => {
 
     expect(response.status).toBe(401);
     expect(mocks.previewTenantCsvImportMock).not.toHaveBeenCalled();
+  });
+
+  it("executes CSV imports only after recomputing the preview from tenant context", async () => {
+    const { POST } = await import("../../app/api/imports/csv/execute/route");
+
+    const response = await POST(new Request("http://localhost/api/imports/csv/execute", {
+      method: "POST",
+      body: JSON.stringify({
+        content: "First,Email\nAda,a@example.test",
+        mapping: { First: "first_name", Email: "email" },
+        decisions: [{ lineNumber: 2, decision: "create_new" }],
+        analysisFingerprint: "[]",
+        idempotencyKey: "request-1",
+        sourceName: "contacts.csv",
+        confirm: true,
+        tenant_id: "malicious"
+      })
+    }));
+
+    expect(response.status).toBe(200);
+    expect(mocks.previewTenantCsvImportMock).toHaveBeenCalledWith(context, {
+      content: "First,Email\nAda,a@example.test",
+      mapping: { First: "first_name", Email: "email" }
+    });
+    expect(mocks.executeTenantCsvImportMock).toHaveBeenCalledWith(context, expect.objectContaining({
+      analysisFingerprint: "[]",
+      idempotencyKey: "request-1",
+      sourceName: "contacts.csv"
+    }));
+  });
+
+  it("rejects execution when explicit confirmation is missing", async () => {
+    const { POST } = await import("../../app/api/imports/csv/execute/route");
+
+    const response = await POST(new Request("http://localhost/api/imports/csv/execute", {
+      method: "POST",
+      body: JSON.stringify({
+        content: "First,Email\nAda,a@example.test",
+        mapping: { First: "first_name", Email: "email" },
+        decisions: [{ lineNumber: 2, decision: "create_new" }],
+        analysisFingerprint: "[]",
+        idempotencyKey: "request-1",
+        confirm: false
+      })
+    }));
+
+    expect(response.status).toBe(400);
+    expect(mocks.executeTenantCsvImportMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects readers before executing a final import", async () => {
+    const { POST } = await import("../../app/api/imports/csv/execute/route");
+    mocks.getTenantContextMock.mockResolvedValue({ ...context, role: "reader" });
+
+    const response = await POST(new Request("http://localhost/api/imports/csv/execute", {
+      method: "POST",
+      body: JSON.stringify({
+        content: "First,Email\nAda,a@example.test",
+        mapping: { First: "first_name", Email: "email" },
+        decisions: [{ lineNumber: 2, decision: "create_new" }],
+        analysisFingerprint: "[]",
+        idempotencyKey: "request-1",
+        confirm: true
+      })
+    }));
+
+    expect(response.status).toBe(403);
+    expect(mocks.previewTenantCsvImportMock).not.toHaveBeenCalled();
+    expect(mocks.executeTenantCsvImportMock).not.toHaveBeenCalled();
   });
 });

@@ -17,7 +17,8 @@ export const EXPECTED_MIGRATIONS = [
   "0007_action_plan_engine.sql",
   "0008_projects_foundation.sql",
   "0009_api_permissions_hardening.sql",
-  "0010_recruitment_pipeline_domain.sql"
+  "0010_recruitment_pipeline_domain.sql",
+  "0011_csv_import_execution.sql"
 ];
 export const EXPECTED_COUNTS = Object.freeze({
   "auth.users": 1,
@@ -348,7 +349,7 @@ function verifyMigrationSet() {
   const actual = migrations.join("\n");
   const expected = EXPECTED_MIGRATIONS.join("\n");
   if (actual !== expected) {
-    throw new Error("Migration set is not exactly 0001 through 0010.");
+    throw new Error("Migration set is not exactly 0001 through 0011.");
   }
 }
 
@@ -558,13 +559,13 @@ declare
 begin
   select count(*)
   into missing_version_count
-  from unnest(array['0001','0002','0003','0004','0005','0006','0007','0008','0009','0010']) as version_prefix
+  from unnest(array['0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011']) as version_prefix
   where not exists (
     select 1 from supabase_migrations.schema_migrations sm
     where sm.version like version_prefix || '%'
   );
   if missing_version_count > 0 then
-    raise exception 'Expected migration history 0001 through 0010 is incomplete.';
+    raise exception 'Expected migration history 0001 through 0011 is incomplete.';
   end if;
 
   select count(*)
@@ -583,7 +584,8 @@ begin
     'public.timeline_events',
     'public.action_plan_decisions',
     'public.projects',
-    'public.recruitment_pipeline_events'
+    'public.recruitment_pipeline_events',
+    'public.csv_import_runs'
   ]) as table_name
   where to_regclass(table_name) is null;
   if missing_table_count > 0 then
@@ -604,7 +606,8 @@ begin
     'timeline_events',
     'action_plan_decisions',
     'projects',
-    'recruitment_pipeline_events'
+    'recruitment_pipeline_events',
+    'csv_import_runs'
   ]) as table_name
   where not exists (
     select 1
