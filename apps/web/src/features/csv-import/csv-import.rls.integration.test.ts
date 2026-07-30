@@ -114,19 +114,19 @@ async function createRoleUser(tenantId: string, role: string) {
   if (!userId) throw new Error(`Missing auth user id for ${role}`);
 
   const role_id = await roleId(role);
-  const { error: profileError } = await serviceClient().from("profiles").insert({
+  const { error: profileError } = await serviceClient().from("profiles").upsert({
     id: userId,
     email,
     full_name: `CSV ${role}`
-  });
+  }, { onConflict: "id" });
   if (profileError) throw profileError;
 
-  const { error: tenantUserError } = await serviceClient().from("tenant_users").insert({
+  const { error: tenantUserError } = await serviceClient().from("tenant_users").upsert({
     tenant_id: tenantId,
     user_id: userId,
     role_id,
     status: "active"
-  });
+  }, { onConflict: "tenant_id,user_id" });
   if (tenantUserError) throw tenantUserError;
 
   return { client: await supabaseForUser({ email, password }), userId };
