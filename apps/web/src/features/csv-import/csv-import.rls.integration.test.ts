@@ -318,22 +318,46 @@ describeIntegration("csv import execution RLS integration", () => {
 
   it("revokes direct execute_csv_import privileges from public, anon, authenticated and legacy service-role execution", () => {
     const privilegeRows = querySql(`
-select role_name || ':' || signature || ':' || has_function_privilege(role_name, signature, 'execute')::text
-from (
-  values
-    ('public', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)'),
-    ('anon', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)'),
-    ('authenticated', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)'),
-    ('service_role', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)'),
-    ('public', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean)'),
-    ('anon', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean)'),
-    ('authenticated', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean)'),
-    ('service_role', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean)'),
-    ('authenticated', 'public._csv_import_actor_has_tenant_role(uuid, uuid, text[])'),
-    ('authenticated', 'public._csv_import_created_entity_report(uuid, uuid)'),
-    ('authenticated', 'public._csv_import_safe_uuid(text)')
-) as checks(role_name, signature)
-order by role_name, signature;
+with public_privileges as (
+  select 'public:' || signature || ':' ||
+    case
+      when p.proacl is null then 'true'
+      else exists (
+        select 1
+        from aclexplode(p.proacl) acl
+        where acl.grantee = 0
+          and acl.privilege_type = 'EXECUTE'
+      )::text
+    end as result
+  from (
+    values
+      ('execute_csv_import', 'uuid, text, text, text, jsonb, uuid', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)'),
+      ('execute_csv_import', 'uuid, text, text, text, jsonb, uuid, boolean', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean)')
+  ) as checks(function_name, identity_arguments, signature)
+  join pg_proc p on p.proname = checks.function_name
+  join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public'
+    and pg_get_function_identity_arguments(p.oid) = checks.identity_arguments
+),
+role_privileges as (
+  select role_name || ':' || signature || ':' || has_function_privilege(role_name, signature, 'execute')::text as result
+  from (
+    values
+      ('anon', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)'),
+      ('authenticated', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)'),
+      ('service_role', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)'),
+      ('anon', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean)'),
+      ('authenticated', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean)'),
+      ('service_role', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean)'),
+      ('authenticated', 'public._csv_import_actor_has_tenant_role(uuid, uuid, text[])'),
+      ('authenticated', 'public._csv_import_created_entity_report(uuid, uuid)'),
+      ('authenticated', 'public._csv_import_safe_uuid(text)')
+  ) as checks(role_name, signature)
+)
+select result from public_privileges
+union all
+select result from role_privileges
+order by result;
 `);
 
     expect(privilegeRows.split("\n")).toContain("service_role:public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean):true");
