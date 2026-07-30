@@ -324,7 +324,12 @@ jobs:
         run: npm run build
 
       - name: RLS and integration tests
-        run: npm run integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p apps/web/test-results
+          npm run integration 2>&1 | tee apps/web/test-results/integration.log
+          test "${PIPESTATUS[0]}" -eq 0
 
       - name: Start Next.js app
         shell: bash
