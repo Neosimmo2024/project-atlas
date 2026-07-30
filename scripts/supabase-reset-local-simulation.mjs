@@ -17,7 +17,8 @@ export const EXPECTED_MIGRATIONS = [
   "0007_action_plan_engine.sql",
   "0008_projects_foundation.sql",
   "0009_api_permissions_hardening.sql",
-  "0010_recruitment_pipeline_domain.sql"
+  "0010_recruitment_pipeline_domain.sql",
+  "0011_csv_import_execution.sql"
 ];
 export const EXPECTED_COUNTS = Object.freeze({
   "auth.users": 1,
@@ -348,7 +349,7 @@ function verifyMigrationSet() {
   const actual = migrations.join("\n");
   const expected = EXPECTED_MIGRATIONS.join("\n");
   if (actual !== expected) {
-    throw new Error("Migration set is not exactly 0001 through 0010.");
+    throw new Error("Migration set is not exactly 0001 through 0011.");
   }
 }
 
@@ -547,6 +548,13 @@ async function runLocalReset() {
   console.log("Local Supabase reset completed with canonical migrations and no seed.");
 }
 
+async function restartLocalSupabaseAfterReset() {
+  const cli = supabaseCliParts();
+  await run(cli.command, [...cli.args, "stop"]);
+  await run(cli.command, [...cli.args, "start"]);
+  console.log("Local Supabase services restarted after reset before Auth bootstrap.");
+}
+
 async function verifyPostResetReadiness() {
   await executeSql(`
 set search_path = '';
@@ -558,13 +566,13 @@ declare
 begin
   select count(*)
   into missing_version_count
-  from unnest(array['0001','0002','0003','0004','0005','0006','0007','0008','0009','0010']) as version_prefix
+  from unnest(array['0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011']) as version_prefix
   where not exists (
     select 1 from supabase_migrations.schema_migrations sm
     where sm.version like version_prefix || '%'
   );
   if missing_version_count > 0 then
-    raise exception 'Expected migration history 0001 through 0010 is incomplete.';
+    raise exception 'Expected migration history 0001 through 0011 is incomplete.';
   end if;
 
   select count(*)
@@ -583,7 +591,8 @@ begin
     'public.timeline_events',
     'public.action_plan_decisions',
     'public.projects',
-    'public.recruitment_pipeline_events'
+    'public.recruitment_pipeline_events',
+    'public.csv_import_runs'
   ]) as table_name
   where to_regclass(table_name) is null;
   if missing_table_count > 0 then
@@ -604,7 +613,8 @@ begin
     'timeline_events',
     'action_plan_decisions',
     'projects',
-    'recruitment_pipeline_events'
+    'recruitment_pipeline_events',
+    'csv_import_runs'
   ]) as table_name
   where not exists (
     select 1
@@ -626,6 +636,20 @@ begin
   end if;
   if not has_function_privilege('authenticated', 'public.transition_recruitment_pipeline(uuid, uuid, text, text, timestamp with time zone, boolean, text, timestamp with time zone, timestamp with time zone, text, text, boolean, timestamp with time zone, boolean, jsonb)', 'execute') then
     raise exception 'authenticated role cannot execute transition_recruitment_pipeline.';
+  end if;
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'csv_import_runs'
+      and column_name = 'payload_fingerprint'
+  ) then
+    raise exception 'public.csv_import_runs.payload_fingerprint is missing.';
+  end if;
+  if not has_function_privilege('authenticated', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)', 'execute') then
+    raise exception 'authenticated role cannot execute execute_csv_import.';
+  end if;
+  if has_function_privilege('anon', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)', 'execute') then
+    raise exception 'anon role must not execute execute_csv_import.';
   end if;
 end $$;
 notify pgrst, 'reload schema';
@@ -728,11 +752,13 @@ async function simulate() {
   await runGuardFailureScenarios(ownerUserId);
 
   await runLocalReset();
+  await restartLocalSupabaseAfterReset();
   const secondOwnerUserId = await seedExactSnapshot();
   await assertActualSnapshotPass("Success-path local pre-reset guard");
   await deleteAuthUser(secondOwnerUserId);
 
   await runLocalReset();
+  await restartLocalSupabaseAfterReset();
   await verifyPostResetReadiness();
   await bootstrapFirstOwner();
   await verifyNoQaSeedData();

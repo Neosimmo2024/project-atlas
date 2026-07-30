@@ -1,4 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 type SimulationModule = {
   EXPECTED_CONFIRMATION: string;
@@ -34,6 +36,7 @@ type SimulationModule = {
 
 const validSha = "2f3ed0dd951b9698ca931b705daec1806477444a";
 let simulation: SimulationModule;
+const source = readFileSync(resolve(process.cwd(), "..", "..", "scripts", "supabase-reset-local-simulation.mjs"), "utf8");
 
 beforeAll(async () => {
   // @ts-expect-error The reset simulation is a Node-only script outside the web TS project.
@@ -252,5 +255,21 @@ describe("Supabase reset local simulation guards", () => {
       gatewayBody: "{}",
       adminError: "name=AuthRetryableFetchError status=502 message={}"
     })).toBe("gateway=502 gateway_body={} admin=name=AuthRetryableFetchError status=502 message={}");
+  });
+
+  it("restarts only local Supabase services after each local reset before Auth bootstrap", () => {
+    expect(source).toContain("async function restartLocalSupabaseAfterReset()");
+    expect(source).toContain("Local Supabase services restarted after reset before Auth bootstrap.");
+    expect(source).not.toContain("db reset --linked");
+
+    const resetToRestartMatches = source.match(/await runLocalReset\(\);\s+await restartLocalSupabaseAfterReset\(\);/g) ?? [];
+    expect(resetToRestartMatches).toHaveLength(2);
+  });
+
+  it("verifies CSV import execution schema and RPC privileges after local reset", () => {
+    expect(source).toContain("public.csv_import_runs.payload_fingerprint is missing.");
+    expect(source).toContain("authenticated role cannot execute execute_csv_import.");
+    expect(source).toContain("anon role must not execute execute_csv_import.");
+    expect(source).toContain("has_function_privilege('anon', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)', 'execute')");
   });
 });

@@ -317,6 +317,29 @@ export type TimelineEvent = TenantScoped & {
   idempotency_key: string;
 };
 
+export type CsvImportRun = TenantScoped & {
+  id: string;
+  requested_by: string;
+  idempotency_key: string;
+  source_name: string | null;
+  analysis_fingerprint: string;
+  payload_fingerprint: string;
+  status: "succeeded";
+  total_rows: number;
+  people_created: number;
+  people_linked: number;
+  organizations_created: number;
+  organizations_linked: number;
+  relationships_created: number;
+  rows_ignored: number;
+  rows_review_later: number;
+  rows_rejected: number;
+  errors_count: number;
+  report: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
 export type TenantContext = {
   tenantId: string;
   tenant: { id: string; name: string };

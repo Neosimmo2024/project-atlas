@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Button } from "@/components/ui";
 import {
   CSV_IMPORT_FIELD_DEFINITIONS,
   CSV_IMPORT_FIELD_GROUP_LABELS,
@@ -15,9 +16,12 @@ import {
   type CsvImportPreviewResult,
   type CsvImportRowPreview
 } from "@/features/csv-import/csv-import";
-import { Button } from "@/components/ui";
+import {
+  summarizeCsvImportExecution,
+  type CsvImportExecutionReport
+} from "@/features/csv-import/csv-import-execution";
 
-type Step = "upload" | "mapping" | "review" | "ready";
+type Step = "upload" | "mapping" | "review" | "ready" | "report";
 
 type PreviewApiResponse = {
   data?: CsvImportPreviewResult;
@@ -25,26 +29,40 @@ type PreviewApiResponse = {
   message?: string;
 };
 
+type ExecuteApiResponse = {
+  data?: CsvImportExecutionReport;
+  error?: string;
+  message?: string;
+};
+
 const decisionLabels: Record<CsvImportDecision | "", string> = {
-  "": "Décision à prendre",
-  create_new: "Considérer comme nouvelle entrée",
-  link_existing: "Rattacher à l'enregistrement Atlas",
+  "": "Decision a prendre",
+  create_new: "Considerer comme nouvelle entree",
+  link_existing: "Rattacher a l'enregistrement Atlas",
   ignore_row: "Ignorer la ligne",
-  review_later: "Conserver à examiner"
+  review_later: "Conserver a examiner"
 };
 
 async function parsePreviewResponse(response: Response) {
   const body = await response.json().catch(() => null) as PreviewApiResponse | null;
   if (!response.ok || !body?.data) {
-    throw new Error(body?.error || body?.message || "Le fichier n'a pas pu être analysé.");
+    throw new Error(body?.error || body?.message || "Le fichier n'a pas pu etre analyse.");
+  }
+  return body.data;
+}
+
+async function parseExecuteResponse(response: Response) {
+  const body = await response.json().catch(() => null) as ExecuteApiResponse | null;
+  if (!response.ok || !body?.data) {
+    throw new Error(body?.error || body?.message || "L'import n'a pas pu etre execute.");
   }
   return body.data;
 }
 
 function rowStatusLabel(row: CsvImportRowPreview) {
-  if (row.classification === "new_contact") return row.organizationMatches.length > 0 ? "Sans doublon personne, organisation à confirmer" : "Sans doublon détecté";
+  if (row.classification === "new_contact") return row.organizationMatches.length > 0 ? "Sans doublon personne, organisation a confirmer" : "Sans doublon detecte";
   if (row.classification === "existing_contact_enrichment") return "Correspondance Atlas";
-  if (row.classification === "certain_duplicate") return "Doublon détecté";
+  if (row.classification === "certain_duplicate") return "Doublon detecte";
   if (row.classification === "possible_duplicate") return "Cas ambigu";
   if (row.classification === "critical_conflict") return "Conflit critique";
   return "Ligne invalide";
@@ -64,6 +82,8 @@ export function CsvImportMapping() {
   const [preview, setPreview] = useState<CsvImportPreviewResult | null>(null);
   const [mapping, setMapping] = useState<CsvImportMapping>({});
   const [decisions, setDecisions] = useState<Record<number, CsvImportDecision | "">>({});
+  const [idempotencyKey, setIdempotencyKey] = useState("");
+  const [report, setReport] = useState<CsvImportExecutionReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const validation = useMemo(
@@ -91,6 +111,10 @@ export function CsvImportMapping() {
     () => preview ? validateCsvImportDecisions(preview, preparedDecisions, preview.analysisFingerprint) : { valid: false, errors: [], pendingDecisions: 0 },
     [preparedDecisions, preview]
   );
+  const executionSummary = useMemo(
+    () => preview && decisionValidation.valid ? summarizeCsvImportExecution(preview, preparedDecisions) : null,
+    [decisionValidation.valid, preparedDecisions, preview]
+  );
 
   async function requestPreview(csvContent: string, nextMapping?: CsvImportMapping) {
     const response = await fetch("/api/imports/csv/preview", {
@@ -108,7 +132,7 @@ export function CsvImportMapping() {
 
     try {
       if (!file.name.toLowerCase().endsWith(".csv")) {
-        throw new Error("Sélectionnez un fichier CSV.");
+        throw new Error("Selectionnez un fichier CSV.");
       }
       const fileContent = await file.text();
       const result = await requestPreview(fileContent);
@@ -117,9 +141,11 @@ export function CsvImportMapping() {
       setPreview(result);
       setMapping(result.proposedMapping);
       setDecisions(defaultDecisions(result));
+      setIdempotencyKey(crypto.randomUUID());
+      setReport(null);
       setStep("mapping");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Le fichier n'a pas pu être analysé.");
+      setError(caught instanceof Error ? caught.message : "Le fichier n'a pas pu etre analyse.");
     } finally {
       setLoading(false);
     }
@@ -139,9 +165,10 @@ export function CsvImportMapping() {
       setPreview(result);
       setMapping(result.proposedMapping);
       setDecisions(defaultDecisions(result));
+      setReport(null);
       setStep("review");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "La vérification n'a pas pu être recalculée.");
+      setError(caught instanceof Error ? caught.message : "La verification n'a pas pu etre recalculee.");
     } finally {
       setLoading(false);
     }
@@ -157,6 +184,35 @@ export function CsvImportMapping() {
     setStep("ready");
   }
 
+  async function executeImport() {
+    if (!preview || !content || !decisionValidation.valid || !idempotencyKey) return;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/imports/csv/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content,
+          mapping,
+          decisions: preparedDecisions,
+          analysisFingerprint: preview.analysisFingerprint,
+          idempotencyKey,
+          sourceName: fileName,
+          confirm: true
+        })
+      });
+      const result = await parseExecuteResponse(response);
+      setReport(result);
+      setStep("report");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "L'import n'a pas pu etre execute.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function reset() {
     setStep("upload");
     setFileName("");
@@ -164,25 +220,28 @@ export function CsvImportMapping() {
     setPreview(null);
     setMapping({});
     setDecisions({});
+    setIdempotencyKey("");
+    setReport(null);
     setError(null);
   }
 
   return (
     <div className="stack">
-      <ol className="import-steps" aria-label="Étapes de l'import">
-        <li className={step !== "upload" ? "done" : "active"}>1. Prévisualisation</li>
-        <li className={step === "review" || step === "ready" ? "done" : step === "mapping" ? "active" : ""}>2. Correspondance</li>
-        <li className={step === "review" ? "active" : step === "ready" ? "done" : ""}>3. Vérification des données</li>
+      <ol className="import-steps" aria-label="Etapes de l'import">
+        <li className={step !== "upload" ? "done" : "active"}>1. Previsualisation</li>
+        <li className={step === "review" || step === "ready" || step === "report" ? "done" : step === "mapping" ? "active" : ""}>2. Correspondance</li>
+        <li className={step === "review" ? "active" : step === "ready" || step === "report" ? "done" : ""}>3. Verification des donnees</li>
+        <li className={step === "ready" ? "active" : step === "report" ? "done" : ""}>4. Execution</li>
       </ol>
 
       {step === "upload" ? (
         <section className="card import-upload">
           <div>
-            <h2>Choisir le fichier à préparer</h2>
-            <p>Le fichier est lu pour afficher ses colonnes. Aucune donnée n&apos;est créée dans Atlas.</p>
+            <h2>Choisir le fichier a preparer</h2>
+            <p>Le fichier est lu pour afficher ses colonnes. Aucune donnee n&apos;est creee dans Atlas.</p>
           </div>
           <label className="button link-button import-file-button">
-            {loading ? "Lecture en cours..." : "Sélectionner un CSV"}
+            {loading ? "Lecture en cours..." : "Selectionner un CSV"}
             <input
               accept=".csv,text/csv"
               disabled={loading}
@@ -198,7 +257,7 @@ export function CsvImportMapping() {
         <>
           <section className="card import-file-summary">
             <div>
-              <p className="muted">Fichier sélectionné</p>
+              <p className="muted">Fichier selectionne</p>
               <h2>{fileName}</h2>
             </div>
             <div>
@@ -216,7 +275,7 @@ export function CsvImportMapping() {
               <section className="stack">
                 <header>
                   <h2>Associez les colonnes aux champs Atlas</h2>
-                  <p className="muted">Les suggestions sont modifiables. Choisissez « Ignorer cette colonne » si elle ne doit pas être reprise.</p>
+                  <p className="muted">Les suggestions sont modifiables. Choisissez &quot;Ignorer cette colonne&quot; si elle ne doit pas etre reprise.</p>
                 </header>
 
                 <div className="import-mapping-list">
@@ -232,7 +291,7 @@ export function CsvImportMapping() {
                           <p className="muted">Colonne du fichier</p>
                           <h3>{header}</h3>
                           <p className="import-samples">
-                            {samples.length > 0 ? samples.join(" · ") : "Aucune valeur d'exemple"}
+                            {samples.length > 0 ? samples.join(" - ") : "Aucune valeur d'exemple"}
                           </p>
                         </div>
                         <label>
@@ -260,27 +319,27 @@ export function CsvImportMapping() {
 
               {!validation.valid ? (
                 <section className="import-validation-errors" aria-live="polite">
-                  <strong>Correspondance à compléter</strong>
+                  <strong>Correspondance a completer</strong>
                   <ul>{validation.errors.map((item) => <li key={item}>{item}</li>)}</ul>
                 </section>
               ) : null}
             </>
           ) : null}
 
-          {step === "review" || step === "ready" ? (
+          {step === "review" || step === "ready" || step === "report" ? (
             <section className="stack">
               <header>
-                <h2>Vérification et doublons détectés</h2>
-                <p className="muted">Les valeurs originales restent visibles. Les valeurs normalisées servent uniquement à la comparaison.</p>
+                <h2>Verification et doublons detectes</h2>
+                <p className="muted">Les valeurs originales restent visibles. Les valeurs normalisees servent uniquement a la comparaison.</p>
               </header>
 
               <div className="grid import-review-summary">
-                <Metric label="Lignes analysées" value={preview.summary.totalRows} />
+                <Metric label="Lignes analysees" value={preview.summary.totalRows} />
                 <Metric label="Sans correspondance" value={preview.summary.cleanRows} />
                 <Metric label="Doublons fichier" value={preview.summary.internalDuplicates} />
                 <Metric label="Correspondances Atlas" value={preview.summary.atlasMatches} />
                 <Metric label="Cas ambigus" value={preview.summary.ambiguousRows} />
-                <Metric label="Décisions restantes" value={decisionValidation.pendingDecisions} />
+                <Metric label="Decisions restantes" value={decisionValidation.pendingDecisions} />
               </div>
 
               <div className="import-review-list">
@@ -293,9 +352,10 @@ export function CsvImportMapping() {
                         <p>{row.reason}</p>
                       </div>
                       <label>
-                        Décision préparée
+                        Decision preparee
                         <select
                           className="input"
+                          disabled={step === "report"}
                           onChange={(event) => updateDecision(row.lineNumber, event.target.value as CsvImportDecision | "")}
                           value={decisions[row.lineNumber] ?? ""}
                         >
@@ -312,20 +372,20 @@ export function CsvImportMapping() {
                         <dl>{Object.entries(row.originalValues).map(([key, value]) => value.trim() ? <div key={key}><dt>{key}</dt><dd>{value}</dd></div> : null)}</dl>
                       </div>
                       <div>
-                        <strong>Valeurs normalisées</strong>
+                        <strong>Valeurs normalisees</strong>
                         <dl>{Object.entries(row.normalizedValues).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{String(value)}</dd></div>)}</dl>
                       </div>
                     </div>
 
                     {[...row.matches, ...row.organizationMatches].length > 0 ? (
                       <div className="import-match-list">
-                        <strong>Rapprochements détectés</strong>
+                        <strong>Rapprochements detectes</strong>
                         {[...row.matches, ...row.organizationMatches].map((match, index) => (
                           <div className="import-match" key={`${row.lineNumber}-${match.entityType}-${match.entityId ?? match.lineNumber}-${index}`}>
                             <p>{match.explanation}</p>
                             <span>{match.kind === "internal_duplicate" ? `Fichier, ligne ${match.lineNumber}` : `Atlas: ${match.entityId}`}</span>
                             <span>Champs: {match.fields.join(", ")}</span>
-                            {match.differences.length > 0 ? <span>Différences: {match.differences.join(" | ")}</span> : null}
+                            {match.differences.length > 0 ? <span>Differences: {match.differences.join(" | ")}</span> : null}
                           </div>
                         ))}
                       </div>
@@ -339,7 +399,7 @@ export function CsvImportMapping() {
 
               {!decisionValidation.valid ? (
                 <section className="import-validation-errors" aria-live="polite">
-                  <strong>Décisions à compléter</strong>
+                  <strong>Decisions a completer</strong>
                   <ul>{decisionValidation.errors.map((item) => <li key={item}>{item}</li>)}</ul>
                 </section>
               ) : null}
@@ -347,25 +407,60 @@ export function CsvImportMapping() {
           ) : null}
 
           {step === "ready" ? (
-            <section className="import-validation-success" role="status">
-              <strong>Vérification validée</strong>
-              <p>Les décisions sont préparées pour la prochaine étape. Aucun import définitif n&apos;a été lancé.</p>
+            <section className="card import-confirmation" role="status">
+              <div>
+                <strong>Import pret a executer</strong>
+                <p>Atlas recalculera la verification cote serveur avant toute ecriture. L&apos;execution est transactionnelle et protegee contre le double clic.</p>
+              </div>
+              {executionSummary ? (
+                <div className="grid import-review-summary">
+                  <Metric label="Personnes a creer" value={executionSummary.createNew} />
+                  <Metric label="Rattachements existants" value={executionSummary.linkExisting} />
+                  <Metric label="Organisations a creer" value={executionSummary.organizationsToCreate} />
+                  <Metric label="A examiner plus tard" value={executionSummary.reviewLater} />
+                  <Metric label="Lignes ignorees" value={executionSummary.ignored} />
+                  <Metric label="Relations creees" value={executionSummary.relationshipsToCreate} />
+                </div>
+              ) : null}
+              <p className="muted">Les relations de recrutement ne sont pas creees automatiquement dans ce sprint. Elles restent preparees pour une etape dediee.</p>
+            </section>
+          ) : null}
+
+          {step === "report" && report ? (
+            <section className="card import-final-report" role="status">
+              <div>
+                <strong>Import termine</strong>
+                <p>{report.idempotent ? "Cette demande avait deja ete executee: Atlas affiche le meme rapport." : "Les ecritures validees ont ete appliquees dans une transaction unique."}</p>
+              </div>
+              <div className="grid import-review-summary">
+                <Metric label="Personnes creees" value={report.summary.peopleCreated} />
+                <Metric label="Personnes rattachees" value={report.summary.peopleLinked} />
+                <Metric label="Organisations creees" value={report.summary.organizationsCreated} />
+                <Metric label="Organisations rattachees" value={report.summary.organizationsLinked} />
+                <Metric label="Lignes ignorees" value={report.summary.rowsIgnored} />
+                <Metric label="A examiner" value={report.summary.rowsReviewLater} />
+              </div>
+              {report.errors.length > 0 ? <ul className="error-list">{report.errors.map((item) => <li key={item}>{item}</li>)}</ul> : null}
             </section>
           ) : null}
 
           {error ? <p className="form-error" role="alert">{error}</p> : null}
 
           <div className="import-actions">
-            <Button variant="subtle" type="button" onClick={step === "mapping" ? reset : () => setStep("mapping")}>
-              {step === "mapping" ? "Retour à la prévisualisation" : "Retour à la correspondance"}
+            <Button variant="subtle" type="button" onClick={step === "mapping" || step === "report" ? reset : () => setStep("mapping")}>
+              {step === "mapping" ? "Retour a la previsualisation" : step === "report" ? "Importer un autre fichier" : "Retour a la correspondance"}
             </Button>
             {step === "mapping" ? (
               <Button disabled={!validation.valid || loading} type="button" onClick={() => void validateMapping()}>
-                {loading ? "Vérification..." : "Valider et vérifier"}
+                {loading ? "Verification..." : "Valider et verifier"}
               </Button>
-            ) : (
+            ) : step === "ready" ? (
+              <Button disabled={!decisionValidation.valid || loading} type="button" onClick={() => void executeImport()}>
+                {loading ? "Import en cours..." : "Confirmer et lancer l'import"}
+              </Button>
+            ) : step === "report" ? null : (
               <Button disabled={!decisionValidation.valid} type="button" onClick={continueToNextStep}>
-                {step === "ready" ? "Prêt pour l'étape suivante" : "Préparer la suite"}
+                Preparer la suite
               </Button>
             )}
           </div>
