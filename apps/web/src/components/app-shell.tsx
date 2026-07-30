@@ -14,7 +14,8 @@ const navItems = [
   { href: "/pipeline", label: "Pipeline" },
   { href: "/interactions", label: "Interactions" },
   { href: "/tasks", label: "Tasks" },
-  { href: "/projects", label: "Projets" }
+  { href: "/projects", label: "Projets" },
+  { href: "/imports", label: "Imports" }
 ];
 
 function AccountIndicator({ account }: { account: SessionAccountSummary | null }) {
