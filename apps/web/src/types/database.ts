@@ -1,4 +1,4 @@
-import type { ActionPlanDecision, CsvImportRun, Interaction, InteractionType, Organization, Person, Project, RecruitmentPipelineEvent, Relationship, Task, TimelineEvent } from "@/types/domain";
+import type { ActionPlanDecision, CsvImportCancellation, CsvImportRun, Interaction, InteractionType, Organization, Person, Project, RecruitmentPipelineEvent, Relationship, Task, TimelineEvent } from "@/types/domain";
 
 type Timestamped = { id: string; tenant_id: string; created_at: string; updated_at: string };
 type Row<T> = T & Record<string, unknown>;
@@ -193,6 +193,19 @@ export type Database = {
         Update: Update<CsvImportRun>;
         Relationships: NoRelationships;
       };
+      csv_import_cancellations: {
+        Row: Row<CsvImportCancellation>;
+        Insert: Insert<CsvImportCancellation>;
+        Update: Update<CsvImportCancellation>;
+        Relationships: [
+          {
+            foreignKeyName: "csv_import_cancellations_import_run_id_fkey";
+            columns: ["import_run_id"];
+            referencedRelation: "csv_import_runs";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       timeline_events: {
         Row: Row<TimelineEvent>;
         Insert: TimelineEventInsert;
@@ -325,6 +338,24 @@ export type Database = {
           p_analysis_fingerprint: string;
           p_rows: unknown;
           p_actor_user_id: string;
+        };
+        Returns: Record<string, unknown>;
+      };
+      analyze_csv_import_cancellation: {
+        Args: {
+          p_tenant_id: string;
+          p_import_run_id: string;
+          p_actor_user_id: string;
+        };
+        Returns: Record<string, unknown>;
+      };
+      cancel_csv_import: {
+        Args: {
+          p_tenant_id: string;
+          p_import_run_id: string;
+          p_idempotency_key: string;
+          p_actor_user_id: string;
+          p_confirm: boolean;
         };
         Returns: Record<string, unknown>;
       };

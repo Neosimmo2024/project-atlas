@@ -149,4 +149,51 @@ describeIntegration("csv import execution RLS integration", () => {
 
     expect(changed.error).not.toBeNull();
   });
+
+  it("keeps cancellation history tenant scoped and blocks reader/direct table writes", async () => {
+    const execution = await tenantA.rpc("execute_csv_import", {
+      p_tenant_id: tenantAContext.tenant_id,
+      p_idempotency_key: `${marker}-cancel-history`,
+      p_source_name: "contacts.csv",
+      p_analysis_fingerprint: "cancel-history",
+      p_actor_user_id: tenantAContext.user_id,
+      p_rows: []
+    });
+    expect(execution.error).toBeNull();
+
+    const importId = (execution.data as { id?: string } | null)?.id;
+    expect(importId).toBeTruthy();
+
+    const analysis = await tenantA.rpc("analyze_csv_import_cancellation", {
+      p_tenant_id: tenantAContext.tenant_id,
+      p_import_run_id: importId,
+      p_actor_user_id: tenantAContext.user_id
+    });
+    expect(analysis.error).toBeNull();
+
+    const cancellation = await tenantA.rpc("cancel_csv_import", {
+      p_tenant_id: tenantAContext.tenant_id,
+      p_import_run_id: importId,
+      p_idempotency_key: `${marker}-cancel-history-key`,
+      p_actor_user_id: tenantAContext.user_id,
+      p_confirm: true
+    });
+    expect(cancellation.error).toBeNull();
+
+    const visibleToA = await tenantA.from("csv_import_cancellations").select("id").eq("import_run_id", importId);
+    expect(visibleToA.error).toBeNull();
+    expect(visibleToA.data).toHaveLength(1);
+
+    const visibleToB = await tenantB.from("csv_import_cancellations").select("id").eq("import_run_id", importId);
+    expect(visibleToB.error).toBeNull();
+    expect(visibleToB.data).toHaveLength(0);
+
+    const directInsert = await tenantA.from("csv_import_cancellations").insert({
+      tenant_id: tenantAContext.tenant_id,
+      import_run_id: importId,
+      requested_by: tenantAContext.user_id,
+      idempotency_key: `${marker}-direct-cancel`
+    }).select("id");
+    expect(directInsert.error).not.toBeNull();
+  });
 });
