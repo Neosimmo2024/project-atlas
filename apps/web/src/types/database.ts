@@ -338,6 +338,7 @@ export type Database = {
           p_analysis_fingerprint: string;
           p_rows: unknown;
           p_actor_user_id: string;
+          p_add_to_pipeline?: boolean;
         };
         Returns: Record<string, unknown>;
       };

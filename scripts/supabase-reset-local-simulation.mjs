@@ -19,7 +19,8 @@ export const EXPECTED_MIGRATIONS = [
   "0009_api_permissions_hardening.sql",
   "0010_recruitment_pipeline_domain.sql",
   "0011_csv_import_execution.sql",
-  "0012_csv_import_safe_cancellation.sql"
+  "0012_csv_import_safe_cancellation.sql",
+  "0013_csv_import_relationships_pipeline.sql"
 ];
 export const EXPECTED_COUNTS = Object.freeze({
   "auth.users": 1,
@@ -350,7 +351,7 @@ function verifyMigrationSet() {
   const actual = migrations.join("\n");
   const expected = EXPECTED_MIGRATIONS.join("\n");
   if (actual !== expected) {
-    throw new Error("Migration set is not exactly 0001 through 0012.");
+    throw new Error("Migration set is not exactly 0001 through 0013.");
   }
 }
 
@@ -567,13 +568,13 @@ declare
 begin
   select count(*)
   into missing_version_count
-  from unnest(array['0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011','0012']) as version_prefix
+  from unnest(array['0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011','0012','0013']) as version_prefix
   where not exists (
     select 1 from supabase_migrations.schema_migrations sm
     where sm.version like version_prefix || '%'
   );
   if missing_version_count > 0 then
-    raise exception 'Expected migration history 0001 through 0012 is incomplete.';
+    raise exception 'Expected migration history 0001 through 0013 is incomplete.';
   end if;
 
   select count(*)
@@ -651,6 +652,12 @@ begin
   end if;
   if has_function_privilege('anon', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)', 'execute') then
     raise exception 'anon role must not execute execute_csv_import.';
+  end if;
+  if not has_function_privilege('authenticated', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean)', 'execute') then
+    raise exception 'authenticated role cannot execute pipeline-enabled execute_csv_import.';
+  end if;
+  if has_function_privilege('anon', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean)', 'execute') then
+    raise exception 'anon role must not execute pipeline-enabled execute_csv_import.';
   end if;
   if not exists (
     select 1 from pg_class c

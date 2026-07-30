@@ -15,6 +15,7 @@ export type CsvImportExecutionRequest = {
   analysisFingerprint: string;
   idempotencyKey: string;
   sourceName?: string | null;
+  addToPipeline?: boolean;
   confirm: boolean;
 };
 
@@ -50,6 +51,9 @@ export type CsvImportExecutionReport = {
     organizationsCreated: number;
     organizationsLinked: number;
     relationshipsCreated: number;
+    relationshipsLinked: number;
+    relationshipsSkipped: number;
+    pipelineIntegrationEnabled: boolean;
     rowsIgnored: number;
     rowsReviewLater: number;
     rowsRejected: number;
@@ -63,6 +67,11 @@ export type CsvImportExecutionReport = {
     organizationId?: string | null;
     personCreated?: boolean;
     organizationCreated?: boolean;
+    relationshipId?: string | null;
+    relationshipCreated?: boolean;
+    relationshipLinked?: boolean;
+    relationshipOutcome?: string | null;
+    relationshipReason?: string | null;
   }>;
   errors: string[];
   createdAt: string;
@@ -81,8 +90,9 @@ function targetsFor(row: CsvImportRowPreview) {
   };
 }
 
-export function summarizeCsvImportExecution(preview: CsvImportPreviewResult, decisions: CsvImportPreparedDecision[]): CsvImportExecutionSummary {
+export function summarizeCsvImportExecution(preview: CsvImportPreviewResult, decisions: CsvImportPreparedDecision[], addToPipeline = false): CsvImportExecutionSummary {
   const rows = buildCsvImportExecutionRows(preview, decisions, preview.analysisFingerprint);
+  const executableRows = rows.filter((row) => row.decision === "create_new" || row.decision === "link_existing");
 
   return {
     totalRows: rows.length,
@@ -92,7 +102,7 @@ export function summarizeCsvImportExecution(preview: CsvImportPreviewResult, dec
     reviewLater: rows.filter((row) => row.decision === "review_later").length,
     rejected: preview.rows.filter((row) => row.classification === "rejected_row").length,
     organizationsToCreate: rows.filter((row) => row.decision === "create_new" && typeof row.normalizedValues.organization === "string" && row.normalizedValues.organization.trim() !== "" && !row.targetOrganizationId).length,
-    relationshipsToCreate: 0
+    relationshipsToCreate: addToPipeline ? executableRows.filter((row) => typeof row.normalizedValues.organization === "string" && row.normalizedValues.organization.trim() !== "").length : 0
   };
 }
 
@@ -169,7 +179,12 @@ function rowReportFrom(value: unknown): CsvImportExecutionReport["rows"][number]
     personId: nullableStringFrom(record.personId),
     organizationId: nullableStringFrom(record.organizationId),
     personCreated: booleanFrom(record.personCreated),
-    organizationCreated: booleanFrom(record.organizationCreated)
+    organizationCreated: booleanFrom(record.organizationCreated),
+    relationshipId: nullableStringFrom(record.relationshipId),
+    relationshipCreated: booleanFrom(record.relationshipCreated),
+    relationshipLinked: booleanFrom(record.relationshipLinked),
+    relationshipOutcome: nullableStringFrom(record.relationshipOutcome),
+    relationshipReason: nullableStringFrom(record.relationshipReason)
   };
 }
 
@@ -190,6 +205,9 @@ export function parseCsvImportExecutionReport(value: Record<string, unknown>): C
       organizationsCreated: numberFrom(summary.organizationsCreated),
       organizationsLinked: numberFrom(summary.organizationsLinked),
       relationshipsCreated: numberFrom(summary.relationshipsCreated),
+      relationshipsLinked: numberFrom(summary.relationshipsLinked),
+      relationshipsSkipped: numberFrom(summary.relationshipsSkipped),
+      pipelineIntegrationEnabled: booleanFrom(summary.pipelineIntegrationEnabled),
       rowsIgnored: numberFrom(summary.rowsIgnored),
       rowsReviewLater: numberFrom(summary.rowsReviewLater),
       rowsRejected: numberFrom(summary.rowsRejected),

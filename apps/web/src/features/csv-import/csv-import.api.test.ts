@@ -80,6 +80,9 @@ describe("CSV import preview API", () => {
         organizationsCreated: 0,
         organizationsLinked: 0,
         relationshipsCreated: 0,
+        relationshipsLinked: 0,
+        relationshipsSkipped: 0,
+        pipelineIntegrationEnabled: false,
         rowsIgnored: 0,
         rowsReviewLater: 0,
         rowsRejected: 0,
@@ -97,7 +100,8 @@ describe("CSV import preview API", () => {
       traceInsufficient: false,
       people: [],
       organizations: [],
-      summary: { deletable: 0, kept: 0, peopleCreated: 0, organizationsCreated: 0 },
+      relationships: [],
+      summary: { deletable: 0, kept: 0, peopleCreated: 0, organizationsCreated: 0, relationshipsCreated: 0 },
       cancellation: null
     });
     mocks.cancelCsvImportMock.mockResolvedValue({
@@ -105,11 +109,13 @@ describe("CSV import preview API", () => {
       importId: "import-1",
       idempotent: false,
       status: "none",
-      summary: { peopleDeleted: 0, peopleKept: 0, organizationsDeleted: 0, organizationsKept: 0 },
+      summary: { peopleDeleted: 0, peopleKept: 0, organizationsDeleted: 0, organizationsKept: 0, relationshipsDeleted: 0, relationshipsKept: 0 },
       peopleDeleted: [],
       peopleKept: [],
       organizationsDeleted: [],
       organizationsKept: [],
+      relationshipsDeleted: [],
+      relationshipsKept: [],
       executedAt: "2026-07-30T12:00:00Z"
     });
   });
@@ -153,6 +159,7 @@ describe("CSV import preview API", () => {
         analysisFingerprint: "[]",
         idempotencyKey: "request-1",
         sourceName: "contacts.csv",
+        addToPipeline: true,
         confirm: true,
         tenant_id: "malicious"
       })
@@ -166,7 +173,8 @@ describe("CSV import preview API", () => {
     expect(mocks.executeTenantCsvImportMock).toHaveBeenCalledWith(context, expect.objectContaining({
       analysisFingerprint: "[]",
       idempotencyKey: "request-1",
-      sourceName: "contacts.csv"
+      sourceName: "contacts.csv",
+      addToPipeline: true
     }));
   });
 

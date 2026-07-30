@@ -196,4 +196,71 @@ describeIntegration("csv import execution RLS integration", () => {
     }).select("id");
     expect(directInsert.error).not.toBeNull();
   });
+
+  it("creates pipeline relationships only inside the authenticated tenant and cancels imported relationships before imported entities", async () => {
+    const execution = await tenantA.rpc("execute_csv_import", {
+      p_tenant_id: tenantAContext.tenant_id,
+      p_idempotency_key: `${marker}-pipeline`,
+      p_source_name: "pipeline.csv",
+      p_analysis_fingerprint: "pipeline",
+      p_actor_user_id: tenantAContext.user_id,
+      p_add_to_pipeline: true,
+      p_rows: [{
+        lineNumber: 2,
+        decision: "create_new",
+        classification: "new_contact",
+        normalizedValues: {
+          first_name: "Pipeline",
+          last_name: "Import",
+          email: `${marker}-pipeline@example.test`,
+          organization: `${marker} Org`
+        },
+        targetPersonId: null,
+        targetOrganizationId: null
+      }]
+    });
+    expect(execution.error).toBeNull();
+
+    const report = execution.data as {
+      id?: string;
+      summary?: { relationshipsCreated?: number };
+      rows?: Array<{ relationshipId?: string; relationshipCreated?: boolean; relationshipOutcome?: string }>;
+    } | null;
+    const importId = report?.id;
+    const relationshipId = report?.rows?.[0]?.relationshipId;
+    expect(importId).toBeTruthy();
+    expect(report?.summary?.relationshipsCreated).toBe(1);
+    expect(report?.rows?.[0]).toMatchObject({ relationshipCreated: true, relationshipOutcome: "created" });
+
+    const relationship = await tenantA
+      .from("relationships")
+      .select("id, tenant_id, relationship_type, pipeline_stage, owner_user_id")
+      .eq("id", relationshipId)
+      .maybeSingle();
+    expect(relationship.error).toBeNull();
+    expect(relationship.data).toMatchObject({
+      tenant_id: tenantAContext.tenant_id,
+      relationship_type: "recruiting",
+      pipeline_stage: "detection",
+      owner_user_id: null
+    });
+
+    const hiddenFromB = await tenantB.from("relationships").select("id").eq("id", relationshipId);
+    expect(hiddenFromB.error).toBeNull();
+    expect(hiddenFromB.data).toHaveLength(0);
+
+    const cancellation = await tenantA.rpc("cancel_csv_import", {
+      p_tenant_id: tenantAContext.tenant_id,
+      p_import_run_id: importId,
+      p_idempotency_key: `${marker}-pipeline-cancel`,
+      p_actor_user_id: tenantAContext.user_id,
+      p_confirm: true
+    });
+    expect(cancellation.error).toBeNull();
+    expect((cancellation.data as { summary?: { relationshipsDeleted?: number } } | null)?.summary?.relationshipsDeleted).toBe(1);
+
+    const deletedRelationship = await tenantA.from("relationships").select("id").eq("id", relationshipId);
+    expect(deletedRelationship.error).toBeNull();
+    expect(deletedRelationship.data).toHaveLength(0);
+  });
 });

@@ -82,6 +82,7 @@ export function CsvImportMapping() {
   const [preview, setPreview] = useState<CsvImportPreviewResult | null>(null);
   const [mapping, setMapping] = useState<CsvImportMapping>({});
   const [decisions, setDecisions] = useState<Record<number, CsvImportDecision | "">>({});
+  const [addToPipeline, setAddToPipeline] = useState(false);
   const [idempotencyKey, setIdempotencyKey] = useState("");
   const [report, setReport] = useState<CsvImportExecutionReport | null>(null);
   const [loading, setLoading] = useState(false);
@@ -112,8 +113,8 @@ export function CsvImportMapping() {
     [preparedDecisions, preview]
   );
   const executionSummary = useMemo(
-    () => preview && decisionValidation.valid ? summarizeCsvImportExecution(preview, preparedDecisions) : null,
-    [decisionValidation.valid, preparedDecisions, preview]
+    () => preview && decisionValidation.valid ? summarizeCsvImportExecution(preview, preparedDecisions, addToPipeline) : null,
+    [addToPipeline, decisionValidation.valid, preparedDecisions, preview]
   );
 
   async function requestPreview(csvContent: string, nextMapping?: CsvImportMapping) {
@@ -200,6 +201,7 @@ export function CsvImportMapping() {
           analysisFingerprint: preview.analysisFingerprint,
           idempotencyKey,
           sourceName: fileName,
+          addToPipeline,
           confirm: true
         })
       });
@@ -220,6 +222,7 @@ export function CsvImportMapping() {
     setPreview(null);
     setMapping({});
     setDecisions({});
+    setAddToPipeline(false);
     setIdempotencyKey("");
     setReport(null);
     setError(null);
@@ -403,6 +406,24 @@ export function CsvImportMapping() {
                   <ul>{decisionValidation.errors.map((item) => <li key={item}>{item}</li>)}</ul>
                 </section>
               ) : null}
+
+              <section className="card import-pipeline-option">
+                <label className="confirm-check">
+                  <input
+                    checked={addToPipeline}
+                    disabled={step === "report"}
+                    onChange={(event) => {
+                      setAddToPipeline(event.target.checked);
+                      if (step === "ready") setStep("review");
+                    }}
+                    type="checkbox"
+                  />
+                  Ajouter les contacts eligibles au pipeline de recrutement
+                </label>
+                <p className="muted">
+                  Option globale: Atlas creera uniquement des relations de recrutement prudentes en phase detection lorsque la personne et l&apos;organisation sont identifiees. Les lignes sans organisation ou ambigues resteront sans entree Pipeline.
+                </p>
+              </section>
             </section>
           ) : null}
 
@@ -422,7 +443,9 @@ export function CsvImportMapping() {
                   <Metric label="Relations creees" value={executionSummary.relationshipsToCreate} />
                 </div>
               ) : null}
-              <p className="muted">Les relations de recrutement ne sont pas creees automatiquement dans ce sprint. Elles restent preparees pour une etape dediee.</p>
+              <p className="muted">
+                Pipeline: {addToPipeline ? "les contacts eligibles seront ajoutes en phase detection." : "aucune relation de recrutement ne sera creee."}
+              </p>
             </section>
           ) : null}
 
@@ -437,9 +460,14 @@ export function CsvImportMapping() {
                 <Metric label="Personnes rattachees" value={report.summary.peopleLinked} />
                 <Metric label="Organisations creees" value={report.summary.organizationsCreated} />
                 <Metric label="Organisations rattachees" value={report.summary.organizationsLinked} />
+                <Metric label="Relations creees" value={report.summary.relationshipsCreated} />
+                <Metric label="Relations rattachees" value={report.summary.relationshipsLinked} />
                 <Metric label="Lignes ignorees" value={report.summary.rowsIgnored} />
                 <Metric label="A examiner" value={report.summary.rowsReviewLater} />
               </div>
+              <p className="muted">
+                Pipeline: {report.summary.pipelineIntegrationEnabled ? `${report.summary.relationshipsSkipped} ligne(s) non eligible(s) ou deja protegees.` : "option non activee pour cet import."}
+              </p>
               {report.errors.length > 0 ? <ul className="error-list">{report.errors.map((item) => <li key={item}>{item}</li>)}</ul> : null}
             </section>
           ) : null}

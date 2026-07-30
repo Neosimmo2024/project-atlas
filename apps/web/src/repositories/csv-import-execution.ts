@@ -9,6 +9,7 @@ export type ExecuteCsvImportInput = {
   analysisFingerprint: string;
   idempotencyKey: string;
   sourceName?: string | null;
+  addToPipeline?: boolean;
 };
 
 export async function executeTenantCsvImport(context: TenantContext, input: ExecuteCsvImportInput): Promise<CsvImportExecutionReport> {
@@ -21,7 +22,8 @@ export async function executeTenantCsvImport(context: TenantContext, input: Exec
     p_source_name: input.sourceName ?? null,
     p_analysis_fingerprint: input.analysisFingerprint,
     p_rows: rows,
-    p_actor_user_id: context.userId
+    p_actor_user_id: context.userId,
+    p_add_to_pipeline: input.addToPipeline === true
   });
 
   if (error) throw error;

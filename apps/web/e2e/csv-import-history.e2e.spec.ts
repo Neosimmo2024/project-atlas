@@ -19,6 +19,14 @@ test("imports history and cancellation detail stay readable without destructive 
   await page.goto(`${process.env.CSV_IMPORT_E2E_BASE_URL}/imports`);
   await expect(page.getByRole("heading", { name: "Importer des contacts" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Imports CSV executes" })).toBeVisible();
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "pipeline-option.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("First,Last,Email,Organization\nAda,Lovelace,ada-import-e2e@example.test,Atlas Test\n")
+  });
+  await page.getByRole("button", { name: "Valider et verifier" }).click();
+  await expect(page.getByText("Ajouter les contacts eligibles au pipeline de recrutement")).toBeVisible();
+  await expect(page.getByText("Option globale")).toBeVisible();
 
   const detailLink = page.getByRole("link", { name: "Consulter le detail" }).first();
   if (await detailLink.count()) {

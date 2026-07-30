@@ -65,12 +65,13 @@ export function CsvImportCancellationButton({ importId, eligibility, canRequest 
         <Metric label="Conservees" value={eligibility.summary.kept} />
         <Metric label="People creees" value={eligibility.summary.peopleCreated} />
         <Metric label="Organizations creees" value={eligibility.summary.organizationsCreated} />
+        <Metric label="Relations creees" value={eligibility.summary.relationshipsCreated} />
       </div>
 
       {report ? (
         <div className="import-cancellation-result" role="status">
           <strong>{csvImportCancellationStatusLabels[report.status]}</strong>
-          <p>{report.summary.peopleDeleted + report.summary.organizationsDeleted} donnee(s) supprimee(s), {report.summary.peopleKept + report.summary.organizationsKept} conservee(s).</p>
+          <p>{report.summary.peopleDeleted + report.summary.organizationsDeleted + report.summary.relationshipsDeleted} donnee(s) supprimee(s), {report.summary.peopleKept + report.summary.organizationsKept + report.summary.relationshipsKept} conservee(s).</p>
         </div>
       ) : null}
 
@@ -93,6 +94,8 @@ export function CsvImportCancellationButton({ importId, eligibility, canRequest 
               <EntityList title="People conservees" items={eligibility.people.filter((item) => !item.deletable)} />
               <EntityList title="Organizations supprimables" items={eligibility.organizations.filter((item) => item.deletable)} />
               <EntityList title="Organizations conservees" items={eligibility.organizations.filter((item) => !item.deletable)} />
+              <EntityList title="Relations supprimables" items={eligibility.relationships.filter((item) => item.deletable)} />
+              <EntityList title="Relations conservees" items={eligibility.relationships.filter((item) => !item.deletable)} />
             </div>
 
             <label className="confirm-check">

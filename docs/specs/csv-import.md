@@ -40,9 +40,28 @@ La meme cle avec une empreinte d'analyse ou une empreinte de payload differente 
 
 Les lignes en conflit critique ou invalides ne peuvent pas etre creees. Les lignes invalides ignorees apparaissent comme refusees dans le rapport.
 
-## Relationships
+## Sprint 12
 
-Sprint 11D ne cree pas automatiquement de Relationship. Le rapport expose `relationshipsCreated: 0`. La creation de relations CSV necessitera une decision explicite dans un sprint ulterieur si le modele d'import la prepare.
+Sprint 12 ajoute l'option globale `Ajouter les contacts eligibles au pipeline de recrutement`.
+
+L'option est inactive par defaut afin d'eviter une creation implicite de pipeline lors d'un import de nettoyage ou de simple enrichissement. Lorsqu'elle est activee, l'API conserve l'autorite: le client transmet uniquement le booleen global, jamais une liste de Relationships a creer.
+
+## Relationships et Pipeline
+
+Quand l'option Pipeline est activee, `public.execute_csv_import` cree ou rattache une Relationship uniquement si la ligne dispose d'une Person et d'une Organization accessibles dans le tenant.
+
+Regles appliquees :
+
+- type par defaut : `recruiting` ;
+- phase initiale : `detection` ;
+- statut initial : `active` ;
+- responsable initial : aucun responsable attribue automatiquement ;
+- aucune Relationship si l'organisation est absente ;
+- aucune duplication si une Relationship `recruiting` active ou en pause existe deja pour la meme Person et la meme Organization ;
+- une Relationship existante d'un autre type n'est pas modifiee ;
+- aucune creation automatique d'organisation, de proprietaire ou de phase au-dela de ce que l'import CSV execute deja.
+
+Chaque Relationship creee par l'import est tracee dans le rapport avec l'import, la ligne, le tenant, la Person, l'Organization, le type et la phase. Les Relationships preexistantes ou seulement rattachees sont marquees comme telles et ne sont jamais supprimables au titre de l'annulation de cet import.
 
 ## Historique
 
@@ -65,16 +84,32 @@ Les routes `/imports` et `/imports/[id]` permettent de consulter les imports du 
 
 ## Annulation securisee
 
-L'annulation n'est pas un retour global de la base a un etat precedent. Elle ne supprime que les People et Organizations explicitement creees par l'import, identifiees dans le rapport 11D par `personCreated`, `organizationCreated`, `personId` et `organizationId`.
+L'annulation n'est pas un retour global de la base a un etat precedent. Elle ne supprime que les Relationships, People et Organizations explicitement creees par l'import, identifiees dans le rapport par `relationshipCreated`, `personCreated`, `organizationCreated`, `relationshipId`, `personId` et `organizationId`.
 
-Les donnees seulement rattachees ne sont jamais supprimees. Sprint 11D ne cree aucune Relationship, donc Sprint 11E ne supprime aucune Relationship au titre d'un import CSV.
+Les donnees seulement rattachees ne sont jamais supprimees. Les Relationships preexistantes sont donc conservees, meme si elles apparaissent comme rattachees dans le rapport.
+
+Les Relationships creees par l'import sont analysees et supprimees avant le recalcul d'eligibilite des People et Organizations. Ce recalcul est obligatoire: une Person ou une Organization peut devenir supprimable apres la suppression d'une Relationship importee intacte.
+
+Une Relationship creee par import est conservee si au moins une condition de securite existe :
+
+- elle n'existe plus ;
+- elle appartient a un autre tenant ;
+- la trace ne correspond plus a la Person ou a l'Organization ;
+- son type n'est plus `recruiting` ;
+- sa phase n'est plus `detection` ;
+- son statut n'est plus `active` ;
+- son responsable a change ;
+- son `updated_at` differe de son `created_at` ;
+- une Task, Interaction, Project, Timeline ou evenement Pipeline la reference ;
+- un autre import la reference ;
+- PostgreSQL ou une regle metier empeche la suppression.
 
 Une Person ou une Organization creee par import est conservee si au moins une condition de securite existe :
 
 - elle n'existe plus ;
 - elle appartient a un autre tenant ;
 - son `updated_at` differe de son `created_at`, ce qui indique une modification posterieure ou une tracabilite insuffisante ;
-- une Relationship, Task, Interaction, Project, Timeline, Action Plan ou organisation enfant la reference ;
+- une Relationship, Task, Interaction, Project, Timeline, Action Plan ou organisation enfant la reference apres le recalcul ;
 - un autre import la reference ;
 - PostgreSQL ou une regle metier empeche la suppression.
 
@@ -111,4 +146,4 @@ Le sprint ne couvre pas :
 - SMS ;
 - n8n ;
 - automatisations commerciales ;
-- creation automatique de relations.
+- import final Brevo, SMS, n8n ou automatisations commerciales.

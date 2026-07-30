@@ -95,7 +95,7 @@ describe("Supabase test reset workflow", () => {
     }
   });
 
-  it("requires exactly canonical migrations 0001 through 0012", () => {
+  it("requires exactly canonical migrations 0001 through 0013", () => {
     const migrations = readdirSync(resolve(root, "supabase/migrations")).filter((name) => name.endsWith(".sql")).sort();
     expect(migrations).toEqual([
       "0001_core.sql",
@@ -109,9 +109,10 @@ describe("Supabase test reset workflow", () => {
       "0009_api_permissions_hardening.sql",
       "0010_recruitment_pipeline_domain.sql",
       "0011_csv_import_execution.sql",
-      "0012_csv_import_safe_cancellation.sql"
+      "0012_csv_import_safe_cancellation.sql",
+      "0013_csv_import_relationships_pipeline.sql"
     ]);
-    expect(workflow).toContain("Refusing reset: migration set is not exactly 0001 through 0012.");
+    expect(workflow).toContain("Refusing reset: migration set is not exactly 0001 through 0013.");
   });
 
   it("verifies the CSV import execution schema and RPC privileges after reset", () => {
@@ -119,6 +120,7 @@ describe("Supabase test reset workflow", () => {
     expect(workflow).toContain("authenticated role cannot execute execute_csv_import.");
     expect(workflow).toContain("anon role must not execute execute_csv_import.");
     expect(workflow).toContain("has_function_privilege('anon', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)', 'execute')");
+    expect(workflow).toContain("has_function_privilege('anon', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean)', 'execute')");
     expect(workflow).toContain("RLS is not enabled on public.csv_import_cancellations.");
     expect(workflow).toContain("authenticated role must not insert public.csv_import_cancellations directly.");
     expect(workflow).toContain("authenticated role cannot execute cancel_csv_import.");

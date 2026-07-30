@@ -353,6 +353,8 @@ export type CsvImportCancellation = TenantScoped & {
   people_kept: number;
   organizations_deleted: number;
   organizations_kept: number;
+  relationships_deleted?: number;
+  relationships_kept?: number;
   report: Record<string, unknown>;
   failure_message: string | null;
   executed_at: string | null;

@@ -93,6 +93,7 @@ export async function listCsvImportHistory(context: TenantContext, params: { pag
         peopleLinked: run.people_linked,
         organizationsCreated: run.organizations_created,
         organizationsLinked: run.organizations_linked,
+        relationshipsCreated: run.relationships_created,
         rowsIgnored: run.rows_ignored,
         rowsReviewLater: run.rows_review_later,
         rowsRejected: run.rows_rejected,

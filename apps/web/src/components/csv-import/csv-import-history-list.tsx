@@ -32,7 +32,7 @@ export function CsvImportHistoryList({ result }: { result: CsvImportHistoryResul
             </div>
             <dl className="import-history-metrics">
               <div><dt>Lignes</dt><dd>{item.totalRows}</dd></div>
-              <div><dt>Creees</dt><dd>{item.peopleCreated + item.organizationsCreated}</dd></div>
+              <div><dt>Creees</dt><dd>{item.peopleCreated + item.organizationsCreated + item.relationshipsCreated}</dd></div>
               <div><dt>Rattachees</dt><dd>{item.peopleLinked + item.organizationsLinked}</dd></div>
               <div><dt>Ignorees</dt><dd>{item.rowsIgnored}</dd></div>
               <div><dt>A examiner</dt><dd>{item.rowsReviewLater}</dd></div>
