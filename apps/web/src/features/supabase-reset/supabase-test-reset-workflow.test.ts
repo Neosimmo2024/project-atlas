@@ -117,10 +117,11 @@ describe("Supabase test reset workflow", () => {
 
   it("verifies the CSV import execution schema and RPC privileges after reset", () => {
     expect(workflow).toContain("public.csv_import_runs.payload_fingerprint is missing.");
-    expect(workflow).toContain("authenticated role cannot execute execute_csv_import.");
+    expect(workflow).toContain("authenticated role must not execute execute_csv_import directly.");
     expect(workflow).toContain("anon role must not execute execute_csv_import.");
-    expect(workflow).toContain("has_function_privilege('anon', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)', 'execute')");
-    expect(workflow).toContain("has_function_privilege('anon', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean)', 'execute')");
+    expect(workflow).toContain("service_role must not execute legacy execute_csv_import.");
+    expect(workflow).toContain("authenticated role must not execute pipeline-enabled execute_csv_import directly.");
+    expect(workflow).toContain("service_role must execute server-only pipeline-enabled execute_csv_import.");
     expect(workflow).toContain("RLS is not enabled on public.csv_import_cancellations.");
     expect(workflow).toContain("authenticated role must not insert public.csv_import_cancellations directly.");
     expect(workflow).toContain("authenticated role cannot execute cancel_csv_import.");

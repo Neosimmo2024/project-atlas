@@ -1,5 +1,5 @@
 import { buildCsvImportExecutionRows, parseCsvImportExecutionReport, type CsvImportExecutionReport } from "@/features/csv-import/csv-import-execution";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 import type { CsvImportPreparedDecision, CsvImportPreviewResult } from "@/features/csv-import/csv-import";
 import type { TenantContext } from "@/types/domain";
 
@@ -14,7 +14,7 @@ export type ExecuteCsvImportInput = {
 
 export async function executeTenantCsvImport(context: TenantContext, input: ExecuteCsvImportInput): Promise<CsvImportExecutionReport> {
   const rows = buildCsvImportExecutionRows(input.preview, input.decisions, input.analysisFingerprint);
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseServiceRoleClient();
 
   const { data, error } = await supabase.rpc("execute_csv_import", {
     p_tenant_id: context.tenantId,

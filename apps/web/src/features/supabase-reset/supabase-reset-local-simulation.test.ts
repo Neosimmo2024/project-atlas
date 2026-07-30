@@ -268,10 +268,11 @@ describe("Supabase reset local simulation guards", () => {
 
   it("verifies CSV import execution schema and RPC privileges after local reset", () => {
     expect(source).toContain("public.csv_import_runs.payload_fingerprint is missing.");
-    expect(source).toContain("authenticated role cannot execute execute_csv_import.");
+    expect(source).toContain("authenticated role must not execute execute_csv_import directly.");
     expect(source).toContain("anon role must not execute execute_csv_import.");
-    expect(source).toContain("has_function_privilege('anon', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)', 'execute')");
-    expect(source).toContain("has_function_privilege('anon', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean)', 'execute')");
+    expect(source).toContain("service_role must not execute legacy execute_csv_import.");
+    expect(source).toContain("authenticated role must not execute pipeline-enabled execute_csv_import directly.");
+    expect(source).toContain("service_role must execute server-only pipeline-enabled execute_csv_import.");
     expect(source).toContain("RLS is not enabled on public.csv_import_cancellations.");
     expect(source).toContain("authenticated role must not insert public.csv_import_cancellations directly.");
     expect(source).toContain("authenticated role cannot execute cancel_csv_import.");

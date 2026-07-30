@@ -647,17 +647,23 @@ begin
   ) then
     raise exception 'public.csv_import_runs.payload_fingerprint is missing.';
   end if;
-  if not has_function_privilege('authenticated', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)', 'execute') then
-    raise exception 'authenticated role cannot execute execute_csv_import.';
+  if has_function_privilege('authenticated', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)', 'execute') then
+    raise exception 'authenticated role must not execute execute_csv_import directly.';
   end if;
   if has_function_privilege('anon', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)', 'execute') then
     raise exception 'anon role must not execute execute_csv_import.';
   end if;
-  if not has_function_privilege('authenticated', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean)', 'execute') then
-    raise exception 'authenticated role cannot execute pipeline-enabled execute_csv_import.';
+  if has_function_privilege('service_role', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid)', 'execute') then
+    raise exception 'service_role must not execute legacy execute_csv_import.';
+  end if;
+  if has_function_privilege('authenticated', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean)', 'execute') then
+    raise exception 'authenticated role must not execute pipeline-enabled execute_csv_import directly.';
   end if;
   if has_function_privilege('anon', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean)', 'execute') then
     raise exception 'anon role must not execute pipeline-enabled execute_csv_import.';
+  end if;
+  if not has_function_privilege('service_role', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean)', 'execute') then
+    raise exception 'service_role must execute server-only pipeline-enabled execute_csv_import.';
   end if;
   if not exists (
     select 1 from pg_class c

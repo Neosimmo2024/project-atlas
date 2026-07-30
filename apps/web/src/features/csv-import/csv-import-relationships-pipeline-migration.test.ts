@@ -11,8 +11,17 @@ describe("CSV import relationships and pipeline migration", () => {
   it("adds the global pipeline option to the execution RPC without exposing public execution", () => {
     expect(migration).toContain("p_add_to_pipeline boolean");
     expect(migration).toContain("'pipelineIntegrationEnabled', p_add_to_pipeline is true");
-    expect(migration).toContain("revoke execute on function public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean) from public, anon");
-    expect(migration).toContain("grant execute on function public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean) to authenticated, service_role");
+    expect(migration).toContain("current_setting('request.jwt.claim.role', true)");
+    expect(migration).toContain("Server execution required.");
+    expect(migration).toContain("revoke execute on function public.execute_csv_import(uuid, text, text, text, jsonb, uuid) from public, anon, authenticated, service_role");
+    expect(migration).toContain("revoke execute on function public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean) from public, anon, authenticated");
+    expect(migration).toContain("grant execute on function public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean) to service_role");
+  });
+
+  it("keeps actor role validation internal to the server-only transaction surface", () => {
+    expect(migration).toContain("create or replace function public._csv_import_actor_has_tenant_role");
+    expect(migration).toContain("revoke execute on function public._csv_import_actor_has_tenant_role(uuid, uuid, text[]) from public, anon, authenticated");
+    expect(migration).toContain("p_actor_user_id is null or not public._csv_import_actor_has_tenant_role");
   });
 
   it("creates only recruiting relationships in the detection stage when person and organization are known", () => {

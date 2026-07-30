@@ -2,6 +2,30 @@ alter table public.csv_import_cancellations
   add column if not exists relationships_deleted integer not null default 0 check (relationships_deleted >= 0),
   add column if not exists relationships_kept integer not null default 0 check (relationships_kept >= 0);
 
+create or replace function public._csv_import_actor_has_tenant_role(
+  p_tenant_id uuid,
+  p_actor_user_id uuid,
+  p_allowed_roles text[]
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select exists (
+    select 1
+    from public.tenant_users tu
+    join public.roles r on r.id = tu.role_id
+    where tu.tenant_id = p_tenant_id
+      and tu.user_id = p_actor_user_id
+      and tu.status = 'active'
+      and r.slug = any(p_allowed_roles)
+  );
+$$;
+
+revoke execute on function public._csv_import_actor_has_tenant_role(uuid, uuid, text[]) from public, anon, authenticated;
+
 create or replace function public._csv_import_safe_uuid(p_value text)
 returns uuid
 language plpgsql
@@ -84,11 +108,11 @@ declare
   v_organization_email text;
   v_organization_phone text;
 begin
-  if auth.uid() is null or auth.uid() <> p_actor_user_id then
-    raise exception 'Authenticated user mismatch.';
+  if coalesce(nullif(current_setting('request.jwt.claim.role', true), ''), '') <> 'service_role' then
+    raise exception 'Server execution required.';
   end if;
 
-  if not public.has_tenant_role(p_tenant_id, array['owner', 'admin', 'recruiter', 'manager']) then
+  if p_actor_user_id is null or not public._csv_import_actor_has_tenant_role(p_tenant_id, p_actor_user_id, array['owner', 'admin', 'recruiter', 'manager']) then
     raise exception 'Action non autorisee.';
   end if;
 
@@ -499,8 +523,9 @@ begin
 end;
 $$;
 
-revoke execute on function public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean) from public, anon;
-grant execute on function public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean) to authenticated, service_role;
+revoke execute on function public.execute_csv_import(uuid, text, text, text, jsonb, uuid) from public, anon, authenticated, service_role;
+revoke execute on function public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean) from public, anon, authenticated;
+grant execute on function public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean) to service_role;
 
 create or replace function public._csv_import_created_entity_report(
   p_tenant_id uuid,

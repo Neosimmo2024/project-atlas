@@ -16,6 +16,12 @@ L'import CSV execute uniquement les decisions validees apres la previsualisation
 
 L'execution finale passe par la fonction PostgreSQL `public.execute_csv_import`. Une fonction RPC est necessaire parce que les repositories Atlas existants effectuent des ecritures separees et ne peuvent pas garantir une transaction globale depuis le client Supabase.
 
+Cette RPC est une surface transactionnelle interne. Elle n'est pas executable par `public`, `anon` ou `authenticated`, y compris pour les utilisateurs ayant un role Atlas `owner`, `admin`, `manager`, `recruiter` ou `reader`. La route serveur `/api/imports/csv/execute` valide d'abord la session Supabase, le tenant actif, le role Atlas et la previsualisation recalculee, puis appelle la RPC avec un client `service_role` strictement cote serveur.
+
+La fonction SQL refuse tout appel dont le JWT PostgREST n'est pas `service_role`, puis reverifie explicitement que `p_actor_user_id` est actif dans le tenant et possede un role autorise. Le client ne peut donc pas choisir librement son tenant, son role ou une liste de Relationships a creer.
+
+La cle `SUPABASE_SERVICE_ROLE_KEY` doit etre configuree uniquement dans l'environnement serveur. En CI locale Atlas, la meme surface est testee avec `QA_SUPABASE_SERVICE_ROLE_KEY`. Aucune de ces cles ne doit etre exposee au navigateur.
+
 La transaction couvre :
 
 - la creation ou le rattachement des personnes ;
