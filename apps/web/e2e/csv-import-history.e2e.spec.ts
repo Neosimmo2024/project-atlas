@@ -98,7 +98,7 @@ test("Sprint 13 CSV visual recipe imports to organizations and pipeline then can
   await capture(page, testInfo, "sprint13-csv-desktop-09-pipeline-after-import");
 
   await page.goto("/pipeline?query=Hugo%20Lambert");
-  await expectBodyText(page, "Aucune relation dans le pipeline");
+  await expectBodyText(page, "Pipeline vide");
 
   await page.goto(detailUrl);
   await page.getByRole("button", { name: "Demander l'annulation" }).click();
