@@ -181,9 +181,13 @@ async function resolveRequiredDecisions(page: Page) {
   await page.locator(".import-review-row").evaluateAll((rows) => {
     for (const row of rows) {
       const select = row.querySelector<HTMLSelectElement>("select");
-      if (!select || select.disabled || select.value) continue;
+      if (!select || select.disabled) continue;
       const text = row.textContent ?? "";
-      select.value = /Ligne invalide|Nora|Incomplete/i.test(text) ? "ignore_row" : "review_later";
+      if (/Ligne invalide|Nora|Incomplete/i.test(text)) {
+        select.value = "ignore_row";
+      } else if (!select.value) {
+        select.value = "review_later";
+      }
       select.dispatchEvent(new Event("change", { bubbles: true }));
     }
   });
