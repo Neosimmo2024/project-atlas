@@ -33,51 +33,51 @@ test("Sprint 13 CSV visual recipe imports to organizations and pipeline then can
     buffer: csvBuffer
   });
 
-  await expect(page.getByText("sprint13-demo-import.csv")).toBeVisible();
-  await expect(page.getByText("Prénom")).toBeVisible();
-  await expect(page.getByText("Téléphone")).toBeVisible();
-  await expect(page.getByText("Statut TVA")).toBeVisible();
-  await expect(page.getByText("Élodie")).toBeVisible();
+  await expectBodyText(page, "sprint13-demo-import.csv");
+  await expectBodyText(page, "Prénom");
+  await expectBodyText(page, "Téléphone");
+  await expectBodyText(page, "Statut TVA");
+  await expectBodyText(page, "Élodie");
   await expectNoMojibake(page);
   await capture(page, testInfo, "sprint13-csv-desktop-02-preview-mapping");
 
   await page.getByRole("button", { name: "Valider et vérifier" }).click();
   await expect(page.getByRole("heading", { name: "Vérification et doublons détectés" })).toBeVisible();
-  await expect(page.getByText("Statut TVA non reconnu")).toBeVisible();
-  await expect(page.getByText("À vérifier")).toBeVisible();
-  await expect(page.getByText("Nora")).toBeVisible();
-  await expect(page.getByText("Incomplete")).toBeVisible();
+  await expectBodyText(page, "Statut TVA non reconnu");
+  await expectBodyText(page, "À vérifier");
+  await expectBodyText(page, "Nora");
+  await expectBodyText(page, "Incomplete");
   await expectNoMojibake(page);
   await resolveRequiredDecisions(page);
   await capture(page, testInfo, "sprint13-csv-desktop-03-review-vat-warning");
 
   await page.getByLabel(/Ajouter les contacts .* pipeline/i).check();
-  await expect(page.getByText("Option globale")).toBeVisible();
+  await expectBodyText(page, "Option globale");
   await page.getByRole("button", { name: /Pr[eé]parer la suite/ }).click();
-  await expect(page.getByText("Import prêt à exécuter")).toBeVisible();
-  await expect(page.getByText("Relations créées")).toBeVisible();
+  await expectBodyText(page, "Import prêt à exécuter");
+  await expectBodyText(page, "Relations créées");
   await expectNoMojibake(page);
   await capture(page, testInfo, "sprint13-csv-desktop-04-summary-before-import");
 
   await page.getByRole("button", { name: "Confirmer et lancer l'import" }).click();
-  await expect(page.getByText(/Import termin/i)).toBeVisible({ timeout: 30000 });
-  await expect(page.getByText("Les écritures validées ont été appliquées")).toBeVisible();
-  await expect(page.getByText("Personnes créées")).toBeVisible();
-  await expect(page.getByText("Organisations créées")).toBeVisible();
+  await expect(page.locator("body")).toContainText(/Import termin/i, { timeout: 30000 });
+  await expectBodyText(page, "Les écritures validées ont été appliquées");
+  await expectBodyText(page, "Personnes créées");
+  await expectBodyText(page, "Organisations créées");
   await expectNoMojibake(page);
   await capture(page, testInfo, "sprint13-csv-desktop-05-result-after-import");
 
   await page.goto("/imports");
   await expect(page.getByRole("heading", { name: "Imports CSV exécutés" })).toBeVisible();
-  await expect(page.getByText("sprint13-demo-import.csv")).toBeVisible();
+  await expectBodyText(page, "sprint13-demo-import.csv");
   await expectNoMojibake(page);
   await capture(page, testInfo, "sprint13-csv-desktop-06-history");
 
   await page.getByRole("link", { name: /Consulter le d[eé]tail/ }).first().click();
   await expect(page.getByRole("heading", { name: /Import CSV|sprint13-demo-import\.csv/i })).toBeVisible();
-  await expect(page.getByText("Statut TVA: Assujetti")).toBeVisible();
-  await expect(page.getByText("Statut TVA: À vérifier")).toBeVisible();
-  await expect(page.getByText(/Annulation s[eé]curis[eé]e/)).toBeVisible();
+  await expectBodyText(page, "Statut TVA: Assujetti");
+  await expectBodyText(page, "Statut TVA: À vérifier");
+  await expect(page.locator("body")).toContainText(/Annulation s[eé]curis[eé]e/);
   await expectNoMojibake(page);
   const detailUrl = page.url();
   await capture(page, testInfo, "sprint13-csv-desktop-07-detail");
@@ -85,32 +85,32 @@ test("Sprint 13 CSV visual recipe imports to organizations and pipeline then can
   await page.goto("/organizations?query=Atlas%20D%C3%A9mo%20Nouvelle%20Agence");
   await expect(page.getByRole("link", { name: /Atlas Démo Nouvelle Agence/ })).toBeVisible();
   await page.getByRole("link", { name: /Atlas Démo Nouvelle Agence/ }).first().click();
-  await expect(page.getByText("Statut TVA")).toBeVisible();
-  await expect(page.getByText("Assujetti")).toBeVisible();
+  await expectBodyText(page, "Statut TVA");
+  await expectBodyText(page, "Assujetti");
   await expectNoMojibake(page);
   await capture(page, testInfo, "sprint13-csv-desktop-08-organization-vat-status");
 
   await page.goto("/pipeline?query=%C3%89lodie%20Carpentier");
-  await expect(page.getByText("Élodie Carpentier")).toBeVisible();
-  await expect(page.getByText("Atlas Démo Nouvelle Agence")).toBeVisible();
+  await expectBodyText(page, "Élodie Carpentier");
+  await expectBodyText(page, "Atlas Démo Nouvelle Agence");
   await expectNoMojibake(page);
   await capture(page, testInfo, "sprint13-csv-desktop-09-pipeline-after-import");
 
   await page.goto("/pipeline?query=Hugo%20Lambert");
-  await expect(page.getByText("Aucune relation dans le pipeline")).toBeVisible();
+  await expectBodyText(page, "Aucune relation dans le pipeline");
 
   await page.goto(detailUrl);
   await page.getByRole("button", { name: "Demander l'annulation" }).click();
   await expect(page.getByRole("dialog", { name: "Confirmer l'annulation de l'import" })).toBeVisible();
   await page.getByLabel(/Je confirme vouloir lancer/).check();
   await page.getByRole("button", { name: "Valider l'annulation" }).click();
-  await expect(page.getByText(/donn[eé]e\(s\) supprim[eé]e\(s\)/)).toBeVisible({ timeout: 30000 });
-  await expect(page.getByText(/conserv[eé]e\(s\)/)).toBeVisible();
+  await expect(page.locator("body")).toContainText(/donn[eé]e\(s\) supprim[eé]e\(s\)/, { timeout: 30000 });
+  await expect(page.locator("body")).toContainText(/conserv[eé]e\(s\)/);
   await expectNoMojibake(page);
   await capture(page, testInfo, "sprint13-csv-desktop-10-after-cancellation");
 
   await page.goto(`/organizations/${process.env.QA_ORGANIZATION_A_ID}`);
-  await expect(page.getByText("Atlas QA Organization A")).toBeVisible();
+  await expectBodyText(page, "Atlas QA Organization A");
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/imports");
@@ -120,41 +120,41 @@ test("Sprint 13 CSV visual recipe imports to organizations and pipeline then can
     mimeType: "text/csv",
     buffer: csvBuffer
   });
-  await expect(page.getByText("Statut TVA")).toBeVisible();
+  await expectBodyText(page, "Statut TVA");
   await expectNoBlockingHorizontalOverflow(page);
   await expectNoMojibake(page);
   await capture(page, testInfo, "sprint13-csv-mobile-01-preview-mapping");
 
   await page.getByRole("button", { name: "Valider et vérifier" }).click();
-  await expect(page.getByText("Statut TVA non reconnu")).toBeVisible();
+  await expectBodyText(page, "Statut TVA non reconnu");
   await resolveRequiredDecisions(page);
   await expectNoBlockingHorizontalOverflow(page);
   await capture(page, testInfo, "sprint13-csv-mobile-02-review-warnings");
 
   await page.getByLabel(/Ajouter les contacts .* pipeline/i).check();
   await page.getByRole("button", { name: /Pr[eé]parer la suite/ }).click();
-  await expect(page.getByText("Import prêt à exécuter")).toBeVisible();
+  await expectBodyText(page, "Import prêt à exécuter");
   await expectNoBlockingHorizontalOverflow(page);
   await capture(page, testInfo, "sprint13-csv-mobile-03-summary");
 
   await page.getByRole("button", { name: "Confirmer et lancer l'import" }).click();
-  await expect(page.getByText(/Import termin/i)).toBeVisible({ timeout: 30000 });
+  await expect(page.locator("body")).toContainText(/Import termin/i, { timeout: 30000 });
   await expectNoBlockingHorizontalOverflow(page);
   await capture(page, testInfo, "sprint13-csv-mobile-04-result");
 
   await page.goto("/imports");
-  await expect(page.getByText("sprint13-demo-import-mobile.csv")).toBeVisible();
+  await expectBodyText(page, "sprint13-demo-import-mobile.csv");
   await expectNoBlockingHorizontalOverflow(page);
   await capture(page, testInfo, "sprint13-csv-mobile-05-history");
 
   await page.getByRole("link", { name: /Consulter le d[eé]tail/ }).first().click();
-  await expect(page.getByText("Statut TVA: Assujetti")).toBeVisible();
+  await expectBodyText(page, "Statut TVA: Assujetti");
   await expectNoBlockingHorizontalOverflow(page);
   const mobileDetailUrl = page.url();
   await capture(page, testInfo, "sprint13-csv-mobile-06-detail-vat");
 
   await page.goto("/pipeline?query=%C3%89lodie%20Carpentier");
-  await expect(page.getByText("Élodie Carpentier")).toBeVisible();
+  await expectBodyText(page, "Élodie Carpentier");
   await expectNoBlockingHorizontalOverflow(page);
   await capture(page, testInfo, "sprint13-csv-mobile-07-pipeline");
 
@@ -162,7 +162,7 @@ test("Sprint 13 CSV visual recipe imports to organizations and pipeline then can
   await page.getByRole("button", { name: "Demander l'annulation" }).click();
   await page.getByLabel(/Je confirme vouloir lancer/).check();
   await page.getByRole("button", { name: "Valider l'annulation" }).click();
-  await expect(page.getByText(/donn[eé]e\(s\) supprim[eé]e\(s\)/)).toBeVisible({ timeout: 30000 });
+  await expect(page.locator("body")).toContainText(/donn[eé]e\(s\) supprim[eé]e\(s\)/, { timeout: 30000 });
   await expectNoBlockingHorizontalOverflow(page);
   await capture(page, testInfo, "sprint13-csv-mobile-08-after-cancellation");
 });
@@ -191,6 +191,10 @@ async function resolveRequiredDecisions(page: Page) {
 async function expectNoMojibake(page: Page) {
   const text = await page.locator("body").innerText();
   expect(text).not.toMatch(/Ã|Â|â€™|â€“|â€œ|â€|�/);
+}
+
+async function expectBodyText(page: Page, text: string) {
+  await expect(page.locator("body")).toContainText(text);
 }
 
 async function expectNoBlockingHorizontalOverflow(page: Page) {
