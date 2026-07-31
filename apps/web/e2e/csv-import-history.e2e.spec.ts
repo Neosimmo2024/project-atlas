@@ -38,6 +38,7 @@ test("Sprint 13 CSV visual recipe imports to organizations and pipeline then can
   await expectBodyText(page, "Téléphone");
   await expectBodyText(page, "Statut TVA");
   await expectBodyText(page, "Élodie");
+  await setColumnMapping(page, "Responsable", "ignore");
   await expectNoMojibake(page);
   await capture(page, testInfo, "sprint13-csv-desktop-02-preview-mapping");
 
@@ -121,6 +122,7 @@ test("Sprint 13 CSV visual recipe imports to organizations and pipeline then can
     buffer: csvBuffer
   });
   await expectBodyText(page, "Statut TVA");
+  await setColumnMapping(page, "Responsable", "ignore");
   await expectNoBlockingHorizontalOverflow(page);
   await expectNoMojibake(page);
   await capture(page, testInfo, "sprint13-csv-mobile-01-preview-mapping");
@@ -186,6 +188,14 @@ async function resolveRequiredDecisions(page: Page) {
     }
   });
   await expect(page.locator(".import-validation-errors")).toHaveCount(0);
+}
+
+async function setColumnMapping(page: Page, header: string, value: string) {
+  const row = page.locator(".import-mapping-row").filter({
+    has: page.getByRole("heading", { name: header })
+  });
+  await row.getByLabel("Champ Atlas").selectOption(value);
+  await expect(row.getByLabel("Champ Atlas")).toHaveValue(value);
 }
 
 async function expectNoMojibake(page: Page) {
