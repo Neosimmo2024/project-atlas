@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 import { CSV_IMPORT_MAX_ROWS, previewCsvImport, validateCsvImportDecisions, type CsvImportAtlasData } from "./csv-import";
 
 const tenantId = "tenant-a";
@@ -11,19 +11,20 @@ function atlas(overrides: Partial<CsvImportAtlasData> = {}): CsvImportAtlasData 
       {
         id: "org-1",
         tenant_id: tenantId,
-        name: "Neos Immo",
+        name: "Atlas Demo Immo",
         siren: "123456789",
         siret: "12345678900011",
-        primary_email: "contact@neos.test",
+        primary_email: "contact@atlas-demo.test",
         primary_phone: "0601020304",
         city: "Paris",
         postal_code: "75008",
         status: "active",
+        vat_status: null,
         do_not_contact: false
       }
     ],
     owners: [
-      { userId: "owner-1", label: "Renato Ponzio", email: "renato@example.test" }
+      { userId: "owner-1", label: "Camille Martin", email: "camille@example.test" }
     ],
     ...overrides
   };
@@ -193,38 +194,60 @@ describe("csv import preview", () => {
     expect(result.rows[0].fieldsToEnrich).toEqual({ source: "Salon" });
     expect(result.rows[0].fieldConflicts.city).toEqual({ existing: "Lyon", incoming: "Paris" });
     expect(result.rows[0].fieldConflicts.comments).toEqual({ existing: "Deja renseigne", incoming: "Note import" });
-    expect(result.rows[0].warnings).toContain("Le contact existant est marque Ne plus contacter et ne doit pas etre reactive automatiquement.");
+    expect(result.rows[0].warnings).toContain("Le contact existant est marqué Ne plus contacter et ne doit pas être réactivé automatiquement.");
   });
 
-  it("warns for unknown owner, organization, network and VAT values without creating references", () => {
+  it("normalizes optional VAT values without blocking the import", () => {
     const result = previewCsvImport({
-      content: "Prénom,Nom,Organisation,Réseau immobilier,Propriétaire du contact,Statut TVA\nA,A,Unknown Org,Unknown Network,Unknown Owner,peut-etre"
+      content: [
+        "Prénom,Nom,Email,Organisation,Statut TVA",
+        "A,A,a@example.test,Atlas Démo Assujetti,Assujetti",
+        "B,B,b@example.test,Atlas Démo Non, Non assujetti ",
+        "C,C,c@example.test,Atlas Démo Vérif,À vérifier",
+        "D,D,d@example.test,Atlas Démo Ancienne,oui",
+        "E,E,e@example.test,Atlas Démo Inconnue,peut-etre"
+      ].join("\n")
+    }, atlas(), { tenantId });
+
+    expect(result.rows.map((row) => row.normalizedValues.vat_status)).toEqual([
+      "assujetti",
+      "non_assujetti",
+      "a_verifier",
+      "assujetti",
+      "a_verifier"
+    ]);
+    expect(result.rows[4].warnings).toContain("Statut TVA non reconnu: peut-etre. Atlas le classe en À vérifier sans bloquer l'import.");
+    expect(result.rows.every((row) => row.classification !== "rejected_row")).toBe(true);
+  });
+
+  it("warns for unknown owner, organization and network values without creating references", () => {
+    const result = previewCsvImport({
+      content: "Prénom,Nom,Organisation,Réseau immobilier,Propriétaire du contact\nA,A,Unknown Org,Unknown Network,Unknown Owner"
     }, atlas(), { tenantId });
 
     expect(result.rows[0].warnings).toEqual(expect.arrayContaining([
       "Organisation inconnue dans le tenant: Unknown Org",
-      "Reseau immobilier inconnu dans le tenant: Unknown Network",
-      "Proprietaire du contact inconnu dans le tenant: Unknown Owner",
-      "Statut TVA non reconnu: peut-etre"
+      "Réseau immobilier inconnu dans le tenant: Unknown Network",
+      "Propriétaire du contact inconnu dans le tenant: Unknown Owner"
     ]));
   });
 
   it("detects organization duplicates by SIREN, SIRET, email, phone, name city and name postal code", () => {
     const result = previewCsvImport({
       content: [
-        "PrÃ©nom,Nom,Email,Organisation,SIREN organisation,SIRET organisation,Email organisation,TÃ©lÃ©phone organisation,Ville,Code postal",
-        "A,A,a@example.test,Neos Immo,123 456 789,12345678900011,CONTACT@NEOS.TEST,+33 6 01 02 03 04,Paris,75008",
-        "B,B,b@example.test,Neos Immo,,,,,Paris,75008"
+        "Prénom,Nom,Email,Organisation,SIREN organisation,SIRET organisation,Email organisation,Téléphone organisation,Ville,Code postal",
+        "A,A,a@example.test,Atlas Demo Immo,123 456 789,12345678900011,CONTACT@ATLAS-DEMO.TEST,+33 6 01 02 03 04,Paris,75008",
+        "B,B,b@example.test,Atlas Demo Immo,,,,,Paris,75008"
       ].join("\n"),
       mapping: {
-        "PrÃ©nom": "first_name",
+        "Prénom": "first_name",
         Nom: "last_name",
         Email: "email",
         Organisation: "organization",
         "SIREN organisation": "organization_siren",
         "SIRET organisation": "organization_siret",
         "Email organisation": "organization_email",
-        "TÃ©lÃ©phone organisation": "organization_phone",
+        "Téléphone organisation": "organization_phone",
         Ville: "city",
         "Code postal": "postal_code"
       }
@@ -239,8 +262,8 @@ describe("csv import preview", () => {
 
   it("reports only the criteria that matched each Atlas record", () => {
     const result = previewCsvImport({
-      content: "PrÃ©nom,Nom,Email,TÃ©lÃ©phone\nA,A,email@example.test,0601020304",
-      mapping: { "PrÃ©nom": "first_name", Nom: "last_name", Email: "email", "TÃ©lÃ©phone": "phone" }
+      content: "Prénom,Nom,Email,Téléphone\nA,A,email@example.test,0601020304",
+      mapping: { "Prénom": "first_name", Nom: "last_name", Email: "email", "Téléphone": "phone" }
     }, atlas({
       people: [
         {
@@ -280,7 +303,7 @@ describe("csv import preview", () => {
 
   it("explains the fields that produced person and organization matches", () => {
     const result = previewCsvImport({
-      content: "PrÃ©nom,Nom,Email,Organisation,SIREN organisation\nAda,Lovelace,ada@example.test,Neos Immo,123456789"
+      content: "Prénom,Nom,Email,Organisation,SIREN organisation\nAda,Lovelace,ada@example.test,Atlas Demo Immo,123456789"
     }, atlas({
       people: [{
         id: "person-4",
@@ -311,7 +334,7 @@ describe("csv import preview", () => {
 
   it("requires user decisions for ambiguous and existing matches before preparing the next step", () => {
     const result = previewCsvImport({
-      content: "PrÃ©nom,Nom,Email\nAda,Lovelace,ada@example.test"
+      content: "Prénom,Nom,Email\nAda,Lovelace,ada@example.test"
     }, atlas({
       people: [{
         id: "person-5",
@@ -336,7 +359,7 @@ describe("csv import preview", () => {
 
   it("blocks stale analyses when the mapping fingerprint changed", () => {
     const result = previewCsvImport({
-      content: "PrÃ©nom,Nom,Email\nAda,Lovelace,ada@example.test"
+      content: "Prénom,Nom,Email\nAda,Lovelace,ada@example.test"
     }, atlas(), { tenantId });
 
     const validation = validateCsvImportDecisions(result, [{ lineNumber: 2, decision: "create_new" }], "stale");

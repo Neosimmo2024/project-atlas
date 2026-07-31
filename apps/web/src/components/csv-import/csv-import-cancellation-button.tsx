@@ -39,12 +39,12 @@ export function CsvImportCancellationButton({ importId, eligibility, canRequest 
       });
       const body = await parseResponse(response);
       if (!response.ok || !body?.data) {
-        throw new Error(body?.error || body?.message || "L'annulation n'a pas pu etre executee.");
+        throw new Error(body?.error || body?.message || "L'annulation n'a pas pu être exécutée.");
       }
       setReport(body.data);
       setOpen(false);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "L'annulation n'a pas pu etre executee.");
+      setError(caught instanceof Error ? caught.message : "L'annulation n'a pas pu être exécutée.");
     } finally {
       setLoading(false);
     }
@@ -56,22 +56,22 @@ export function CsvImportCancellationButton({ importId, eligibility, canRequest 
         <p className="muted">Annulation securisee</p>
         <h2>{csvImportCancellationStatusLabels[eligibility.status]}</h2>
         <p>
-          Atlas ne supprimera que les donnees creees par cet import, encore inchangees et sans dependance metier bloquante.
+          Atlas ne supprimera que les données créées par cet import, encore inchangées et sans dépendance métier bloquante.
         </p>
       </div>
 
       <div className="grid import-review-summary">
         <Metric label="Supprimables" value={eligibility.summary.deletable} />
         <Metric label="Conservees" value={eligibility.summary.kept} />
-        <Metric label="People creees" value={eligibility.summary.peopleCreated} />
-        <Metric label="Organizations creees" value={eligibility.summary.organizationsCreated} />
-        <Metric label="Relations creees" value={eligibility.summary.relationshipsCreated} />
+        <Metric label="People créées" value={eligibility.summary.peopleCreated} />
+        <Metric label="Organizations créées" value={eligibility.summary.organizationsCreated} />
+        <Metric label="Relations créées" value={eligibility.summary.relationshipsCreated} />
       </div>
 
       {report ? (
         <div className="import-cancellation-result" role="status">
           <strong>{csvImportCancellationStatusLabels[report.status]}</strong>
-          <p>{report.summary.peopleDeleted + report.summary.organizationsDeleted + report.summary.relationshipsDeleted} donnee(s) supprimee(s), {report.summary.peopleKept + report.summary.organizationsKept + report.summary.relationshipsKept} conservee(s).</p>
+          <p>{report.summary.peopleDeleted + report.summary.organizationsDeleted + report.summary.relationshipsDeleted} donnée(s) supprimée(s), {report.summary.peopleKept + report.summary.organizationsKept + report.summary.relationshipsKept} conservée(s).</p>
         </div>
       ) : null}
 
@@ -87,20 +87,20 @@ export function CsvImportCancellationButton({ importId, eligibility, canRequest 
         <div className="modal-backdrop" role="presentation">
           <div className="modal-card import-cancellation-dialog" role="dialog" aria-modal="true" aria-labelledby="cancel-import-title">
             <h2 id="cancel-import-title">Confirmer l&apos;annulation de l&apos;import</h2>
-            <p>Cette action est irreversible pour les donnees effectivement supprimables. Les donnees rattachees, modifiees ou utilisees ailleurs seront conservees.</p>
+            <p>Cette action est irréversible pour les données effectivement supprimables. Les données rattachées, modifiées ou utilisées ailleurs seront conservées.</p>
 
             <div className="import-cancellation-columns">
               <EntityList title="People supprimables" items={eligibility.people.filter((item) => item.deletable)} />
-              <EntityList title="People conservees" items={eligibility.people.filter((item) => !item.deletable)} />
+              <EntityList title="People conservées" items={eligibility.people.filter((item) => !item.deletable)} />
               <EntityList title="Organizations supprimables" items={eligibility.organizations.filter((item) => item.deletable)} />
-              <EntityList title="Organizations conservees" items={eligibility.organizations.filter((item) => !item.deletable)} />
+              <EntityList title="Organizations conservées" items={eligibility.organizations.filter((item) => !item.deletable)} />
               <EntityList title="Relations supprimables" items={eligibility.relationships.filter((item) => item.deletable)} />
-              <EntityList title="Relations conservees" items={eligibility.relationships.filter((item) => !item.deletable)} />
+              <EntityList title="Relations conservées" items={eligibility.relationships.filter((item) => !item.deletable)} />
             </div>
 
             <label className="confirm-check">
               <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />
-              Je confirme vouloir lancer l&apos;annulation securisee de cet import.
+              Je confirme vouloir lancer l&apos;annulation sécurisée de cet import.
             </label>
 
             <div className="modal-actions">
@@ -120,7 +120,7 @@ function EntityList({ title, items }: { title: string; items: Array<{ id: string
   return (
     <div>
       <strong>{title}</strong>
-      {items.length === 0 ? <p className="muted">Aucun element.</p> : (
+      {items.length === 0 ? <p className="muted">Aucun élément.</p> : (
         <ul>
           {items.map((item) => (
             <li key={item.id}>

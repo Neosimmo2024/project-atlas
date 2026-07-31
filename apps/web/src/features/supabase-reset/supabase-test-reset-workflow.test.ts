@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from "node:fs";
+﻿import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -95,7 +95,7 @@ describe("Supabase test reset workflow", () => {
     }
   });
 
-  it("requires exactly canonical migrations 0001 through 0013", () => {
+  it("requires exactly canonical migrations 0001 through 0014", () => {
     const migrations = readdirSync(resolve(root, "supabase/migrations")).filter((name) => name.endsWith(".sql")).sort();
     expect(migrations).toEqual([
       "0001_core.sql",
@@ -110,9 +110,10 @@ describe("Supabase test reset workflow", () => {
       "0010_recruitment_pipeline_domain.sql",
       "0011_csv_import_execution.sql",
       "0012_csv_import_safe_cancellation.sql",
-      "0013_csv_import_relationships_pipeline.sql"
+      "0013_csv_import_relationships_pipeline.sql",
+      "0014_organization_vat_status.sql"
     ]);
-    expect(workflow).toContain("Refusing reset: migration set is not exactly 0001 through 0013.");
+    expect(workflow).toContain("Refusing reset: migration set is not exactly 0001 through 0014.");
   });
 
   it("verifies the CSV import execution schema and RPC privileges after reset", () => {

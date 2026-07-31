@@ -1,7 +1,19 @@
-import { describe, expect, it } from "vitest";
-import { validateCsvImportMapping } from "./csv-import-mapping";
+﻿import { describe, expect, it } from "vitest";
+import { CSV_IMPORT_FIELD_DEFINITIONS, CSV_IMPORT_FIELD_GROUP_LABELS, validateCsvImportMapping } from "./csv-import-mapping";
 
 describe("csv import column mapping", () => {
+  it("keeps visible CSV mapping labels encoded as UTF-8 French text", () => {
+    const visibleText = [
+      ...Object.values(CSV_IMPORT_FIELD_GROUP_LABELS),
+      ...CSV_IMPORT_FIELD_DEFINITIONS.map((definition) => definition.label)
+    ].join(" ");
+
+    expect(visibleText).toContain("Prénom");
+    expect(visibleText).toContain("Téléphone");
+    expect(visibleText).toContain("Statut TVA");
+    expect(visibleText).not.toMatch(/Ã|Â|â€™|â€“/);
+  });
+
   it("accepts an identity, a usable contact and ignored columns", () => {
     expect(validateCsvImportMapping(
       ["Prénom", "Email", "Ancien identifiant"],

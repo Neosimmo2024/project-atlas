@@ -27,11 +27,13 @@ type ImportReport = {
     relationshipsKept?: number;
   };
   rows?: Array<{
+    lineNumber?: number;
     personId?: string;
     organizationId?: string;
     relationshipId?: string;
     relationshipCreated?: boolean;
     relationshipOutcome?: string;
+    vatStatus?: string;
   }>;
 };
 
@@ -381,6 +383,8 @@ role_privileges as (
       ('service_role', 'public.execute_csv_import(uuid, text, text, text, jsonb, uuid, boolean)'),
       ('authenticated', 'public._csv_import_actor_has_tenant_role(uuid, uuid, text[])'),
       ('authenticated', 'public._csv_import_created_entity_report(uuid, uuid)'),
+      ('authenticated', 'public._csv_import_normalize_vat_status(text)'),
+      ('authenticated', 'public._execute_csv_import_without_vat(uuid, text, text, text, jsonb, uuid, boolean)'),
       ('authenticated', 'public._csv_import_safe_uuid(text)')
   ) as checks(role_name, signature)
 )
@@ -437,6 +441,94 @@ order by result;
     const visibleToB = await tenantB.from("csv_import_runs").select("id").eq("idempotency_key", `${marker}-server-success`);
     expect(visibleToB.error).toBeNull();
     expect(visibleToB.data).toHaveLength(0);
+  });
+
+  it("persists optional VAT status without blocking imports or overwriting stronger organization data", async () => {
+    const emptyVatOrganizationId = randomUUID();
+    const protectedVatOrganizationId = randomUUID();
+    const service = serviceClient();
+
+    const { error: seedError } = await service.from("organizations").insert([
+      {
+        id: emptyVatOrganizationId,
+        tenant_id: tenantAContext.tenant_id,
+        name: `${marker} Empty VAT Org`,
+        primary_email: `${marker}-empty-vat-org@example.test`,
+        status: "active"
+      },
+      {
+        id: protectedVatOrganizationId,
+        tenant_id: tenantAContext.tenant_id,
+        name: `${marker} Protected VAT Org`,
+        primary_email: `${marker}-protected-vat-org@example.test`,
+        status: "active",
+        vat_status: "assujetti"
+      }
+    ]);
+    if (seedError) throw seedError;
+
+    const execution = await executeImportAsServer(tenantAContext, `${marker}-vat-status`, [
+      {
+        lineNumber: 2,
+        decision: "create_new",
+        classification: "new_contact",
+        normalizedValues: {
+          first_name: "Vat",
+          last_name: "Created",
+          email: `${marker}-vat-created@example.test`,
+          organization: `${marker} Created VAT Org`,
+          vat_status: "non_assujetti"
+        },
+        targetPersonId: null,
+        targetOrganizationId: null
+      },
+      {
+        lineNumber: 3,
+        decision: "link_existing",
+        classification: "existing_contact_enrichment",
+        normalizedValues: {
+          first_name: "Vat",
+          last_name: "Linked",
+          email: `${marker}-vat-linked@example.test`,
+          organization: `${marker} Empty VAT Org`,
+          vat_status: "a_verifier"
+        },
+        targetPersonId: null,
+        targetOrganizationId: emptyVatOrganizationId
+      },
+      {
+        lineNumber: 4,
+        decision: "link_existing",
+        classification: "existing_contact_enrichment",
+        normalizedValues: {
+          first_name: "Vat",
+          last_name: "Protected",
+          email: `${marker}-vat-protected@example.test`,
+          organization: `${marker} Protected VAT Org`,
+          vat_status: "non_assujetti"
+        },
+        targetPersonId: null,
+        targetOrganizationId: protectedVatOrganizationId
+      }
+    ], true);
+    expect(execution.error).toBeNull();
+
+    const report = execution.data as ImportReport;
+    const createdOrganizationId = report.rows?.find((row) => row.lineNumber === 2)?.organizationId;
+    expect(createdOrganizationId).toBeTruthy();
+
+    const { data, error } = await service
+      .from("organizations")
+      .select("id, vat_status")
+      .in("id", [createdOrganizationId!, emptyVatOrganizationId, protectedVatOrganizationId])
+      .order("id", { ascending: true });
+    if (error) throw error;
+
+    const statuses = new Map((data ?? []).map((row) => [row.id as string, row.vat_status as string | null]));
+    expect(statuses.get(createdOrganizationId!)).toBe("non_assujetti");
+    expect(statuses.get(emptyVatOrganizationId)).toBe("a_verifier");
+    expect(statuses.get(protectedVatOrganizationId)).toBe("assujetti");
+    expect(report.rows?.find((row) => row.lineNumber === 2)?.vatStatus).toBe("non_assujetti");
   });
 
   it("rejects direct link_existing RPC calls before business validation can be bypassed", async () => {

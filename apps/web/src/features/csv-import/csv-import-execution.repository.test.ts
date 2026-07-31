@@ -43,7 +43,7 @@ const preview: CsvImportPreviewResult = {
     normalizedValues: { email: "ada@example.test" },
     mapping: { Email: "email" },
     classification: "new_contact",
-    reason: "Aucun doublon detecte.",
+    reason: "Aucun doublon détecté.",
     existingPersonId: null,
     fieldsToEnrich: {},
     fieldConflicts: {},

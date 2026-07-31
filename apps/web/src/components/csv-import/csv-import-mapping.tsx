@@ -54,15 +54,15 @@ async function parsePreviewResponse(response: Response) {
 async function parseExecuteResponse(response: Response) {
   const body = await response.json().catch(() => null) as ExecuteApiResponse | null;
   if (!response.ok || !body?.data) {
-    throw new Error(body?.error || body?.message || "L'import n'a pas pu etre execute.");
+    throw new Error(body?.error || body?.message || "L'import n'a pas pu être exécuté.");
   }
   return body.data;
 }
 
 function rowStatusLabel(row: CsvImportRowPreview) {
-  if (row.classification === "new_contact") return row.organizationMatches.length > 0 ? "Sans doublon personne, organisation a confirmer" : "Sans doublon detecte";
+  if (row.classification === "new_contact") return row.organizationMatches.length > 0 ? "Sans doublon personne, organisation à confirmer" : "Sans doublon détecté";
   if (row.classification === "existing_contact_enrichment") return "Correspondance Atlas";
-  if (row.classification === "certain_duplicate") return "Doublon detecte";
+  if (row.classification === "certain_duplicate") return "Doublon détecté";
   if (row.classification === "possible_duplicate") return "Cas ambigu";
   if (row.classification === "critical_conflict") return "Conflit critique";
   return "Ligne invalide";
@@ -209,7 +209,7 @@ export function CsvImportMapping() {
       setReport(result);
       setStep("report");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "L'import n'a pas pu etre execute.");
+      setError(caught instanceof Error ? caught.message : "L'import n'a pas pu être exécuté.");
     } finally {
       setLoading(false);
     }
@@ -233,7 +233,7 @@ export function CsvImportMapping() {
       <ol className="import-steps" aria-label="Etapes de l'import">
         <li className={step !== "upload" ? "done" : "active"}>1. Previsualisation</li>
         <li className={step === "review" || step === "ready" || step === "report" ? "done" : step === "mapping" ? "active" : ""}>2. Correspondance</li>
-        <li className={step === "review" ? "active" : step === "ready" || step === "report" ? "done" : ""}>3. Verification des donnees</li>
+        <li className={step === "review" ? "active" : step === "ready" || step === "report" ? "done" : ""}>3. Vérification des données</li>
         <li className={step === "ready" ? "active" : step === "report" ? "done" : ""}>4. Execution</li>
       </ol>
 
@@ -241,7 +241,7 @@ export function CsvImportMapping() {
         <section className="card import-upload">
           <div>
             <h2>Choisir le fichier a preparer</h2>
-            <p>Le fichier est lu pour afficher ses colonnes. Aucune donnee n&apos;est creee dans Atlas.</p>
+            <p>Le fichier est lu pour afficher ses colonnes. Aucune donnée n&apos;est créée dans Atlas.</p>
           </div>
           <label className="button link-button import-file-button">
             {loading ? "Lecture en cours..." : "Selectionner un CSV"}
@@ -260,7 +260,7 @@ export function CsvImportMapping() {
         <>
           <section className="card import-file-summary">
             <div>
-              <p className="muted">Fichier selectionne</p>
+              <p className="muted">Fichier sélectionné</p>
               <h2>{fileName}</h2>
             </div>
             <div>
@@ -332,7 +332,7 @@ export function CsvImportMapping() {
           {step === "review" || step === "ready" || step === "report" ? (
             <section className="stack">
               <header>
-                <h2>Verification et doublons detectes</h2>
+                <h2>Vérification et doublons détectés</h2>
                 <p className="muted">Les valeurs originales restent visibles. Les valeurs normalisees servent uniquement a la comparaison.</p>
               </header>
 
@@ -382,7 +382,7 @@ export function CsvImportMapping() {
 
                     {[...row.matches, ...row.organizationMatches].length > 0 ? (
                       <div className="import-match-list">
-                        <strong>Rapprochements detectes</strong>
+                        <strong>Rapprochements détectés</strong>
                         {[...row.matches, ...row.organizationMatches].map((match, index) => (
                           <div className="import-match" key={`${row.lineNumber}-${match.entityType}-${match.entityId ?? match.lineNumber}-${index}`}>
                             <p>{match.explanation}</p>
@@ -418,10 +418,10 @@ export function CsvImportMapping() {
                     }}
                     type="checkbox"
                   />
-                  Ajouter les contacts eligibles au pipeline de recrutement
+                  Ajouter les contacts éligibles au pipeline de recrutement
                 </label>
                 <p className="muted">
-                  Option globale: Atlas creera uniquement des relations de recrutement prudentes en phase detection lorsque la personne et l&apos;organisation sont identifiees. Les lignes sans organisation ou ambigues resteront sans entree Pipeline.
+                  Option globale: Atlas créera uniquement des relations de recrutement prudentes en phase détection lorsque la personne et l&apos;organisation sont identifiées. Les lignes sans organisation ou ambiguës resteront sans entrée Pipeline.
                 </p>
               </section>
             </section>
@@ -430,21 +430,21 @@ export function CsvImportMapping() {
           {step === "ready" ? (
             <section className="card import-confirmation" role="status">
               <div>
-                <strong>Import pret a executer</strong>
+                <strong>Import prêt à exécuter</strong>
                 <p>Atlas recalculera la verification cote serveur avant toute ecriture. L&apos;execution est transactionnelle et protegee contre le double clic.</p>
               </div>
               {executionSummary ? (
                 <div className="grid import-review-summary">
-                  <Metric label="Personnes a creer" value={executionSummary.createNew} />
+                  <Metric label="Personnes à créer" value={executionSummary.createNew} />
                   <Metric label="Rattachements existants" value={executionSummary.linkExisting} />
-                  <Metric label="Organisations a creer" value={executionSummary.organizationsToCreate} />
+                  <Metric label="Organisations à créer" value={executionSummary.organizationsToCreate} />
                   <Metric label="A examiner plus tard" value={executionSummary.reviewLater} />
                   <Metric label="Lignes ignorees" value={executionSummary.ignored} />
-                  <Metric label="Relations creees" value={executionSummary.relationshipsToCreate} />
+                  <Metric label="Relations créées" value={executionSummary.relationshipsToCreate} />
                 </div>
               ) : null}
               <p className="muted">
-                Pipeline: {addToPipeline ? "les contacts eligibles seront ajoutes en phase detection." : "aucune relation de recrutement ne sera creee."}
+                Pipeline: {addToPipeline ? "les contacts éligibles seront ajoutés en phase détection." : "aucune relation de recrutement ne sera créée."}
               </p>
             </section>
           ) : null}
@@ -453,20 +453,20 @@ export function CsvImportMapping() {
             <section className="card import-final-report" role="status">
               <div>
                 <strong>Import termine</strong>
-                <p>{report.idempotent ? "Cette demande avait deja ete executee: Atlas affiche le meme rapport." : "Les ecritures validees ont ete appliquees dans une transaction unique."}</p>
+                <p>{report.idempotent ? "Cette demande avait déjà été exécutée: Atlas affiche le même rapport." : "Les écritures validées ont été appliquées dans une transaction unique."}</p>
               </div>
               <div className="grid import-review-summary">
-                <Metric label="Personnes creees" value={report.summary.peopleCreated} />
+                <Metric label="Personnes créées" value={report.summary.peopleCreated} />
                 <Metric label="Personnes rattachees" value={report.summary.peopleLinked} />
-                <Metric label="Organisations creees" value={report.summary.organizationsCreated} />
+                <Metric label="Organisations créées" value={report.summary.organizationsCreated} />
                 <Metric label="Organisations rattachees" value={report.summary.organizationsLinked} />
-                <Metric label="Relations creees" value={report.summary.relationshipsCreated} />
+                <Metric label="Relations créées" value={report.summary.relationshipsCreated} />
                 <Metric label="Relations rattachees" value={report.summary.relationshipsLinked} />
                 <Metric label="Lignes ignorees" value={report.summary.rowsIgnored} />
                 <Metric label="A examiner" value={report.summary.rowsReviewLater} />
               </div>
               <p className="muted">
-                Pipeline: {report.summary.pipelineIntegrationEnabled ? `${report.summary.relationshipsSkipped} ligne(s) non eligible(s) ou deja protegees.` : "option non activee pour cet import."}
+                Pipeline: {report.summary.pipelineIntegrationEnabled ? `${report.summary.relationshipsSkipped} ligne(s) non éligible(s) ou déjà protégée(s).` : "option non activée pour cet import."}
               </p>
               {report.errors.length > 0 ? <ul className="error-list">{report.errors.map((item) => <li key={item}>{item}</li>)}</ul> : null}
             </section>
@@ -480,7 +480,7 @@ export function CsvImportMapping() {
             </Button>
             {step === "mapping" ? (
               <Button disabled={!validation.valid || loading} type="button" onClick={() => void validateMapping()}>
-                {loading ? "Verification..." : "Valider et verifier"}
+                {loading ? "Vérification..." : "Valider et vérifier"}
               </Button>
             ) : step === "ready" ? (
               <Button disabled={!decisionValidation.valid || loading} type="button" onClick={() => void executeImport()}>

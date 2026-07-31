@@ -18,7 +18,7 @@ L'execution finale passe par la fonction PostgreSQL `public.execute_csv_import`.
 
 Cette RPC est une surface transactionnelle interne. Elle n'est pas executable par `public`, `anon` ou `authenticated`, y compris pour les utilisateurs ayant un role Atlas `owner`, `admin`, `manager`, `recruiter` ou `reader`. La route serveur `/api/imports/csv/execute` valide d'abord la session Supabase, le tenant actif, le role Atlas et la previsualisation recalculee, puis appelle la RPC avec un client `service_role` strictement cote serveur.
 
-La fonction SQL refuse tout appel dont le JWT PostgREST n'est pas `service_role`, puis reverifie explicitement que `p_actor_user_id` est actif dans le tenant et possede un role autorise. Le client ne peut donc pas choisir librement son tenant, son role ou une liste de Relationships a creer.
+Les privileges SQL refusent l'execution directe a `public`, `anon` et `authenticated`; seul le role PostgREST `service_role` peut appeler la RPC transactionnelle. La fonction reverifie explicitement que `p_actor_user_id` est actif dans le tenant et possede un role autorise. Le client ne peut donc pas choisir librement son tenant, son role ou une liste de Relationships a creer.
 
 La cle `SUPABASE_SERVICE_ROLE_KEY` doit etre configuree uniquement dans l'environnement serveur. En CI locale Atlas, la meme surface est testee avec `QA_SUPABASE_SERVICE_ROLE_KEY`. Aucune de ces cles ne doit etre exposee au navigateur.
 
@@ -68,6 +68,40 @@ Regles appliquees :
 - aucune creation automatique d'organisation, de proprietaire ou de phase au-dela de ce que l'import CSV execute deja.
 
 Chaque Relationship creee par l'import est tracee dans le rapport avec l'import, la ligne, le tenant, la Person, l'Organization, le type et la phase. Les Relationships preexistantes ou seulement rattachees sont marquees comme telles et ne sont jamais supprimables au titre de l'annulation de cet import.
+
+## Sprint 13
+
+Sprint 13 consolide le parcours en vue de la beta metier :
+
+- dataset fictif rejouable ;
+- CSV de demonstration ;
+- recette documentee ;
+- correction des libelles visibles lies a l'import ;
+- statut TVA facultatif persiste sur `organizations.vat_status`.
+
+## Statut TVA
+
+`organizations.vat_status` accepte uniquement :
+
+- `assujetti` ;
+- `non_assujetti` ;
+- `a_verifier`.
+
+Le statut TVA est facultatif et ne bloque jamais l'import.
+
+Normalisation :
+
+- `Assujetti`, casse ou espaces variables, ainsi que les anciennes valeurs compatibles `oui`, `true`, `1`, deviennent `assujetti` ;
+- `Non assujetti`, tirets ou espaces variables, ainsi que `non`, `false`, `0`, deviennent `non_assujetti` ;
+- `À vérifier`, `a verifier`, `verifier`, `a controler`, deviennent `a_verifier` ;
+- une valeur vide ne produit pas d'ecriture ;
+- une valeur inconnue devient `a_verifier` et produit un avertissement comprehensible.
+
+Mise a jour :
+
+- une Organization creee par l'import recoit le statut normalise ;
+- une Organization existante sans statut peut recevoir le statut normalise ;
+- une Organization existante avec statut conserve sa valeur, afin d'eviter un ecrasement silencieux moins fiable.
 
 ## Historique
 

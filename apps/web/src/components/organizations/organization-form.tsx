@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ORGANIZATION_STATUS_LABELS, ORGANIZATION_STATUSES, ORGANIZATION_TYPE_LABELS, ORGANIZATION_TYPES } from "@/features/organizations/options";
+import { ORGANIZATION_STATUS_LABELS, ORGANIZATION_STATUSES, ORGANIZATION_TYPE_LABELS, ORGANIZATION_TYPES, ORGANIZATION_VAT_STATUS_LABELS, ORGANIZATION_VAT_STATUSES } from "@/features/organizations/options";
 import type { OrganizationDuplicateMatch } from "@/features/organizations/search";
 import type { Organization } from "@/types/domain";
 
@@ -40,6 +40,7 @@ function formToPayload(form: HTMLFormElement, confirmDuplicate = false) {
     siren: String(data.get("siren") ?? ""),
     siret: String(data.get("siret") ?? ""),
     vat_number: String(data.get("vat_number") ?? ""),
+    vat_status: String(data.get("vat_status") ?? "") || null,
     parent_organization_id: String(data.get("parent_organization_id") ?? ""),
     source: String(data.get("source") ?? ""),
     comments: String(data.get("comments") ?? ""),
@@ -169,6 +170,14 @@ export function OrganizationForm({ mode, organization, parentOptions }: Organiza
         <label>SIREN<Input name="siren" inputMode="numeric" defaultValue={valueOrEmpty(organization?.siren) as string} /><FieldError name="siren" /></label>
         <label>SIRET<Input name="siret" inputMode="numeric" defaultValue={valueOrEmpty(organization?.siret) as string} /><FieldError name="siret" /></label>
         <label>TVA intracommunautaire<Input name="vat_number" defaultValue={valueOrEmpty(organization?.vat_number) as string} /><FieldError name="vat_number" /></label>
+        <label>
+          Statut TVA
+          <select className="input" name="vat_status" defaultValue={organization?.vat_status ?? ""}>
+            <option value="">Non renseigné</option>
+            {ORGANIZATION_VAT_STATUSES.map((status) => <option key={status} value={status}>{ORGANIZATION_VAT_STATUS_LABELS[status]}</option>)}
+          </select>
+          <FieldError name="vat_status" />
+        </label>
         <label>
           Reseau parent eventuel
           <select className="input" name="parent_organization_id" defaultValue={organization?.parent_organization_id ?? ""}>
