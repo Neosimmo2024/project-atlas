@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ORGANIZATION_STATUSES, ORGANIZATION_TYPES } from "./options";
+import { ORGANIZATION_STATUSES, ORGANIZATION_TYPES, ORGANIZATION_VAT_STATUSES } from "./options";
 
 const nullableText = z
   .string()
@@ -64,6 +64,7 @@ export const organizationInputSchema = z.object({
   siren: normalizedSiren,
   siret: normalizedSiret,
   vat_number: optionalNullableText,
+  vat_status: z.enum(ORGANIZATION_VAT_STATUSES, { message: "Le statut TVA selectionne est invalide." }).nullable().optional(),
   parent_organization_id: optionalNullableText,
   source: optionalNullableText,
   comments: optionalNullableText,

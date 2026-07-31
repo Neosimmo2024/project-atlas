@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { CsvImportCancellationButton } from "@/components/csv-import/csv-import-cancellation-button";
 import { csvImportCancellationReasonLabels, csvImportCancellationStatusLabels } from "@/features/csv-import/csv-import-history";
 import { parseCsvImportExecutionReport } from "@/features/csv-import/csv-import-execution";
+import { ORGANIZATION_VAT_STATUS_LABELS } from "@/features/organizations/options";
 import { getCsvImportDetail } from "@/repositories/csv-import-history";
 import { getTenantContext } from "@/repositories/tenant-context";
 
@@ -20,10 +21,10 @@ function formatDate(value: string | null) {
 }
 
 const relationshipReasonLabels: Record<string, string> = {
-  pipeline_option_disabled: "option Pipeline non activee",
+  pipeline_option_disabled: "option Pipeline non activée",
   missing_person: "personne non identifiee",
   missing_organization: "organisation absente",
-  existing_relationship: "relation de recrutement deja existante",
+  existing_relationship: "relation de recrutement déjà existante",
   different_type_exists: "relation existante d'un autre type",
   invalid_relationship_target: "cible relation invalide"
 };
@@ -53,18 +54,18 @@ export default async function ImportDetailPage({ params }: ImportDetailPageProps
 
       <section className="grid import-review-summary">
         <Metric label="Lignes" value={detail.run.total_rows} />
-        <Metric label="People creees" value={detail.run.people_created} />
+        <Metric label="People créées" value={detail.run.people_created} />
         <Metric label="People rattachees" value={detail.run.people_linked} />
-        <Metric label="Organizations creees" value={detail.run.organizations_created} />
+        <Metric label="Organizations créées" value={detail.run.organizations_created} />
         <Metric label="Organizations rattachees" value={detail.run.organizations_linked} />
-        <Metric label="Relations creees" value={detail.run.relationships_created} />
+        <Metric label="Relations créées" value={detail.run.relationships_created} />
         <Metric label="Rejetees" value={detail.run.rows_rejected} />
       </section>
 
       <section className="card import-detail-summary">
         <div>
           <p className="muted">Statut de l&apos;import</p>
-          <h2>{detail.run.status === "succeeded" ? "Import termine" : detail.run.status}</h2>
+          <h2>{detail.run.status === "succeeded" ? "Import terminé" : detail.run.status}</h2>
         </div>
         <div>
           <p className="muted">Statut d&apos;annulation</p>
@@ -77,22 +78,22 @@ export default async function ImportDetailPage({ params }: ImportDetailPageProps
       <section className="stack">
         <header>
           <p className="muted">Rapport</p>
-          <h2>Donnees creees par l&apos;import</h2>
+          <h2>Données créées par l&apos;import</h2>
         </header>
-        <Rows rows={createdRows} empty="Aucune donnee creee." />
+        <Rows rows={createdRows} empty="Aucune donnée créée." />
       </section>
 
       <section className="stack">
         <header>
           <h2>Elements seulement rattaches</h2>
-          <p className="muted">Ces donnees existaient deja et ne seront jamais supprimees par l&apos;annulation.</p>
+          <p className="muted">Ces données existaient déjà et ne seront jamais supprimées par l&apos;annulation.</p>
         </header>
         <Rows rows={linkedRows} empty="Aucun rattachement." />
       </section>
 
       <section className="stack">
         <header>
-          <h2>Lignes ignorees, conservees ou rejetees</h2>
+          <h2>Lignes ignorées, conservées ou rejetées</h2>
         </header>
         <Rows rows={passiveRows} empty="Aucune ligne passive." />
       </section>
@@ -100,7 +101,7 @@ export default async function ImportDetailPage({ params }: ImportDetailPageProps
       <section className="stack">
         <header>
           <h2>Analyse d&apos;annulation</h2>
-          <p className="muted">Les elements non supprimables restent conserves avec leur motif.</p>
+          <p className="muted">Les éléments non supprimables restent conservés avec leur motif.</p>
         </header>
         <div className="import-cancellation-columns">
           <CancellationList title="People" items={detail.eligibility.people} />
@@ -132,6 +133,7 @@ function Rows({ rows, empty }: { rows: ReturnType<typeof parseCsvImportExecution
           <p>Decision: {row.decision}</p>
           {row.personId ? <p>Person: {row.personId}</p> : null}
           {row.organizationId ? <p>Organization: {row.organizationId}</p> : null}
+          {row.vatStatus ? <p>Statut TVA: {ORGANIZATION_VAT_STATUS_LABELS[row.vatStatus]}</p> : null}
           {row.relationshipId ? <p>Relationship: {row.relationshipId}</p> : null}
           {row.relationshipReason ? <p>Pipeline: {relationshipReasonLabels[row.relationshipReason] ?? row.relationshipReason}</p> : null}
         </article>
@@ -141,7 +143,7 @@ function Rows({ rows, empty }: { rows: ReturnType<typeof parseCsvImportExecution
 }
 
 function CancellationList({ title, items }: { title: string; items: Array<{ id: string; label: string; deletable: boolean; reason: string | null }> }) {
-  if (items.length === 0) return <p className="muted">Aucun element {title.toLowerCase()} cree par cet import.</p>;
+  if (items.length === 0) return <p className="muted">Aucun élément {title.toLowerCase()} créé par cet import.</p>;
   return (
     <div className="card">
       <h3>{title}</h3>
@@ -149,7 +151,7 @@ function CancellationList({ title, items }: { title: string; items: Array<{ id: 
         {items.map((item) => (
           <li key={item.id}>
             <strong>{item.label}</strong>
-            <span>{item.deletable ? "supprimable" : `conservee: ${item.reason ? csvImportCancellationReasonLabels[item.reason] ?? item.reason : "suppression interdite"}`}</span>
+            <span>{item.deletable ? "supprimable" : `conservé: ${item.reason ? csvImportCancellationReasonLabels[item.reason] ?? item.reason : "suppression interdite"}`}</span>
           </li>
         ))}
       </ul>

@@ -7,6 +7,7 @@ import {
   type CsvImportPreviewResult,
   type CsvImportRowPreview
 } from "./csv-import";
+import type { OrganizationVatStatus } from "@/types/domain";
 
 export type CsvImportExecutionRequest = {
   content: string;
@@ -67,6 +68,7 @@ export type CsvImportExecutionReport = {
     organizationId?: string | null;
     personCreated?: boolean;
     organizationCreated?: boolean;
+    vatStatus?: OrganizationVatStatus | null;
     relationshipId?: string | null;
     relationshipCreated?: boolean;
     relationshipLinked?: boolean;
@@ -180,12 +182,17 @@ function rowReportFrom(value: unknown): CsvImportExecutionReport["rows"][number]
     organizationId: nullableStringFrom(record.organizationId),
     personCreated: booleanFrom(record.personCreated),
     organizationCreated: booleanFrom(record.organizationCreated),
+    vatStatus: nullableVatStatusFrom(record.vatStatus),
     relationshipId: nullableStringFrom(record.relationshipId),
     relationshipCreated: booleanFrom(record.relationshipCreated),
     relationshipLinked: booleanFrom(record.relationshipLinked),
     relationshipOutcome: nullableStringFrom(record.relationshipOutcome),
     relationshipReason: nullableStringFrom(record.relationshipReason)
   };
+}
+
+function nullableVatStatusFrom(value: unknown): OrganizationVatStatus | null {
+  return value === "assujetti" || value === "non_assujetti" || value === "a_verifier" ? value : null;
 }
 
 export function parseCsvImportExecutionReport(value: Record<string, unknown>): CsvImportExecutionReport {

@@ -6,7 +6,7 @@ import { ContextProjects } from "@/components/projects/context-projects";
 import { TaskCard } from "@/components/tasks/task-card";
 import { TimelineFilters, normalizeTimelineCategory } from "@/components/timeline/timeline-filters";
 import { TimelineList } from "@/components/timeline/timeline-list";
-import { ORGANIZATION_STATUS_LABELS, ORGANIZATION_TYPE_LABELS } from "@/features/organizations/options";
+import { ORGANIZATION_STATUS_LABELS, ORGANIZATION_TYPE_LABELS, ORGANIZATION_VAT_STATUS_LABELS } from "@/features/organizations/options";
 import { canDeleteOrganizations } from "@/features/organizations/search";
 import { getOrganizationDetail, listParentOrganizationOptions } from "@/repositories/organizations";
 import { listContextProjects } from "@/repositories/projects";
@@ -48,6 +48,7 @@ export default async function OrganizationDetailPage({ params, searchParams }: O
     listContextProjects(context, { organizationId: organization.id })
   ]);
   const typeLabel = organization.organization_type ? ORGANIZATION_TYPE_LABELS[organization.organization_type as keyof typeof ORGANIZATION_TYPE_LABELS] ?? organization.organization_type : "-";
+  const vatStatusLabel = organization.vat_status ? ORGANIZATION_VAT_STATUS_LABELS[organization.vat_status] : "Non renseigné";
 
   return (
     <div className="page stack">
@@ -83,6 +84,7 @@ export default async function OrganizationDetailPage({ params, searchParams }: O
           <p><strong>SIREN</strong><br />{organization.siren ?? "-"}</p>
           <p><strong>SIRET</strong><br />{organization.siret ?? "-"}</p>
           <p><strong>TVA</strong><br />{organization.vat_number ?? "-"}</p>
+          <p><strong>Statut TVA</strong><br />{vatStatusLabel}</p>
           <p><strong>Contact autorise</strong><br />{organization.contact_allowed ? "Oui" : "Non"}</p>
           <p><strong>Ne pas contacter</strong><br />{organization.do_not_contact ? "Oui" : "Non"}</p>
         </section>

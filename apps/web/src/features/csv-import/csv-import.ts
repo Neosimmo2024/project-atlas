@@ -1,5 +1,5 @@
 import { parse } from "csv-parse/sync";
-import type { Organization, Person, RelationshipPipelineStage, TenantContext } from "@/types/domain";
+import type { Organization, OrganizationVatStatus, Person, RelationshipPipelineStage, TenantContext } from "@/types/domain";
 import { RECRUITMENT_PIPELINE_STAGES } from "@/features/recruitment-pipeline/options";
 
 export const CSV_IMPORT_MAX_BYTES = 5 * 1024 * 1024;
@@ -84,6 +84,7 @@ export type CsvImportPreviewOrganization = Pick<Organization,
   | "city"
   | "postal_code"
   | "status"
+  | "vat_status"
   | "do_not_contact"
 >;
 
@@ -99,7 +100,7 @@ export type CsvImportAtlasData = {
   owners: CsvImportPreviewOwner[];
 };
 
-export type CsvImportNormalizedValues = Partial<Record<CsvImportField, string | boolean>>;
+export type CsvImportNormalizedValues = Partial<Record<CsvImportField, string>>;
 
 export type CsvImportRowPreview = {
   lineNumber: number;
@@ -232,11 +233,25 @@ export function normalizeBusinessIdentifier(value: string, expectedLength: 9 | 1
   return digits.length === expectedLength ? digits : "";
 }
 
-function normalizeBoolean(value: string) {
+export function normalizeVatStatus(value: string): { status: OrganizationVatStatus | null; warning: string | null } {
   const normalized = normalizeComparable(value);
-  if (["oui", "yes", "true", "vrai", "actif", "active", "1"].includes(normalized)) return true;
-  if (["non", "no", "false", "faux", "inactif", "inactive", "0"].includes(normalized)) return false;
-  return null;
+  if (!normalized) return { status: null, warning: null };
+  const compact = normalized.replace(/[_\-\s]+/g, " ");
+
+  if (["assujetti", "assujettie", "oui", "yes", "true", "vrai", "actif", "active", "1"].includes(compact)) {
+    return { status: "assujetti", warning: null };
+  }
+  if (["non assujetti", "non assujettie", "non", "no", "false", "faux", "inactif", "inactive", "0"].includes(compact)) {
+    return { status: "non_assujetti", warning: null };
+  }
+  if (["a verifier", "a verifier plus tard", "verifier", "a controler", "a confirmer"].includes(compact)) {
+    return { status: "a_verifier", warning: null };
+  }
+
+  return {
+    status: "a_verifier",
+    warning: `Statut TVA non reconnu: ${value}. Atlas le classe en À vérifier sans bloquer l'import.`
+  };
 }
 
 function parseCsv(content: string): ParsedCsv {
@@ -264,7 +279,7 @@ function parseCsv(content: string): ParsedCsv {
   }
 
   const dataRows = records.slice(1);
-  if (dataRows.length === 0) throw new Error("Le fichier CSV ne contient aucune ligne de donnees.");
+  if (dataRows.length === 0) throw new Error("Le fichier CSV ne contient aucune ligne de données.");
   if (dataRows.length > CSV_IMPORT_MAX_ROWS) throw new Error("Le fichier CSV depasse la limite de 10 000 lignes.");
 
   return {
@@ -308,7 +323,7 @@ function normalizeRow(originalValues: Record<string, string>, mapping: CsvImport
       else normalizedValues.email = normalized;
     } else if (field === "phone") {
       const normalized = normalizeFrenchPhone(value);
-      if (!normalized) errors.push(`Telephone invalide: ${value}`);
+      if (!normalized) errors.push(`Téléphone invalide: ${value}`);
       else normalizedValues.phone = normalized;
     } else if (field === "postal_code") {
       const normalized = normalizePostalCode(value);
@@ -328,15 +343,12 @@ function normalizeRow(originalValues: Record<string, string>, mapping: CsvImport
       else normalizedValues.organization_email = normalized;
     } else if (field === "organization_phone") {
       const normalized = normalizeFrenchPhone(value);
-      if (!normalized) errors.push(`Telephone organisation invalide: ${value}`);
+      if (!normalized) errors.push(`Téléphone organisation invalide: ${value}`);
       else normalizedValues.organization_phone = normalized;
     } else if (field === "vat_status") {
-      const normalized = normalizeBoolean(value);
-      if (normalized === null) warnings.push(`Statut TVA non reconnu: ${value}`);
-      else {
-        normalizedValues.vat_status = normalized;
-        warnings.push("Le statut TVA est analyse mais aucun champ Atlas existant ne permet de l'ecrire en V1.");
-      }
+      const normalized = normalizeVatStatus(value);
+      if (normalized.status) normalizedValues.vat_status = normalized.status;
+      if (normalized.warning) warnings.push(normalized.warning);
     } else if (field === "pipeline_stage") {
       const stage = stageByLabel.get(normalizeComparable(value));
       if (!stage) errors.push(`Phase de recrutement inconnue: ${value}`);
@@ -533,10 +545,10 @@ function pushInternalMatch(matches: CsvImportMatch[], lineNumber: number, reason
 function personDifferences(person: CsvImportPreviewPerson, values: CsvImportNormalizedValues) {
   const differences: string[] = [];
   const comparisons: Array<[keyof CsvImportNormalizedValues, keyof CsvImportPreviewPerson, string]> = [
-    ["first_name", "first_name", "prenom"],
+    ["first_name", "first_name", "prénom"],
     ["last_name", "last_name", "nom"],
     ["email", "primary_email", "email"],
-    ["phone", "primary_phone", "telephone"],
+    ["phone", "primary_phone", "téléphone"],
     ["city", "city", "ville"],
     ["postal_code", "postal_code", "code postal"]
   ];
@@ -559,7 +571,7 @@ function organizationDifferences(organization: CsvImportPreviewOrganization, val
     ["organization_siren", "siren", "SIREN"],
     ["organization_siret", "siret", "SIRET"],
     ["organization_email", "primary_email", "email"],
-    ["organization_phone", "primary_phone", "telephone"],
+    ["organization_phone", "primary_phone", "téléphone"],
     ["city", "city", "ville"],
     ["postal_code", "postal_code", "code postal"]
   ];
@@ -578,7 +590,7 @@ function organizationDifferences(organization: CsvImportPreviewOrganization, val
 function atlasPersonMatches(people: CsvImportPreviewPerson[], values: CsvImportNormalizedValues, reasonsFor: (person: CsvImportPreviewPerson) => string[], strength: CsvImportMatchStrength): CsvImportMatch[] {
   return people.map((person) => {
     const reasons = reasonsFor(person);
-    const fields = reasons.map((reason) => reason === "identity" ? "prenom + nom + ville" : reason);
+    const fields = reasons.map((reason) => reason === "identity" ? "prénom + nom + ville" : reason);
 
     return {
       entityType: "person",
@@ -714,7 +726,7 @@ export function previewCsvImport(request: CsvImportRequest, atlas: CsvImportAtla
 
   if (context) {
     const outOfTenant = atlas.people.some((person) => person.tenant_id !== context.tenantId) || atlas.organizations.some((organization) => organization.tenant_id !== context.tenantId);
-    if (outOfTenant) throw new Error("Les donnees de comparaison ne respectent pas le tenant actif.");
+    if (outOfTenant) throw new Error("Les données de comparaison ne respectent pas le tenant actif.");
   }
 
   const normalizedRows = parsed.rows.map((originalValues, index) => ({
@@ -766,10 +778,10 @@ export function previewCsvImport(request: CsvImportRequest, atlas: CsvImportAtla
       pushInternalMatch(matches, lineNumber, ["email"], ["email"], "Une autre ligne du fichier utilise le même e-mail.");
     }
     for (const lineNumber of otherLines(internalPhoneLines, phone, row.lineNumber)) {
-      pushInternalMatch(matches, lineNumber, ["phone"], ["telephone"], "Une autre ligne du fichier utilise le même téléphone.");
+      pushInternalMatch(matches, lineNumber, ["phone"], ["téléphone"], "Une autre ligne du fichier utilise le même téléphone.");
     }
     for (const lineNumber of otherLines(internalNameLines, personIdentity, row.lineNumber)) {
-      pushInternalMatch(matches, lineNumber, ["identity"], ["prenom + nom + ville"], "Une autre ligne du fichier partage le même prénom, nom et ville.", "possible");
+      pushInternalMatch(matches, lineNumber, ["identity"], ["prénom + nom + ville"], "Une autre ligne du fichier partage le même prénom, nom et ville.", "possible");
     }
     matches.push(...atlasPersonMatches(
       duplicateMatches,
@@ -800,7 +812,7 @@ export function previewCsvImport(request: CsvImportRequest, atlas: CsvImportAtla
       pushInternalMatch(organizationMatches, lineNumber, ["email"], ["email organisation"], "Une autre ligne du fichier utilise le même e-mail d'organisation.");
     }
     for (const lineNumber of otherLines(internalOrganizationPhoneLines, organizationPhone, row.lineNumber)) {
-      pushInternalMatch(organizationMatches, lineNumber, ["phone"], ["telephone organisation"], "Une autre ligne du fichier utilise le même téléphone d'organisation.");
+      pushInternalMatch(organizationMatches, lineNumber, ["phone"], ["téléphone organisation"], "Une autre ligne du fichier utilise le même téléphone d'organisation.");
     }
     for (const lineNumber of otherLines(internalOrganizationNameCityLines, organizationNameCity, row.lineNumber)) {
       pushInternalMatch(organizationMatches, lineNumber, ["name_city"], ["nom + ville"], "Une autre ligne du fichier partage le même nom d'organisation et la même ville.", "possible");
@@ -851,14 +863,14 @@ export function previewCsvImport(request: CsvImportRequest, atlas: CsvImportAtla
       warnings.push(`Organisation inconnue dans le tenant: ${values.organization}`);
     }
     if (typeof values.real_estate_network === "string" && values.real_estate_network && !indexes.organizationsByName.has(normalizeComparable(values.real_estate_network))) {
-      warnings.push(`Reseau immobilier inconnu dans le tenant: ${values.real_estate_network}`);
+      warnings.push(`Réseau immobilier inconnu dans le tenant: ${values.real_estate_network}`);
     }
     if (typeof values.owner === "string" && values.owner && !indexes.ownersByKey.has(normalizeComparable(values.owner))) {
-      warnings.push(`Proprietaire du contact inconnu dans le tenant: ${values.owner}`);
+      warnings.push(`Propriétaire du contact inconnu dans le tenant: ${values.owner}`);
     }
 
     let classification: CsvImportClassification = "new_contact";
-    let reason = "Aucun doublon detecte.";
+    let reason = "Aucun doublon détecté.";
     let existingPerson: CsvImportPreviewPerson | null = duplicateMatches.length === 1 ? duplicateMatches[0] : null;
 
     if (errors.length > 0) {
@@ -867,24 +879,24 @@ export function previewCsvImport(request: CsvImportRequest, atlas: CsvImportAtla
       existingPerson = null;
     } else if (emailPhoneConflict || duplicateMatches.length > 1) {
       classification = "critical_conflict";
-      reason = "L'email et le telephone correspondent a des personnes differentes ou plusieurs correspondances existent.";
+      reason = "L'email et le téléphone correspondent à des personnes différentes ou plusieurs correspondances existent.";
       existingPerson = null;
     } else if (internalCertain || emailMatches.length > 0 || phoneMatches.length > 0) {
       classification = duplicateMatches.length === 1 ? "existing_contact_enrichment" : "certain_duplicate";
-      reason = duplicateMatches.length === 1 ? "Contact existant trouve par email ou telephone." : "Doublon certain detecte par email ou telephone.";
+      reason = duplicateMatches.length === 1 ? "Contact existant trouvé par email ou téléphone." : "Doublon certain détecté par email ou téléphone.";
     } else if (internalPossible || possibleDuplicateMatches.length > 0) {
       classification = "possible_duplicate";
-      reason = "Doublon possible detecte par prenom, nom et ville.";
+      reason = "Doublon possible détecté par prénom, nom et ville.";
     }
 
     const enrichment = existingPerson ? enrichmentsFor(existingPerson, values) : { fieldsToEnrich: {}, fieldConflicts: {} };
-    if (existingPerson?.do_not_contact) warnings.push("Le contact existant est marque Ne plus contacter et ne doit pas etre reactive automatiquement.");
+    if (existingPerson?.do_not_contact) warnings.push("Le contact existant est marqué Ne plus contacter et ne doit pas être réactivé automatiquement.");
     if (classification === "existing_contact_enrichment" && Object.keys(enrichment.fieldConflicts).length > 0 && Object.keys(enrichment.fieldsToEnrich).length === 0) {
       classification = "certain_duplicate";
-      reason = "Contact existant detecte, mais aucune donnee vide ne peut etre completee automatiquement.";
+      reason = "Contact existant détecté, mais aucune donnée vide ne peut être complétée automatiquement.";
     }
     if (classification === "new_contact" && (organizationCertainMatches.length > 0 || organizationPossibleMatches.length > 0 || internalOrganizationDuplicate)) {
-      warnings.push("Une correspondance organisation est detectee et devra etre confirmee avant l'import final.");
+      warnings.push("Une correspondance organisation est détectée et devra être confirmée avant l'import final.");
     }
     const organizationReviewRequired = organizationMatches.length > 0 || internalOrganizationDuplicate;
     const decision = classification === "new_contact" && organizationReviewRequired

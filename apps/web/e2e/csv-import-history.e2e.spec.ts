@@ -18,21 +18,21 @@ test("imports history and cancellation detail stay readable without destructive 
 
   await page.goto(`${process.env.CSV_IMPORT_E2E_BASE_URL}/imports`);
   await expect(page.getByRole("heading", { name: "Importer des contacts" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Imports CSV executes" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Imports CSV exécutés" })).toBeVisible();
   await page.locator('input[type="file"]').setInputFiles({
     name: "pipeline-option.csv",
     mimeType: "text/csv",
     buffer: Buffer.from("First,Last,Email,Organization\nAda,Lovelace,ada-import-e2e@example.test,Atlas Test\n")
   });
-  await page.getByRole("button", { name: "Valider et verifier" }).click();
-  await expect(page.getByText("Ajouter les contacts eligibles au pipeline de recrutement")).toBeVisible();
+  await page.getByRole("button", { name: "Valider et vérifier" }).click();
+  await expect(page.getByText("Ajouter les contacts éligibles au pipeline de recrutement")).toBeVisible();
   await expect(page.getByText("Option globale")).toBeVisible();
 
   const detailLink = page.getByRole("link", { name: "Consulter le detail" }).first();
   if (await detailLink.count()) {
     await detailLink.click();
     await expect(page.getByRole("heading", { name: /Import CSV|\.csv/i })).toBeVisible();
-    await expect(page.getByText("Annulation securisee")).toBeVisible();
+    await expect(page.getByText("Annulation sécurisée")).toBeVisible();
     await expect(page.locator("body")).not.toHaveCSS("overflow-x", "scroll");
   }
 });

@@ -34,7 +34,7 @@ function preview(): CsvImportPreviewResult {
         normalizedValues: { first_name: "Ada", last_name: "Lovelace", email: "ada@example.test", organization: "Atlas" },
         mapping: { First: "first_name", Last: "last_name", Email: "email", Organization: "organization" },
         classification: "new_contact",
-        reason: "Aucun doublon detecte.",
+        reason: "Aucun doublon détecté.",
         existingPersonId: null,
         fieldsToEnrich: {},
         fieldConflicts: {},

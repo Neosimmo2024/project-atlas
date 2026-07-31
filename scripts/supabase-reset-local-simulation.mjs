@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+﻿import { spawn } from "node:child_process";
 import { mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
@@ -20,7 +20,8 @@ export const EXPECTED_MIGRATIONS = [
   "0010_recruitment_pipeline_domain.sql",
   "0011_csv_import_execution.sql",
   "0012_csv_import_safe_cancellation.sql",
-  "0013_csv_import_relationships_pipeline.sql"
+  "0013_csv_import_relationships_pipeline.sql",
+  "0014_organization_vat_status.sql"
 ];
 export const EXPECTED_COUNTS = Object.freeze({
   "auth.users": 1,
@@ -351,7 +352,7 @@ function verifyMigrationSet() {
   const actual = migrations.join("\n");
   const expected = EXPECTED_MIGRATIONS.join("\n");
   if (actual !== expected) {
-    throw new Error("Migration set is not exactly 0001 through 0013.");
+    throw new Error("Migration set is not exactly 0001 through 0014.");
   }
 }
 
@@ -568,13 +569,13 @@ declare
 begin
   select count(*)
   into missing_version_count
-  from unnest(array['0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011','0012','0013']) as version_prefix
+  from unnest(array['0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011','0012','0013','0014']) as version_prefix
   where not exists (
     select 1 from supabase_migrations.schema_migrations sm
     where sm.version like version_prefix || '%'
   );
   if missing_version_count > 0 then
-    raise exception 'Expected migration history 0001 through 0013 is incomplete.';
+    raise exception 'Expected migration history 0001 through 0014 is incomplete.';
   end if;
 
   select count(*)

@@ -14,8 +14,8 @@ export function CsvImportHistoryList({ result }: { result: CsvImportHistoryResul
   if (result.imports.length === 0) {
     return (
       <section className="card empty-state">
-        <h2>Aucun import execute</h2>
-        <p className="muted">Les imports termines apparaitront ici avec leur rapport et leur etat d&apos;annulation.</p>
+        <h2>Aucun import exécuté</h2>
+        <p className="muted">Les imports terminés apparaîtront ici avec leur rapport et leur état d&apos;annulation.</p>
       </section>
     );
   }

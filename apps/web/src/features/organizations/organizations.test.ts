@@ -19,6 +19,7 @@ const baseOrganization: Organization = {
   siren: "123456789",
   siret: "12345678900011",
   vat_number: "FR00123456789",
+  vat_status: null,
   website_url: "https://example.com",
   address_line1: "1 rue du Parc",
   address_line2: null,

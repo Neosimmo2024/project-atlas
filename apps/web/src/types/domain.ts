@@ -11,6 +11,7 @@ export type ProjectType = "recruitment" | "property_sale" | "rental_management" 
 export type ProjectStatus = "open" | "won" | "lost";
 export type ProjectStage = "new" | "qualification" | "proposal" | "decision";
 export type ProjectLossReason = "price" | "competition" | "abandoned" | "too_long" | "no_response" | "bad_qualification" | "conditions_rejected" | "other";
+export type OrganizationVatStatus = "assujetti" | "non_assujetti" | "a_verifier";
 export type ActionPlanSourceType = "task" | "relationship_recommendation";
 export type ActionPlanCategory = "critical" | "priority" | "opportunity" | "to_schedule";
 export type ActionPlanPrimaryAction = "complete" | "snooze" | "schedule" | "open" | "create_task" | "add_interaction";
@@ -116,6 +117,7 @@ export type Organization = TenantScoped & {
   siren: string | null;
   siret: string | null;
   vat_number: string | null;
+  vat_status: OrganizationVatStatus | null;
   website_url: string | null;
   address_line1: string | null;
   address_line2: string | null;

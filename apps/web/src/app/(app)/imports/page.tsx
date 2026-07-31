@@ -25,9 +25,9 @@ export default async function ImportsPage({ searchParams }: ImportsPageProps) {
     <div className="page stack import-page">
       <header className="page-header">
         <div>
-          <p className="muted">Entree de donnees</p>
+          <p className="muted">Entrée de données</p>
           <h1>Importer des contacts</h1>
-          <p className="muted">Preparez un fichier CSV, executez l&apos;import puis retrouvez chaque rapport dans l&apos;historique.</p>
+          <p className="muted">Préparez un fichier CSV, exécutez l&apos;import puis retrouvez chaque rapport dans l&apos;historique.</p>
         </div>
         <Link className="button subtle-button" href="#import-history">Historique des imports</Link>
       </header>
@@ -35,7 +35,7 @@ export default async function ImportsPage({ searchParams }: ImportsPageProps) {
       <section className="stack" id="import-history">
         <header>
           <p className="muted">Historique</p>
-          <h2>Imports CSV executes</h2>
+          <h2>Imports CSV exécutés</h2>
         </header>
         <CsvImportHistoryList result={history} />
       </section>

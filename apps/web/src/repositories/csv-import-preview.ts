@@ -19,7 +19,7 @@ async function loadCsvImportAtlasData(context: TenantContext): Promise<CsvImport
       .limit(10000),
     supabase
       .from("organizations")
-      .select("id, tenant_id, name, siren, siret, primary_email, primary_phone, city, postal_code, status, do_not_contact")
+      .select("id, tenant_id, name, siren, siret, primary_email, primary_phone, city, postal_code, status, vat_status, do_not_contact")
       .eq("tenant_id", context.tenantId)
       .order("id", { ascending: true })
       .limit(10000),
