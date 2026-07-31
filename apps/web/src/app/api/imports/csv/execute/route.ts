@@ -23,6 +23,7 @@ const requestSchema = z.object({
   analysisFingerprint: z.string().min(1),
   idempotencyKey: z.string().min(8).max(160),
   sourceName: z.string().max(255).nullable().optional(),
+  addToPipeline: z.boolean().optional(),
   confirm: z.boolean().optional()
 });
 
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
       analysisFingerprint: string;
       idempotencyKey: string;
       sourceName?: string | null;
+      addToPipeline?: boolean;
       confirm?: boolean;
     };
     if (body.confirm !== true) {
@@ -59,7 +61,8 @@ export async function POST(request: Request) {
       decisions: body.decisions,
       analysisFingerprint: body.analysisFingerprint,
       idempotencyKey: body.idempotencyKey,
-      sourceName: body.sourceName ?? null
+      sourceName: body.sourceName ?? null,
+      addToPipeline: body.addToPipeline === true
     });
 
     return NextResponse.json({ data: report });

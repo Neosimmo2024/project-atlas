@@ -126,20 +126,23 @@ describe("CSV import execution", () => {
     ], "[[\"Email\",\"email\"]]")).toThrow("conflit");
   });
 
-  it("summarizes the final confirmation without creating relationships", () => {
-    const summary = summarizeCsvImportExecution(preview(), [
+  it("summarizes the final confirmation with pipeline relationships only when the global option is enabled", () => {
+    const decisions: Parameters<typeof summarizeCsvImportExecution>[1] = [
       { lineNumber: 2, decision: "create_new" },
       { lineNumber: 3, decision: "link_existing", targetPersonId: "11111111-1111-4111-8111-111111111111" },
       { lineNumber: 4, decision: "review_later" }
-    ]);
+    ];
+    const disabledSummary = summarizeCsvImportExecution(preview(), decisions);
+    const enabledSummary = summarizeCsvImportExecution(preview(), decisions, true);
 
-    expect(summary).toMatchObject({
+    expect(disabledSummary).toMatchObject({
       createNew: 1,
       linkExisting: 1,
       reviewLater: 1,
       organizationsToCreate: 1,
       relationshipsToCreate: 0
     });
+    expect(enabledSummary.relationshipsToCreate).toBe(1);
   });
 
   it("parses idempotent SQL reports without exposing technical fields", () => {
@@ -155,17 +158,32 @@ describe("CSV import execution", () => {
         organizationsCreated: 0,
         organizationsLinked: 0,
         relationshipsCreated: 0,
+        relationshipsLinked: 1,
+        relationshipsSkipped: 0,
+        pipelineIntegrationEnabled: true,
         rowsIgnored: 0,
         rowsReviewLater: 0,
         rowsRejected: 0,
         errorsCount: 0
       },
-      rows: [{ lineNumber: 2, decision: "create_new", outcome: "created", personId: "person-1", personCreated: true }],
+      rows: [{
+        lineNumber: 2,
+        decision: "create_new",
+        outcome: "created",
+        personId: "person-1",
+        personCreated: true,
+        relationshipId: "relationship-1",
+        relationshipLinked: true,
+        relationshipOutcome: "existing",
+        relationshipReason: "existing_relationship"
+      }],
       errors: [],
       createdAt: "2026-07-30T12:00:00Z"
     });
 
     expect(report.idempotent).toBe(true);
-    expect(report.rows[0]).toMatchObject({ lineNumber: 2, personCreated: true });
+    expect(report.summary.pipelineIntegrationEnabled).toBe(true);
+    expect(report.summary.relationshipsLinked).toBe(1);
+    expect(report.rows[0]).toMatchObject({ lineNumber: 2, personCreated: true, relationshipLinked: true });
   });
 });

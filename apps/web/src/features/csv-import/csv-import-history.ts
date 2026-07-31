@@ -12,6 +12,7 @@ export type CsvImportHistoryRow = {
   peopleLinked: number;
   organizationsCreated: number;
   organizationsLinked: number;
+  relationshipsCreated: number;
   rowsIgnored: number;
   rowsReviewLater: number;
   rowsRejected: number;
@@ -40,11 +41,13 @@ export type CsvImportCancellationEligibility = {
   traceInsufficient: boolean;
   people: CsvImportCancellationEntity[];
   organizations: CsvImportCancellationEntity[];
+  relationships: CsvImportCancellationEntity[];
   summary: {
     deletable: number;
     kept: number;
     peopleCreated: number;
     organizationsCreated: number;
+    relationshipsCreated: number;
   };
   cancellation: Record<string, unknown> | null;
 };
@@ -59,11 +62,15 @@ export type CsvImportCancellationReport = {
     peopleKept: number;
     organizationsDeleted: number;
     organizationsKept: number;
+    relationshipsDeleted: number;
+    relationshipsKept: number;
   };
   peopleDeleted: CsvImportCancellationEntity[];
   peopleKept: CsvImportCancellationEntity[];
   organizationsDeleted: CsvImportCancellationEntity[];
   organizationsKept: CsvImportCancellationEntity[];
+  relationshipsDeleted: CsvImportCancellationEntity[];
+  relationshipsKept: CsvImportCancellationEntity[];
   executedAt: string;
 };
 
@@ -93,6 +100,13 @@ export const csvImportCancellationReasonLabels: Record<string, string> = {
   dependance_timeline: "utilisee par la chronologie",
   dependance_organisation_enfant: "utilisee comme organisation parente",
   dependance_action_plan: "utilisee par le plan d'action",
+  dependance_pipeline_event: "utilisee par un evenement Pipeline",
+  relation_preexistante: "relation deja existante avant l'import",
+  relation_type_different: "relation d'un autre type deja presente",
+  phase_modifiee_apres_import: "phase modifiee apres l'import",
+  statut_modifie_apres_import: "statut modifie apres l'import",
+  responsable_modifie: "responsable modifie apres l'import",
+  trace_contradictoire: "trace contradictoire",
   utilisee_par_un_autre_import: "utilisee par un autre import",
   tracabilite_insuffisante: "tracabilite insuffisante",
   suppression_interdite: "suppression interdite"
@@ -145,11 +159,13 @@ export function parseCsvImportCancellationEligibility(value: unknown): CsvImport
     traceInsufficient: asBoolean(record.traceInsufficient),
     people: parseEntities(record.people),
     organizations: parseEntities(record.organizations),
+    relationships: parseEntities(record.relationships),
     summary: {
       deletable: asNumber(summary.deletable),
       kept: asNumber(summary.kept),
       peopleCreated: asNumber(summary.peopleCreated),
-      organizationsCreated: asNumber(summary.organizationsCreated)
+      organizationsCreated: asNumber(summary.organizationsCreated),
+      relationshipsCreated: asNumber(summary.relationshipsCreated)
     },
     cancellation: typeof record.cancellation === "object" && record.cancellation !== null ? record.cancellation as Record<string, unknown> : null
   };
@@ -168,12 +184,16 @@ export function parseCsvImportCancellationReport(value: unknown): CsvImportCance
       peopleDeleted: asNumber(summary.peopleDeleted),
       peopleKept: asNumber(summary.peopleKept),
       organizationsDeleted: asNumber(summary.organizationsDeleted),
-      organizationsKept: asNumber(summary.organizationsKept)
+      organizationsKept: asNumber(summary.organizationsKept),
+      relationshipsDeleted: asNumber(summary.relationshipsDeleted),
+      relationshipsKept: asNumber(summary.relationshipsKept)
     },
     peopleDeleted: parseEntities(record.peopleDeleted),
     peopleKept: parseEntities(record.peopleKept),
     organizationsDeleted: parseEntities(record.organizationsDeleted),
     organizationsKept: parseEntities(record.organizationsKept),
+    relationshipsDeleted: parseEntities(record.relationshipsDeleted),
+    relationshipsKept: parseEntities(record.relationshipsKept),
     executedAt: asString(record.executedAt)
   };
 }

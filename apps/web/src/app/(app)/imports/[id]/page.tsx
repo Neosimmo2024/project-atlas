@@ -19,6 +19,15 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
+const relationshipReasonLabels: Record<string, string> = {
+  pipeline_option_disabled: "option Pipeline non activee",
+  missing_person: "personne non identifiee",
+  missing_organization: "organisation absente",
+  existing_relationship: "relation de recrutement deja existante",
+  different_type_exists: "relation existante d'un autre type",
+  invalid_relationship_target: "cible relation invalide"
+};
+
 export default async function ImportDetailPage({ params }: ImportDetailPageProps) {
   const context = await getTenantContext();
   if (!context) notFound();
@@ -27,9 +36,9 @@ export default async function ImportDetailPage({ params }: ImportDetailPageProps
   const detail = await getCsvImportDetail(context, id);
   const report = parseCsvImportExecutionReport(detail.run.report);
   const canCancel = context.role === "owner" || context.role === "admin";
-  const createdRows = report.rows.filter((row) => row.personCreated || row.organizationCreated);
-  const linkedRows = report.rows.filter((row) => !row.personCreated && !row.organizationCreated && row.outcome === "linked");
-  const passiveRows = report.rows.filter((row) => row.outcome !== "linked" && !row.personCreated && !row.organizationCreated);
+  const createdRows = report.rows.filter((row) => row.personCreated || row.organizationCreated || row.relationshipCreated);
+  const linkedRows = report.rows.filter((row) => !row.personCreated && !row.organizationCreated && !row.relationshipCreated && (row.outcome === "linked" || row.relationshipLinked));
+  const passiveRows = report.rows.filter((row) => row.outcome !== "linked" && !row.personCreated && !row.organizationCreated && !row.relationshipCreated && !row.relationshipLinked);
 
   return (
     <div className="page stack import-detail-page">
@@ -48,6 +57,7 @@ export default async function ImportDetailPage({ params }: ImportDetailPageProps
         <Metric label="People rattachees" value={detail.run.people_linked} />
         <Metric label="Organizations creees" value={detail.run.organizations_created} />
         <Metric label="Organizations rattachees" value={detail.run.organizations_linked} />
+        <Metric label="Relations creees" value={detail.run.relationships_created} />
         <Metric label="Rejetees" value={detail.run.rows_rejected} />
       </section>
 
@@ -95,6 +105,7 @@ export default async function ImportDetailPage({ params }: ImportDetailPageProps
         <div className="import-cancellation-columns">
           <CancellationList title="People" items={detail.eligibility.people} />
           <CancellationList title="Organizations" items={detail.eligibility.organizations} />
+          <CancellationList title="Relations" items={detail.eligibility.relationships} />
         </div>
       </section>
     </div>
@@ -121,6 +132,8 @@ function Rows({ rows, empty }: { rows: ReturnType<typeof parseCsvImportExecution
           <p>Decision: {row.decision}</p>
           {row.personId ? <p>Person: {row.personId}</p> : null}
           {row.organizationId ? <p>Organization: {row.organizationId}</p> : null}
+          {row.relationshipId ? <p>Relationship: {row.relationshipId}</p> : null}
+          {row.relationshipReason ? <p>Pipeline: {relationshipReasonLabels[row.relationshipReason] ?? row.relationshipReason}</p> : null}
         </article>
       ))}
     </div>
