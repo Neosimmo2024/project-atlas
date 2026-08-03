@@ -25,11 +25,13 @@ type RecoverySessionClient = Parameters<typeof ensurePasswordRecoverySession>[0]
 function client(overrides: Partial<{
   resetPasswordForEmail: ResetPasswordForEmail;
   updateUser: UpdateUser;
+  getSession: () => Promise<{ data: { session: unknown | null } }>;
 }> = {}): RecoveryClient {
   return {
     auth: {
       resetPasswordForEmail: overrides.resetPasswordForEmail ?? vi.fn<ResetPasswordForEmail>().mockResolvedValue({ error: null }),
-      updateUser: overrides.updateUser ?? vi.fn<UpdateUser>().mockResolvedValue({ error: null })
+      updateUser: overrides.updateUser ?? vi.fn<UpdateUser>().mockResolvedValue({ error: null }),
+      getSession: overrides.getSession
     }
   };
 }
@@ -87,18 +89,33 @@ describe("password recovery", () => {
 
   it("updates the user password through Supabase", async () => {
     const updateUser = vi.fn().mockResolvedValue({ error: null });
-    const result = await updatePassword(client({ updateUser }), {
+    const getSession = vi.fn().mockResolvedValue({ data: { session: { user: { id: "user-a" } } } });
+    const result = await updatePassword(client({ updateUser, getSession }), {
       password: "Password123",
       confirmPassword: "Password123"
     });
 
     expect(result).toEqual({ ok: true, message: PASSWORD_UPDATE_SUCCESS_MESSAGE });
+    expect(getSession).toHaveBeenCalledTimes(1);
     expect(updateUser).toHaveBeenCalledWith({ password: "Password123" });
+  });
+
+  it("does not call updateUser when the recovery session is not effective", async () => {
+    const updateUser = vi.fn().mockResolvedValue({ error: null });
+    const getSession = vi.fn().mockResolvedValue({ data: { session: null } });
+    const result = await updatePassword(client({ updateUser, getSession }), {
+      password: "Password123",
+      confirmPassword: "Password123"
+    });
+
+    expect(result).toEqual({ ok: false, message: PASSWORD_UPDATE_ERROR_MESSAGE });
+    expect(updateUser).not.toHaveBeenCalled();
   });
 
   it("returns a safe update error message when Supabase rejects the password change", async () => {
     const updateUser = vi.fn().mockResolvedValue({ error: { message: "Auth session missing" } });
-    const result = await updatePassword(client({ updateUser }), {
+    const getSession = vi.fn().mockResolvedValue({ data: { session: { user: { id: "user-a" } } } });
+    const result = await updatePassword(client({ updateUser, getSession }), {
       password: "Password123",
       confirmPassword: "Password123"
     });
@@ -123,7 +140,7 @@ describe("password recovery", () => {
   it("accepts a Supabase recovery hash session when the email link uses token fragments", async () => {
     const setSession = vi.fn().mockResolvedValue({ error: null });
     const getSession = vi.fn<RecoverySessionClient["auth"]["getSession"]>()
-      .mockResolvedValue({ data: { session: null } });
+      .mockResolvedValue({ data: { session: { user: { id: "user-a" } } } });
 
     await expect(ensurePasswordRecoverySession({
       auth: {
@@ -138,7 +155,44 @@ describe("password recovery", () => {
       access_token: "access-token",
       refresh_token: "refresh-token"
     });
-    expect(getSession).not.toHaveBeenCalled();
+    expect(getSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("waits for the dashboard recovery session before accepting the password form", async () => {
+    const setSession = vi.fn().mockResolvedValue({ error: null });
+    const getSession = vi.fn<RecoverySessionClient["auth"]["getSession"]>()
+      .mockResolvedValueOnce({ data: { session: null } })
+      .mockResolvedValueOnce({ data: { session: { user: { id: "user-a" } } } });
+
+    await expect(ensurePasswordRecoverySession({
+      auth: {
+        exchangeCodeForSession: vi.fn(),
+        setSession,
+        getSession
+      }
+    }, null, "#access_token=access-token&refresh_token=refresh-token&type=recovery"))
+      .resolves.toEqual({ ok: true });
+
+    expect(setSession).toHaveBeenCalledTimes(1);
+    expect(getSession).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects a Supabase dashboard recovery hash until setSession creates a readable session", async () => {
+    const setSession = vi.fn().mockResolvedValue({ error: null });
+    const getSession = vi.fn<RecoverySessionClient["auth"]["getSession"]>()
+      .mockResolvedValue({ data: { session: null } });
+
+    await expect(ensurePasswordRecoverySession({
+      auth: {
+        exchangeCodeForSession: vi.fn(),
+        setSession,
+        getSession
+      }
+    }, null, "#access_token=access-token&refresh_token=refresh-token&type=recovery"))
+      .resolves.toEqual({ ok: false });
+
+    expect(setSession).toHaveBeenCalledTimes(1);
+    expect(getSession).toHaveBeenCalledTimes(5);
   });
 
   it("ignores non-recovery hash fragments", () => {
@@ -186,6 +240,13 @@ describe("password recovery", () => {
     expect(source).toContain("signInWithPassword");
     expect(source).toContain('autoComplete="email"');
     expect(source).toContain('autoComplete="current-password"');
+  });
+
+  it("keeps the request-new-link action on the forgot-password flow", () => {
+    const source = readFileSync(resolve(__dirname, "../../app/update-password/update-password-form.tsx"), "utf8");
+
+    expect(source).toContain('href="/forgot-password"');
+    expect(source).toContain("Demander un nouveau lien");
   });
 
   it("keeps recovery fragments out of application logs", () => {
