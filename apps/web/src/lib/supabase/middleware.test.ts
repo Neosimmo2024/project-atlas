@@ -28,18 +28,22 @@ describe("Supabase middleware auth pages", () => {
   });
 
   it("treats password recovery pages as auth pages", () => {
+    expect(isAuthPage("/")).toBe(true);
     expect(isAuthPage("/login")).toBe(true);
     expect(isAuthPage("/forgot-password")).toBe(true);
     expect(isAuthPage("/update-password")).toBe(true);
     expect(isAuthPage("/dashboard")).toBe(false);
   });
 
-  it("allows forgot-password and update-password without an authenticated user", async () => {
+  it("allows root, forgot-password and update-password without an authenticated user", async () => {
     mockUser(null);
 
+    const rootResponse = await updateSession(request("/"));
     const forgotResponse = await updateSession(request("/forgot-password"));
     const updateResponse = await updateSession(request("/update-password?code=recovery-code"));
 
+    expect(rootResponse.status).toBe(200);
+    expect(rootResponse.headers.get("location")).toBeNull();
     expect(forgotResponse.status).toBe(200);
     expect(forgotResponse.headers.get("location")).toBeNull();
     expect(updateResponse.status).toBe(200);

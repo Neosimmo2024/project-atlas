@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { LoginForm } from "./login-form";
+import { PasswordRecoveryFragmentRedirect } from "../password-recovery-fragment-redirect";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export default async function LoginPage() {
@@ -12,6 +13,7 @@ export default async function LoginPage() {
 
   return (
     <main className="login-page">
+      <PasswordRecoveryFragmentRedirect />
       <section className="login-panel">
         <div className="login-branding">
           <div>

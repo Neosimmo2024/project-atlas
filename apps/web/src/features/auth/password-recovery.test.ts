@@ -5,7 +5,9 @@ import { describe, expect, it, vi } from "vitest";
 import {
   PASSWORD_RESET_GENERIC_MESSAGE,
   getPasswordResetRedirectTo,
+  getPasswordRecoveryRedirectPath,
   getRecoveryHashSession,
+  isPasswordRecoveryHash,
   PASSWORD_UPDATE_ERROR_MESSAGE,
   PASSWORD_UPDATE_SUCCESS_MESSAGE,
   ensurePasswordRecoverySession,
@@ -144,6 +146,16 @@ describe("password recovery", () => {
     expect(getRecoveryHashSession("#type=recovery&access_token=access-token")).toBeNull();
   });
 
+  it("detects recovery hash fragments without exposing token values", () => {
+    const recoveryHash = "#access_token=fake-access-token&refresh_token=fake-refresh-token&type=recovery";
+
+    expect(isPasswordRecoveryHash(recoveryHash)).toBe(true);
+    expect(getPasswordRecoveryRedirectPath(recoveryHash)).toBe(`/update-password${recoveryHash}`);
+    expect(getPasswordRecoveryRedirectPath("access_token=fake-access-token&type=recovery"))
+      .toBe("/update-password#access_token=fake-access-token&type=recovery");
+    expect(getPasswordRecoveryRedirectPath("#access_token=fake-access-token&type=signup")).toBeNull();
+  });
+
   it("accepts an already detected Supabase SSR recovery session after a reused PKCE code", async () => {
     const exchangeCodeForSession = vi.fn<RecoverySessionClient["auth"]["exchangeCodeForSession"]>()
       .mockResolvedValue({ error: { message: "invalid code" } });
@@ -174,5 +186,12 @@ describe("password recovery", () => {
     expect(source).toContain("signInWithPassword");
     expect(source).toContain('autoComplete="email"');
     expect(source).toContain('autoComplete="current-password"');
+  });
+
+  it("keeps recovery fragments out of application logs", () => {
+    const redirectSource = readFileSync(resolve(__dirname, "../../app/password-recovery-fragment-redirect.tsx"), "utf8");
+    const rootSource = readFileSync(resolve(__dirname, "../../app/page.tsx"), "utf8");
+
+    expect(`${redirectSource}\n${rootSource}`).not.toMatch(/console\.(log|info|warn|error)/);
   });
 });

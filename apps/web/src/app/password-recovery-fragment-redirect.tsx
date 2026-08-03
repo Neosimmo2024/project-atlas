@@ -5,11 +5,14 @@ import { useEffect } from "react";
 
 import { getPasswordRecoveryRedirectPath } from "@/features/auth/password-recovery";
 
-export default function HomePage() {
+export function PasswordRecoveryFragmentRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace(getPasswordRecoveryRedirectPath(window.location.hash) ?? "/dashboard");
+    const redirectPath = getPasswordRecoveryRedirectPath(window.location.hash);
+    if (redirectPath) {
+      router.replace(redirectPath);
+    }
   }, [router]);
 
   return null;
