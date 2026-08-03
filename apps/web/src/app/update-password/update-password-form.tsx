@@ -29,10 +29,11 @@ export function UpdatePasswordForm() {
 
     async function prepareRecoverySession() {
       const code = searchParams.get("code");
-      const { ok } = await ensurePasswordRecoverySession(supabase, code);
+      const { ok } = await ensurePasswordRecoverySession(supabase, code, window.location.hash);
       if (!mounted) return;
       setRecoveryState(ok ? "ready" : "invalid");
       if (!ok) setError(PASSWORD_UPDATE_ERROR_MESSAGE);
+      if (ok && (code || window.location.hash)) router.replace("/update-password");
     }
 
     void prepareRecoverySession();
@@ -40,7 +41,7 @@ export function UpdatePasswordForm() {
     return () => {
       mounted = false;
     };
-  }, [searchParams, supabase]);
+  }, [router, searchParams, supabase]);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const PASSWORD_RESET_REDIRECT_TO = "https://project-atlas-web-yzrb.vercel.app/update-password";
+export const PASSWORD_RESET_PATH = "/update-password";
 export const PASSWORD_RESET_GENERIC_MESSAGE =
   "Si un compte existe pour cette adresse, un e-mail de reinitialisation a ete envoye.";
 export const PASSWORD_UPDATE_SUCCESS_MESSAGE =
@@ -33,6 +33,7 @@ type SupabasePasswordRecoveryClient = {
 type SupabaseRecoverySessionClient = {
   auth: {
     exchangeCodeForSession: (code: string) => Promise<{ error: unknown | null }>;
+    setSession?: (session: { access_token: string; refresh_token: string }) => Promise<{ error: unknown | null }>;
     getSession: () => Promise<{ data: { session: unknown | null } }>;
   };
 };
@@ -45,13 +46,28 @@ export function validateNewPassword(input: { password: string; confirmPassword: 
   return newPasswordSchema.safeParse(input);
 }
 
-export async function requestPasswordReset(client: SupabasePasswordRecoveryClient, email: string) {
+export function getPasswordResetRedirectTo(origin: string) {
+  return new URL(PASSWORD_RESET_PATH, origin).toString();
+}
+
+export function getRecoveryHashSession(hash: string) {
+  const params = new URLSearchParams(hash.replace(/^#/, ""));
+  if (params.get("type") !== "recovery") return null;
+
+  const accessToken = params.get("access_token");
+  const refreshToken = params.get("refresh_token");
+  if (!accessToken || !refreshToken) return null;
+
+  return { access_token: accessToken, refresh_token: refreshToken };
+}
+
+export async function requestPasswordReset(client: SupabasePasswordRecoveryClient, email: string, origin: string) {
   const parsed = validatePasswordResetEmail({ email });
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Adresse e-mail invalide." };
 
   try {
     await client.auth.resetPasswordForEmail(parsed.data.email, {
-      redirectTo: PASSWORD_RESET_REDIRECT_TO
+      redirectTo: getPasswordResetRedirectTo(origin)
     });
   } catch {
     // Keep the public response identical so account existence cannot be inferred.
@@ -70,9 +86,19 @@ export async function updatePassword(client: SupabasePasswordRecoveryClient, inp
   return { ok: true, message: PASSWORD_UPDATE_SUCCESS_MESSAGE };
 }
 
-export async function ensurePasswordRecoverySession(client: SupabaseRecoverySessionClient, code: string | null) {
+export async function ensurePasswordRecoverySession(
+  client: SupabaseRecoverySessionClient,
+  code: string | null,
+  hash: string
+) {
   if (code) {
     const { error } = await client.auth.exchangeCodeForSession(code);
+    if (!error) return { ok: true };
+  }
+
+  const recoveryHashSession = getRecoveryHashSession(hash);
+  if (recoveryHashSession && client.auth.setSession) {
+    const { error } = await client.auth.setSession(recoveryHashSession);
     if (!error) return { ok: true };
   }
 

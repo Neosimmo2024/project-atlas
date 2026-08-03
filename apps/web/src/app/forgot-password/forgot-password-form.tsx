@@ -22,7 +22,7 @@ export function ForgotPasswordForm() {
 
     try {
       const form = new FormData(event.currentTarget);
-      const result = await requestPasswordReset(supabase, String(form.get("email") ?? ""));
+      const result = await requestPasswordReset(supabase, String(form.get("email") ?? ""), window.location.origin);
       if (result.ok) {
         setMessage(result.message);
       } else {
