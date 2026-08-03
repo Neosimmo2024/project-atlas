@@ -158,7 +158,9 @@ export async function updatePassword(client: SupabasePasswordRecoveryClient, inp
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? PASSWORD_UPDATE_ERROR_MESSAGE };
 
   if (client.auth.getSession) {
-    const sessionResult = await waitForRecoverySession({ auth: { getSession: client.auth.getSession } });
+    const sessionResult = await waitForRecoverySession({
+      auth: { getSession: () => client.auth.getSession!() }
+    });
     if (!sessionResult.ok) {
       return {
         ok: false,
