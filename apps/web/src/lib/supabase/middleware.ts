@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { validateMutationRequest } from "@/lib/security/csrf";
 import { applySecurityHeaders } from "@/lib/security/headers";
 
-const AUTH_PAGES = new Set(["/login", "/forgot-password", "/update-password"]);
+const AUTH_PAGES = new Set(["/", "/login", "/forgot-password", "/update-password"]);
 
 export function isAuthPage(pathname: string) {
   return AUTH_PAGES.has(pathname);

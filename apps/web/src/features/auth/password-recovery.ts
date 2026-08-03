@@ -52,13 +52,23 @@ export function getPasswordResetRedirectTo(origin: string) {
 
 export function getRecoveryHashSession(hash: string) {
   const params = new URLSearchParams(hash.replace(/^#/, ""));
-  if (params.get("type") !== "recovery") return null;
+  if (!isPasswordRecoveryHash(hash)) return null;
 
   const accessToken = params.get("access_token");
   const refreshToken = params.get("refresh_token");
   if (!accessToken || !refreshToken) return null;
 
   return { access_token: accessToken, refresh_token: refreshToken };
+}
+
+export function isPasswordRecoveryHash(hash: string) {
+  const params = new URLSearchParams(hash.replace(/^#/, ""));
+  return params.get("type") === "recovery" && Boolean(params.get("access_token"));
+}
+
+export function getPasswordRecoveryRedirectPath(hash: string) {
+  if (!isPasswordRecoveryHash(hash)) return null;
+  return `${PASSWORD_RESET_PATH}${hash.startsWith("#") ? hash : `#${hash}`}`;
 }
 
 export async function requestPasswordReset(client: SupabasePasswordRecoveryClient, email: string, origin: string) {
