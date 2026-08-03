@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  PASSWORD_AUTH_CONNECTION_ERROR_MESSAGE,
   PASSWORD_RESET_GENERIC_MESSAGE,
   formatSafeAuthDiagnostic,
   getPasswordResetRedirectTo,
@@ -117,6 +118,22 @@ describe("password recovery", () => {
     expect(updateUser).not.toHaveBeenCalled();
   });
 
+  it("returns a controlled connection message when getSession throws before updateUser", async () => {
+    const updateUser = vi.fn().mockResolvedValue({ error: null });
+    const getSession = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+    const result = await updatePassword(client({ updateUser, getSession }), {
+      password: "Password123",
+      confirmPassword: "Password123"
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      message: PASSWORD_AUTH_CONNECTION_ERROR_MESSAGE,
+      diagnostic: { stage: "session_check", name: "TypeError", message: "Failed to fetch" }
+    });
+    expect(updateUser).not.toHaveBeenCalled();
+  });
+
   it("returns a safe update error message when Supabase rejects the password change", async () => {
     const updateUser = vi.fn().mockResolvedValue({ error: { message: "Auth session missing" } });
     const getSession = vi.fn().mockResolvedValue({ data: { session: { user: { id: "user-a" } } } });
@@ -129,6 +146,21 @@ describe("password recovery", () => {
       ok: false,
       message: PASSWORD_UPDATE_ERROR_MESSAGE,
       diagnostic: { stage: "update_user", code: undefined, message: "Auth session missing" }
+    });
+  });
+
+  it("returns a controlled connection message when updateUser throws", async () => {
+    const updateUser = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+    const getSession = vi.fn().mockResolvedValue({ data: { session: { user: { id: "user-a" } } } });
+    const result = await updatePassword(client({ updateUser, getSession }), {
+      password: "Password123",
+      confirmPassword: "Password123"
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      message: PASSWORD_AUTH_CONNECTION_ERROR_MESSAGE,
+      diagnostic: { stage: "update_user", name: "TypeError", message: "Failed to fetch" }
     });
   });
 
@@ -227,6 +259,24 @@ describe("password recovery", () => {
     expect(getSession).toHaveBeenCalledTimes(6);
   });
 
+  it("returns a safe diagnostic when setSession throws", async () => {
+    const setSession = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+    const getSession = vi.fn<RecoverySessionClient["auth"]["getSession"]>()
+      .mockResolvedValue({ data: { session: null } });
+
+    await expect(ensurePasswordRecoverySession({
+      auth: {
+        exchangeCodeForSession: vi.fn(),
+        setSession,
+        getSession
+      }
+    }, null, "#access_token=access-token&refresh_token=refresh-token&type=recovery"))
+      .resolves.toEqual({
+        ok: false,
+        diagnostic: { stage: "set_session", name: "TypeError", message: "Failed to fetch" }
+      });
+  });
+
   it("rejects a Supabase dashboard recovery hash until setSession creates a readable session", async () => {
     const setSession = vi.fn().mockResolvedValue({ error: null });
     const getSession = vi.fn<RecoverySessionClient["auth"]["getSession"]>()
@@ -305,8 +355,32 @@ describe("password recovery", () => {
     expect(formatSafeAuthDiagnostic({
       stage: "update_user",
       code: "401",
+      status: "401",
       message: "Auth session missing"
-    })).toBe("Diagnostic securise: update_user code=401 message=Auth session missing");
+    })).toBe("Diagnostic securise: update_user code=401 status=401 message=Auth session missing");
+
+    const diagnostic = formatSafeAuthDiagnostic({
+      stage: "set_session",
+      name: "TypeError",
+      code: "sb_publishable_secret",
+      status: "0",
+      message: "Failed to fetch access_token=abc refresh_token=def password=Password123"
+    });
+
+    expect(diagnostic).toContain("Diagnostic securise: set_session");
+    expect(diagnostic).not.toContain("access_token");
+    expect(diagnostic).not.toContain("refresh_token");
+    expect(diagnostic).not.toContain("Password123");
+    expect(diagnostic).not.toContain("sb_publishable_secret");
+  });
+
+  it("keeps the update password form displaying controlled submit failures", () => {
+    const source = readFileSync(resolve(__dirname, "../../app/update-password/update-password-form.tsx"), "utf8");
+
+    expect(source).toContain("PASSWORD_AUTH_CONNECTION_ERROR_MESSAGE");
+    expect(source).toContain("catch (submitError)");
+    expect(source).toContain("setLoading(false)");
+    expect(source).toContain("setError(PASSWORD_AUTH_CONNECTION_ERROR_MESSAGE)");
   });
 
   it("keeps recovery fragments out of application logs", () => {
