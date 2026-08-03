@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import {
   ensurePasswordRecoverySession,
   formatSafeAuthDiagnostic,
+  PASSWORD_AUTH_CONNECTION_ERROR_MESSAGE,
   PASSWORD_UPDATE_ERROR_MESSAGE,
   updatePassword
 } from "@/features/auth/password-recovery";
@@ -80,6 +81,13 @@ export function UpdatePasswordForm() {
       window.setTimeout(() => {
         router.replace("/login");
       }, 1200);
+    } catch (submitError) {
+      setError(PASSWORD_AUTH_CONNECTION_ERROR_MESSAGE);
+      setDiagnostic(formatSafeAuthDiagnostic({
+        stage: "update_user",
+        name: submitError instanceof Error ? submitError.name : undefined,
+        message: submitError instanceof Error ? submitError.message : undefined
+      }));
     } finally {
       setLoading(false);
     }
