@@ -123,10 +123,12 @@ describeIntegration("organizations RLS integration", () => {
       tenant_id: tenantAId,
       name: `${marker} session tenant create`,
       organization_type: "agency",
-      status: "active"
-    }).select("tenant_id").single();
+      status: "active",
+      vat_status: "a_verifier"
+    }).select("tenant_id, vat_status").single();
     expect(error).toBeNull();
     expect(data?.tenant_id).toBe(tenantAId);
+    expect(data?.vat_status).toBe("a_verifier");
     await tenantA.from("organizations").delete().eq("name", `${marker} session tenant create`);
   });
 });
