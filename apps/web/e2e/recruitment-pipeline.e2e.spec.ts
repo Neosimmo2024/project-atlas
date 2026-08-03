@@ -11,7 +11,7 @@ test.describe("Recruitment pipeline foundation", () => {
   test.skip(!hasE2eEnv, "Set RELATIONSHIPS_TEST_TENANT_A_EMAIL, RELATIONSHIPS_TEST_TENANT_A_PASSWORD, QA_PERSON_A_ID, and QA_ORGANIZATION_A_ID to run authenticated recruitment pipeline E2E.");
 
   test("authenticates and transitions a relationship through the server API", async ({ page }) => {
-    await page.goto(process.env.RELATIONSHIPS_E2E_BASE_URL ?? "http://127.0.0.1:3000");
+    await page.goto("/login");
     await page.getByLabel("Email").fill(process.env.RELATIONSHIPS_TEST_TENANT_A_EMAIL ?? "");
     await page.getByLabel("Mot de passe", { exact: true }).fill(process.env.RELATIONSHIPS_TEST_TENANT_A_PASSWORD ?? "");
     await page.getByRole("button", { name: "Se connecter" }).click();
