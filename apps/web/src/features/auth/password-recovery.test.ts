@@ -4,7 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   PASSWORD_RESET_GENERIC_MESSAGE,
-  PASSWORD_RESET_REDIRECT_TO,
+  getPasswordResetRedirectTo,
+  getRecoveryHashSession,
   PASSWORD_UPDATE_ERROR_MESSAGE,
   PASSWORD_UPDATE_SUCCESS_MESSAGE,
   ensurePasswordRecoverySession,
@@ -42,17 +43,28 @@ describe("password recovery", () => {
 
   it("always returns a generic reset message for valid emails", async () => {
     const resetPasswordForEmail = vi.fn().mockResolvedValue({ error: { message: "User not found" } });
-    const result = await requestPasswordReset(client({ resetPasswordForEmail }), "renato@example.com");
+    const result = await requestPasswordReset(
+      client({ resetPasswordForEmail }),
+      "renato@example.com",
+      "https://project-atlas-qa-beta-1.vercel.app"
+    );
 
     expect(result).toEqual({ ok: true, message: PASSWORD_RESET_GENERIC_MESSAGE });
     expect(resetPasswordForEmail).toHaveBeenCalledWith("renato@example.com", {
-      redirectTo: PASSWORD_RESET_REDIRECT_TO
+      redirectTo: "https://project-atlas-qa-beta-1.vercel.app/update-password"
     });
+  });
+
+  it("builds the reset redirect from the current application origin", () => {
+    expect(getPasswordResetRedirectTo("https://project-atlas-qa-beta-1.vercel.app"))
+      .toBe("https://project-atlas-qa-beta-1.vercel.app/update-password");
+    expect(getPasswordResetRedirectTo("http://127.0.0.1:3000"))
+      .toBe("http://127.0.0.1:3000/update-password");
   });
 
   it("does not reveal account existence when Supabase throws during reset", async () => {
     const resetPasswordForEmail = vi.fn().mockRejectedValue(new Error("network failure"));
-    const result = await requestPasswordReset(client({ resetPasswordForEmail }), "renato@example.com");
+    const result = await requestPasswordReset(client({ resetPasswordForEmail }), "renato@example.com", "http://127.0.0.1:3000");
 
     expect(result).toEqual({ ok: true, message: PASSWORD_RESET_GENERIC_MESSAGE });
   });
@@ -100,10 +112,36 @@ describe("password recovery", () => {
 
     await expect(ensurePasswordRecoverySession({
       auth: { exchangeCodeForSession, getSession }
-    }, "recovery-code")).resolves.toEqual({ ok: true });
+    }, "recovery-code", "")).resolves.toEqual({ ok: true });
 
     expect(exchangeCodeForSession).toHaveBeenCalledWith("recovery-code");
     expect(getSession).not.toHaveBeenCalled();
+  });
+
+  it("accepts a Supabase recovery hash session when the email link uses token fragments", async () => {
+    const setSession = vi.fn().mockResolvedValue({ error: null });
+    const getSession = vi.fn<RecoverySessionClient["auth"]["getSession"]>()
+      .mockResolvedValue({ data: { session: null } });
+
+    await expect(ensurePasswordRecoverySession({
+      auth: {
+        exchangeCodeForSession: vi.fn(),
+        setSession,
+        getSession
+      }
+    }, null, "#access_token=access-token&refresh_token=refresh-token&type=recovery"))
+      .resolves.toEqual({ ok: true });
+
+    expect(setSession).toHaveBeenCalledWith({
+      access_token: "access-token",
+      refresh_token: "refresh-token"
+    });
+    expect(getSession).not.toHaveBeenCalled();
+  });
+
+  it("ignores non-recovery hash fragments", () => {
+    expect(getRecoveryHashSession("#access_token=access-token&refresh_token=refresh-token&type=signup")).toBeNull();
+    expect(getRecoveryHashSession("#type=recovery&access_token=access-token")).toBeNull();
   });
 
   it("accepts an already detected Supabase SSR recovery session after a reused PKCE code", async () => {
@@ -114,7 +152,7 @@ describe("password recovery", () => {
 
     await expect(ensurePasswordRecoverySession({
       auth: { exchangeCodeForSession, getSession }
-    }, "recovery-code")).resolves.toEqual({ ok: true });
+    }, "recovery-code", "")).resolves.toEqual({ ok: true });
 
     expect(getSession).toHaveBeenCalledTimes(1);
   });
@@ -127,7 +165,7 @@ describe("password recovery", () => {
 
     await expect(ensurePasswordRecoverySession({
       auth: { exchangeCodeForSession, getSession }
-    }, "recovery-code")).resolves.toEqual({ ok: false });
+    }, "recovery-code", "")).resolves.toEqual({ ok: false });
   });
 
   it("keeps the login form using signInWithPassword", () => {
