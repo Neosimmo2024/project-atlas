@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   PASSWORD_RESET_GENERIC_MESSAGE,
+  formatSafeAuthDiagnostic,
   getPasswordResetRedirectTo,
   getPasswordRecoveryRedirectPath,
   getRecoveryHashSession,
@@ -108,7 +109,11 @@ describe("password recovery", () => {
       confirmPassword: "Password123"
     });
 
-    expect(result).toEqual({ ok: false, message: PASSWORD_UPDATE_ERROR_MESSAGE });
+    expect(result).toEqual({
+      ok: false,
+      message: PASSWORD_UPDATE_ERROR_MESSAGE,
+      diagnostic: { stage: "session_check", message: "No effective recovery session before updateUser" }
+    });
     expect(updateUser).not.toHaveBeenCalled();
   });
 
@@ -120,7 +125,11 @@ describe("password recovery", () => {
       confirmPassword: "Password123"
     });
 
-    expect(result).toEqual({ ok: false, message: PASSWORD_UPDATE_ERROR_MESSAGE });
+    expect(result).toEqual({
+      ok: false,
+      message: PASSWORD_UPDATE_ERROR_MESSAGE,
+      diagnostic: { stage: "update_user", code: undefined, message: "Auth session missing" }
+    });
   });
 
   it("accepts a PKCE recovery code when Supabase exchanges it successfully", async () => {
@@ -137,7 +146,7 @@ describe("password recovery", () => {
     expect(getSession).not.toHaveBeenCalled();
   });
 
-  it("accepts a Supabase recovery hash session when the email link uses token fragments", async () => {
+  it("accepts an already detected Supabase recovery hash session when the email link uses token fragments", async () => {
     const setSession = vi.fn().mockResolvedValue({ error: null });
     const getSession = vi.fn<RecoverySessionClient["auth"]["getSession"]>()
       .mockResolvedValue({ data: { session: { user: { id: "user-a" } } } });
@@ -151,14 +160,29 @@ describe("password recovery", () => {
     }, null, "#access_token=access-token&refresh_token=refresh-token&type=recovery"))
       .resolves.toEqual({ ok: true });
 
-    expect(setSession).toHaveBeenCalledWith({
-      access_token: "access-token",
-      refresh_token: "refresh-token"
-    });
+    expect(setSession).not.toHaveBeenCalled();
     expect(getSession).toHaveBeenCalledTimes(1);
   });
 
-  it("waits for the dashboard recovery session before accepting the password form", async () => {
+  it("uses an already auto-detected Supabase recovery session before calling setSession again", async () => {
+    const setSession = vi.fn().mockResolvedValue({ error: { message: "Refresh token already consumed" } });
+    const getSession = vi.fn<RecoverySessionClient["auth"]["getSession"]>()
+      .mockResolvedValue({ data: { session: { user: { id: "user-a" } } } });
+
+    await expect(ensurePasswordRecoverySession({
+      auth: {
+        exchangeCodeForSession: vi.fn(),
+        setSession,
+        getSession
+      }
+    }, null, "#access_token=access-token&refresh_token=refresh-token&type=recovery"))
+      .resolves.toEqual({ ok: true });
+
+    expect(getSession).toHaveBeenCalledTimes(1);
+    expect(setSession).not.toHaveBeenCalled();
+  });
+
+  it("waits for the dashboard auto-detected recovery session before accepting the password form", async () => {
     const setSession = vi.fn().mockResolvedValue({ error: null });
     const getSession = vi.fn<RecoverySessionClient["auth"]["getSession"]>()
       .mockResolvedValueOnce({ data: { session: null } })
@@ -173,8 +197,34 @@ describe("password recovery", () => {
     }, null, "#access_token=access-token&refresh_token=refresh-token&type=recovery"))
       .resolves.toEqual({ ok: true });
 
-    expect(setSession).toHaveBeenCalledTimes(1);
+    expect(setSession).not.toHaveBeenCalled();
     expect(getSession).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses setSession as a fallback when the dashboard recovery hash is not auto-detected", async () => {
+    const setSession = vi.fn().mockResolvedValue({ error: null });
+    const getSession = vi.fn<RecoverySessionClient["auth"]["getSession"]>()
+      .mockResolvedValueOnce({ data: { session: null } })
+      .mockResolvedValueOnce({ data: { session: null } })
+      .mockResolvedValueOnce({ data: { session: null } })
+      .mockResolvedValueOnce({ data: { session: null } })
+      .mockResolvedValueOnce({ data: { session: null } })
+      .mockResolvedValueOnce({ data: { session: { user: { id: "user-a" } } } });
+
+    await expect(ensurePasswordRecoverySession({
+      auth: {
+        exchangeCodeForSession: vi.fn(),
+        setSession,
+        getSession
+      }
+    }, null, "#access_token=access-token&refresh_token=refresh-token&type=recovery"))
+      .resolves.toEqual({ ok: true });
+
+    expect(setSession).toHaveBeenCalledWith({
+      access_token: "access-token",
+      refresh_token: "refresh-token"
+    });
+    expect(getSession).toHaveBeenCalledTimes(6);
   });
 
   it("rejects a Supabase dashboard recovery hash until setSession creates a readable session", async () => {
@@ -192,7 +242,7 @@ describe("password recovery", () => {
       .resolves.toEqual({ ok: false });
 
     expect(setSession).toHaveBeenCalledTimes(1);
-    expect(getSession).toHaveBeenCalledTimes(5);
+    expect(getSession).toHaveBeenCalledTimes(10);
   });
 
   it("ignores non-recovery hash fragments", () => {
@@ -247,6 +297,16 @@ describe("password recovery", () => {
 
     expect(source).toContain('href="/forgot-password"');
     expect(source).toContain("Demander un nouveau lien");
+    expect(source).toContain("onAuthStateChange");
+    expect(source).toContain("auth_events");
+  });
+
+  it("formats safe auth diagnostics without token or password fields", () => {
+    expect(formatSafeAuthDiagnostic({
+      stage: "update_user",
+      code: "401",
+      message: "Auth session missing"
+    })).toBe("Diagnostic securise: update_user code=401 message=Auth session missing");
   });
 
   it("keeps recovery fragments out of application logs", () => {

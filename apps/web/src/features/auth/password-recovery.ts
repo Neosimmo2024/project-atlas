@@ -7,6 +7,7 @@ export const PASSWORD_UPDATE_SUCCESS_MESSAGE =
   "Votre mot de passe a ete mis a jour. Vous allez etre redirige vers la connexion.";
 export const PASSWORD_UPDATE_ERROR_MESSAGE =
   "Le mot de passe n'a pas pu etre mis a jour. Veuillez rouvrir le lien de reinitialisation.";
+export const PASSWORD_UPDATE_DIAGNOSTIC_PREFIX = "Diagnostic securise";
 
 const emailSchema = z.object({
   email: z.string().trim().email("Veuillez saisir une adresse e-mail valide.")
@@ -41,6 +42,41 @@ type SupabaseRecoverySessionClient = {
 
 const RECOVERY_SESSION_CHECKS = 5;
 const RECOVERY_SESSION_CHECK_DELAY_MS = 150;
+
+type SafeAuthDiagnostic = {
+  stage: "session_check" | "set_session" | "update_user";
+  code?: string;
+  message?: string;
+};
+
+function getSafeAuthDiagnostic(stage: SafeAuthDiagnostic["stage"], error: unknown): SafeAuthDiagnostic {
+  if (!error || typeof error !== "object") return { stage };
+
+  const candidate = error as { code?: unknown; status?: unknown; name?: unknown; message?: unknown };
+  return {
+    stage,
+    code: typeof candidate.code === "string"
+      ? candidate.code
+      : typeof candidate.status === "number"
+        ? String(candidate.status)
+        : typeof candidate.name === "string"
+          ? candidate.name
+          : undefined,
+    message: typeof candidate.message === "string" ? candidate.message : undefined
+  };
+}
+
+export function formatSafeAuthDiagnostic(diagnostic: SafeAuthDiagnostic | null | undefined) {
+  if (!diagnostic) return null;
+
+  const details = [
+    diagnostic.stage,
+    diagnostic.code ? `code=${diagnostic.code}` : null,
+    diagnostic.message ? `message=${diagnostic.message}` : null
+  ].filter(Boolean).join(" ");
+
+  return `${PASSWORD_UPDATE_DIAGNOSTIC_PREFIX}: ${details}`;
+}
 
 export function validatePasswordResetEmail(input: { email: string }) {
   return emailSchema.safeParse(input);
@@ -109,11 +145,17 @@ export async function updatePassword(client: SupabasePasswordRecoveryClient, inp
 
   if (client.auth.getSession) {
     const hasSession = await waitForRecoverySession({ auth: { getSession: client.auth.getSession } });
-    if (!hasSession) return { ok: false, message: PASSWORD_UPDATE_ERROR_MESSAGE };
+    if (!hasSession) {
+      return {
+        ok: false,
+        message: PASSWORD_UPDATE_ERROR_MESSAGE,
+        diagnostic: { stage: "session_check" as const, message: "No effective recovery session before updateUser" }
+      };
+    }
   }
 
   const { error } = await client.auth.updateUser({ password: parsed.data.password });
-  if (error) return { ok: false, message: PASSWORD_UPDATE_ERROR_MESSAGE };
+  if (error) return { ok: false, message: PASSWORD_UPDATE_ERROR_MESSAGE, diagnostic: getSafeAuthDiagnostic("update_user", error) };
 
   return { ok: true, message: PASSWORD_UPDATE_SUCCESS_MESSAGE };
 }
@@ -130,8 +172,11 @@ export async function ensurePasswordRecoverySession(
 
   const recoveryHashSession = getRecoveryHashSession(hash);
   if (recoveryHashSession && client.auth.setSession) {
+    const hasAutoDetectedSession = await waitForRecoverySession(client);
+    if (hasAutoDetectedSession) return { ok: true };
+
     const { error } = await client.auth.setSession(recoveryHashSession);
-    if (error) return { ok: false };
+    if (error) return { ok: false, diagnostic: getSafeAuthDiagnostic("set_session", error) };
 
     return { ok: await waitForRecoverySession(client) };
   }

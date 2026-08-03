@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   ensurePasswordRecoverySession,
+  formatSafeAuthDiagnostic,
   PASSWORD_UPDATE_ERROR_MESSAGE,
   updatePassword
 } from "@/features/auth/password-recovery";
@@ -19,20 +20,33 @@ export function UpdatePasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const authEventsRef = useRef<string[]>([]);
   const [recoveryState, setRecoveryState] = useState<RecoveryState>("checking");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [diagnostic, setDiagnostic] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      authEventsRef.current = [...authEventsRef.current, event].slice(-5);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
 
   useEffect(() => {
     let mounted = true;
 
     async function prepareRecoverySession() {
       const code = searchParams.get("code");
-      const { ok } = await ensurePasswordRecoverySession(supabase, code, window.location.hash);
+      const { ok, diagnostic: recoveryDiagnostic } = await ensurePasswordRecoverySession(supabase, code, window.location.hash);
       if (!mounted) return;
       setRecoveryState(ok ? "ready" : "invalid");
       if (!ok) setError(PASSWORD_UPDATE_ERROR_MESSAGE);
+      setDiagnostic(formatSafeAuthDiagnostic(recoveryDiagnostic) ?? getAuthEventsDiagnostic(authEventsRef.current));
       if (ok && (code || window.location.hash)) router.replace("/update-password");
     }
 
@@ -48,6 +62,7 @@ export function UpdatePasswordForm() {
     setLoading(true);
     setMessage(null);
     setError(null);
+    setDiagnostic(null);
 
     try {
       const form = new FormData(event.currentTarget);
@@ -57,6 +72,7 @@ export function UpdatePasswordForm() {
       });
       if (!result.ok) {
         setError(result.message);
+        setDiagnostic(formatSafeAuthDiagnostic(result.diagnostic) ?? getAuthEventsDiagnostic(authEventsRef.current));
         return;
       }
       setMessage(result.message);
@@ -77,6 +93,7 @@ export function UpdatePasswordForm() {
     return (
       <div className="form">
         {error ? <p className="error" role="alert">{error}</p> : null}
+        {diagnostic ? <p className="auth-helper" role="status">{diagnostic}</p> : null}
         <Link className="auth-link auth-link-centered" href="/forgot-password">Demander un nouveau lien</Link>
       </div>
     );
@@ -90,7 +107,13 @@ export function UpdatePasswordForm() {
       <Input id="confirm-password" name="confirmPassword" type="password" required autoComplete="new-password" />
       {message ? <p className="success" role="status">{message}</p> : null}
       {error ? <p className="error" role="alert">{error}</p> : null}
+      {diagnostic ? <p className="auth-helper" role="status">{diagnostic}</p> : null}
       <Button type="submit" disabled={loading}>{loading ? "Mise à jour..." : "Mettre à jour"}</Button>
     </form>
   );
+}
+
+function getAuthEventsDiagnostic(events: string[]) {
+  if (events.length === 0) return null;
+  return `Diagnostic securise: auth_events events=${events.join(",")}`;
 }
