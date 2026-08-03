@@ -27,6 +27,7 @@ type SupabasePasswordRecoveryClient = {
       options: { redirectTo: string }
     ) => Promise<{ error: unknown | null }>;
     updateUser: (attributes: { password: string }) => Promise<{ error: unknown | null }>;
+    getSession?: () => Promise<{ data: { session: unknown | null } }>;
   };
 };
 
@@ -37,6 +38,9 @@ type SupabaseRecoverySessionClient = {
     getSession: () => Promise<{ data: { session: unknown | null } }>;
   };
 };
+
+const RECOVERY_SESSION_CHECKS = 5;
+const RECOVERY_SESSION_CHECK_DELAY_MS = 150;
 
 export function validatePasswordResetEmail(input: { email: string }) {
   return emailSchema.safeParse(input);
@@ -71,6 +75,19 @@ export function getPasswordRecoveryRedirectPath(hash: string) {
   return `${PASSWORD_RESET_PATH}${hash.startsWith("#") ? hash : `#${hash}`}`;
 }
 
+async function waitForRecoverySession(client: { auth: { getSession: () => Promise<{ data: { session: unknown | null } }> } }) {
+  for (let attempt = 0; attempt < RECOVERY_SESSION_CHECKS; attempt += 1) {
+    const { data: { session } } = await client.auth.getSession();
+    if (session) return true;
+
+    if (attempt < RECOVERY_SESSION_CHECKS - 1) {
+      await new Promise((resolve) => globalThis.setTimeout(resolve, RECOVERY_SESSION_CHECK_DELAY_MS));
+    }
+  }
+
+  return false;
+}
+
 export async function requestPasswordReset(client: SupabasePasswordRecoveryClient, email: string, origin: string) {
   const parsed = validatePasswordResetEmail({ email });
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Adresse e-mail invalide." };
@@ -89,6 +106,11 @@ export async function requestPasswordReset(client: SupabasePasswordRecoveryClien
 export async function updatePassword(client: SupabasePasswordRecoveryClient, input: { password: string; confirmPassword: string }) {
   const parsed = validateNewPassword(input);
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? PASSWORD_UPDATE_ERROR_MESSAGE };
+
+  if (client.auth.getSession) {
+    const hasSession = await waitForRecoverySession({ auth: { getSession: client.auth.getSession } });
+    if (!hasSession) return { ok: false, message: PASSWORD_UPDATE_ERROR_MESSAGE };
+  }
 
   const { error } = await client.auth.updateUser({ password: parsed.data.password });
   if (error) return { ok: false, message: PASSWORD_UPDATE_ERROR_MESSAGE };
@@ -109,9 +131,10 @@ export async function ensurePasswordRecoverySession(
   const recoveryHashSession = getRecoveryHashSession(hash);
   if (recoveryHashSession && client.auth.setSession) {
     const { error } = await client.auth.setSession(recoveryHashSession);
-    if (!error) return { ok: true };
+    if (error) return { ok: false };
+
+    return { ok: await waitForRecoverySession(client) };
   }
 
-  const { data: { session } } = await client.auth.getSession();
-  return { ok: Boolean(session) };
+  return { ok: await waitForRecoverySession(client) };
 }
