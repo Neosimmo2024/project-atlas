@@ -102,6 +102,27 @@ describe("password recovery", () => {
     expect(updateUser).toHaveBeenCalledWith({ password: "Password123" });
   });
 
+  it("keeps Supabase Auth methods bound to their auth context during a successful recovery update", async () => {
+    const auth = {
+      _useSession: vi.fn().mockReturnValue({ user: { id: "user-a" } }),
+      async getSession() {
+        return { data: { session: this._useSession() } };
+      },
+      async updateUser(attributes: { password: string }) {
+        this._useSession();
+        return { error: attributes.password === "Password123" ? null : { message: "invalid password" } };
+      },
+      resetPasswordForEmail: vi.fn<ResetPasswordForEmail>().mockResolvedValue({ error: null })
+    };
+
+    await expect(updatePassword({ auth }, {
+      password: "Password123",
+      confirmPassword: "Password123"
+    })).resolves.toEqual({ ok: true, message: PASSWORD_UPDATE_SUCCESS_MESSAGE });
+
+    expect(auth._useSession).toHaveBeenCalledTimes(2);
+  });
+
   it("does not call updateUser when the recovery session is not effective", async () => {
     const updateUser = vi.fn().mockResolvedValue({ error: null });
     const getSession = vi.fn().mockResolvedValue({ data: { session: null } });
@@ -275,6 +296,33 @@ describe("password recovery", () => {
         ok: false,
         diagnostic: { stage: "set_session", name: "TypeError", message: "Failed to fetch" }
       });
+  });
+
+  it("keeps Supabase Auth methods bound to their auth context for recovery hash fallback", async () => {
+    const auth = {
+      _session: null as unknown,
+      _useSession() {
+        return this._session;
+      },
+      async exchangeCodeForSession(code: string) {
+        if (code === "valid-code") this._session = { user: { id: "user-a" } };
+        return { error: null };
+      },
+      async setSession(session: { access_token: string; refresh_token: string }) {
+        this._session = { user: { id: session.access_token } };
+        return { error: null };
+      },
+      async getSession() {
+        return { data: { session: this._useSession() } };
+      }
+    };
+
+    await expect(ensurePasswordRecoverySession(
+      { auth },
+      null,
+      "#access_token=user-a&refresh_token=refresh-token&type=recovery"
+    )).resolves.toEqual({ ok: true });
+    expect(auth._session).toEqual({ user: { id: "user-a" } });
   });
 
   it("rejects a Supabase dashboard recovery hash until setSession creates a readable session", async () => {
