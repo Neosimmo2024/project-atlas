@@ -30,7 +30,7 @@ test.describe("Projects authenticated flow", () => {
     await page.getByLabel(/Valeur estim[eé]e/).fill("1234.00");
     await page.getByRole("button", { name: /Cr[eé]er le Projet/ }).click();
     await expect(page).toHaveURL(/\/projects\/[^/]+\?projectSaved=1/);
-    await expect(page.getByText(/Projet cr[eé][eé]\./)).toBeVisible();
+    await expect(page.getByText(/Projet enregistr[eé]\./)).toBeVisible();
 
     const projectUrl = page.url().replace(/\?.*$/, "");
     await page.goto(`/projects?query=${encodeURIComponent(marker)}`);
@@ -41,10 +41,11 @@ test.describe("Projects authenticated flow", () => {
     await expect(page.getByText(marker)).toBeVisible();
 
     await page.goto(projectUrl);
-    await expect(page.getByRole("navigation", { name: "Onglets Projet" })).toBeVisible();
-    await expect(page.getByRole("link", { name: /T[aâ]ches/ })).toBeVisible();
-    await expect(page.getByRole("link", { name: /[EÉ]changes/ })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Historique" })).toBeVisible();
+    const projectTabs = page.getByRole("navigation", { name: "Onglets Projet" });
+    await expect(projectTabs).toBeVisible();
+    await expect(projectTabs.getByRole("link", { name: /T[aâ]ches/ })).toBeVisible();
+    await expect(projectTabs.getByRole("link", { name: /[EÉ]changes/ })).toBeVisible();
+    await expect(projectTabs.getByRole("link", { name: "Historique" })).toBeVisible();
 
     await page.getByLabel("Titre").fill(`${marker} updated`);
     await page.getByRole("button", { name: "Enregistrer" }).click();

@@ -32,8 +32,9 @@ test("Projects pages exercise Foundation UI primitives", async ({ page }) => {
   const firstProject = page.locator("a.project-card").first();
   if (await firstProject.count() === 0) test.skip(true, "No project data available to verify detail tabs and confirmations.");
   await firstProject.click();
-  await expect(page.getByRole("navigation", { name: "Onglets Projet" })).toBeVisible();
-  await page.getByRole("link", { name: /T[aâ]ches/ }).click();
+  const projectTabs = page.getByRole("navigation", { name: "Onglets Projet" });
+  await expect(projectTabs).toBeVisible();
+  await projectTabs.getByRole("link", { name: /T[aâ]ches/ }).click();
   await expect(page).toHaveURL(/tab=tasks/);
 
   const archive = page.getByRole("button", { name: "Archiver" });
