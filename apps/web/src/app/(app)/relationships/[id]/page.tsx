@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DeleteRelationshipButton } from "@/components/relationships/delete-relationship-button";
+import { SafeBackLink } from "@/components/navigation/safe-back-link";
 import { RelationshipForm } from "@/components/relationships/relationship-form";
 import { ContextProjects } from "@/components/projects/context-projects";
 import { TaskCard } from "@/components/tasks/task-card";
@@ -60,7 +61,7 @@ export default async function RelationshipDetailPage({ params, searchParams }: R
           <p className="muted">Relationships</p>
           <h1>{person?.display_name ?? "Relation"} - {organization?.name ?? "Organisation"}</h1>
         </div>
-        <Link className="button subtle-button" href="/relationships">Retour</Link>
+        <SafeBackLink fallbackHref="/relationships" />
       </header>
       {valueOf(query, "relationshipCreated") === "1" ? <p className="success" aria-live="polite">Relation créée avec succès.</p> : null}
       {valueOf(query, "relationshipSaved") === "1" ? <p className="success" aria-live="polite">Relation enregistrée avec succès.</p> : null}

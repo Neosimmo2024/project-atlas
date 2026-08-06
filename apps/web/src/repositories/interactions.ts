@@ -1,7 +1,5 @@
-import { buildOrganizationsSearchOrFilter } from "@/features/organizations/search";
-import { buildPeopleSearchOrFilter } from "@/features/people/search";
-import { buildRelationshipsSearchOrFilter } from "@/features/relationships/search";
-import { buildInteractionsSearchOrFilter, canDeleteInteractions, normalizeInteractionsListParams, type InteractionsSearchParams } from "@/features/interactions/search";
+import { textMatchesSearch, paginateSearchResults } from "@/features/people/search";
+import { canDeleteInteractions, interactionMatchesSearch, normalizeInteractionsListParams, type InteractionsSearchParams } from "@/features/interactions/search";
 import type { InteractionFormInput } from "@/features/interactions/validation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { recordInteractionCreated, recordInteractionUpdated } from "@/services/timeline-service";
@@ -51,44 +49,23 @@ function mapInteractionRow(row: InteractionJoinedRow): InteractionListItem {
   };
 }
 
-async function interactionSearchFilters(context: TenantContext, query: string) {
-  const supabase = await createSupabaseServerClient();
-  const filters = [buildInteractionsSearchOrFilter(["title", "summary", "location", "comments", "change_reason", "main_obstacle", "timing"], query)];
-
-  const [{ data: people, error: peopleError }, { data: organizations, error: organizationsError }, { data: relationships, error: relationshipsError }] = await Promise.all([
-    supabase
-      .from("people")
-      .select("id")
-      .eq("tenant_id", context.tenantId)
-      .or(buildPeopleSearchOrFilter(["display_name", "first_name", "last_name", "primary_email", "primary_phone", "city"], query))
-      .limit(100),
-    supabase
-      .from("organizations")
-      .select("id")
-      .eq("tenant_id", context.tenantId)
-      .or(buildOrganizationsSearchOrFilter(["name", "city", "primary_email", "primary_phone", "siren"], query))
-      .limit(100),
-    supabase
-      .from("relationships")
-      .select("id")
-      .eq("tenant_id", context.tenantId)
-      .or(buildRelationshipsSearchOrFilter(["relationship_type", "pipeline_stage", "status", "notes"], query))
-      .limit(100)
-  ]);
-
-  if (peopleError) throw peopleError;
-  if (organizationsError) throw organizationsError;
-  if (relationshipsError) throw relationshipsError;
-
-  const personIds = (people ?? []).map((person) => person.id as string);
-  const organizationIds = (organizations ?? []).map((organization) => organization.id as string);
-  const relationshipIds = (relationships ?? []).map((relationship) => relationship.id as string);
-
-  if (personIds.length > 0) filters.push(`person_id.in.(${personIds.join(",")})`);
-  if (organizationIds.length > 0) filters.push(`organization_id.in.(${organizationIds.join(",")})`);
-  if (relationshipIds.length > 0) filters.push(`relationship_id.in.(${relationshipIds.join(",")})`);
-
-  return filters.join(",");
+function interactionListItemMatchesSearch(interaction: InteractionListItem, query: string) {
+  return interactionMatchesSearch(interaction, query) ||
+    textMatchesSearch([
+      interaction.type?.label,
+      interaction.person?.display_name,
+      interaction.person?.primary_email,
+      interaction.person?.primary_phone,
+      interaction.person?.city,
+      interaction.organization?.name,
+      interaction.organization?.primary_email,
+      interaction.organization?.primary_phone,
+      interaction.organization?.city,
+      interaction.relationship?.relationship_type,
+      interaction.relationship?.pipeline_stage,
+      interaction.relationship?.status,
+      interaction.project?.title
+    ], query);
 }
 
 export async function listInteractionTypes(context: TenantContext): Promise<InteractionType[]> {
@@ -172,7 +149,21 @@ export async function listInteractions(context: TenantContext, params: Interacti
   if (normalized.organizationId) query = query.eq("organization_id", normalized.organizationId);
   if (normalized.relationshipId) query = query.eq("relationship_id", normalized.relationshipId);
   if (normalized.projectId) query = query.eq("project_id", normalized.projectId);
-  if (normalized.query) query = query.or(await interactionSearchFilters(context, normalized.query));
+  if (normalized.query) {
+    const { data, error } = await query.order("interaction_date", { ascending: false });
+    if (error) throw error;
+    const filtered = ((data ?? []) as InteractionJoinedRow[])
+      .map(mapInteractionRow)
+      .filter((interaction) => interactionListItemMatchesSearch(interaction, normalized.query));
+    const paged = paginateSearchResults(filtered, normalized.page, normalized.pageSize);
+    return {
+      interactions: paged.rows,
+      total: paged.total,
+      page: normalized.page,
+      pageSize: normalized.pageSize,
+      pageCount: paged.pageCount
+    };
+  }
 
   const { data, error, count } = await query
     .order("interaction_date", { ascending: false })

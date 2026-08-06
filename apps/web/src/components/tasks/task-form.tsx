@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TASK_PRIORITY_OPTIONS, TASK_STATUS_OPTIONS } from "@/features/tasks/options";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { Interaction, Organization, Person, Project, Relationship, Task, TaskSourceType } from "@/types/domain";
+import type { Interaction, Organization, Person, Relationship, Task, TaskSourceType } from "@/types/domain";
+import type { TaskProjectOption } from "@/repositories/tasks";
 
 type FieldError = { field: string; message: string };
 
@@ -17,7 +18,7 @@ type TaskFormProps = {
   organizationOptions: Pick<Organization, "id" | "name">[];
   relationshipOptions: Pick<Relationship, "id" | "relationship_type" | "pipeline_stage">[];
   interactionOptions: Pick<Interaction, "id" | "title">[];
-  projectOptions?: Pick<Project, "id" | "title">[];
+  projectOptions?: TaskProjectOption[];
 };
 
 function valueOrEmpty(value: string | number | Record<string, unknown> | null | undefined) {
@@ -65,6 +66,10 @@ function sourceTypeValue(task: Task | undefined, defaults: TaskFormProps["defaul
 
 export function TaskForm({ mode, task, defaults, peopleOptions, organizationOptions, relationshipOptions, interactionOptions, projectOptions = [] }: TaskFormProps) {
   const router = useRouter();
+  const [personId, setPersonId] = useState(defaultValue(task, defaults, "person_id") as string);
+  const [organizationId, setOrganizationId] = useState(defaultValue(task, defaults, "organization_id") as string);
+  const [relationshipId, setRelationshipId] = useState(defaultValue(task, defaults, "relationship_id") as string);
+  const [projectId, setProjectId] = useState(defaultValue(task, defaults, "project_id") as string);
   const [fieldErrors, setFieldErrors] = useState<FieldError[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -78,6 +83,26 @@ export function TaskForm({ mode, task, defaults, peopleOptions, organizationOpti
     const message = errorsByField[name];
     return message ? <span className="field-error">{message}</span> : null;
   }
+
+  const filteredProjectOptions = useMemo(() => {
+    const hasContext = Boolean(personId || organizationId || relationshipId);
+    if (!hasContext) return [];
+    return projectOptions.filter((project) =>
+      Boolean(project.status === "open" && !project.archived_at) &&
+      (
+        (personId && project.person_id === personId) ||
+        (organizationId && project.organization_id === organizationId) ||
+        (relationshipId && project.relationship_id === relationshipId)
+      )
+    );
+  }, [organizationId, personId, projectOptions, relationshipId]);
+
+  const selectedProjectAvailable = !projectId || filteredProjectOptions.some((project) => project.id === projectId);
+  const projectHelp = personId || organizationId || relationshipId
+    ? filteredProjectOptions.length === 0
+      ? "Aucun projet actif associe au contexte selectionne."
+      : "Projets actifs associes au contexte selectionne."
+    : "Selectionnez d'abord une personne, une organisation ou une relation pour afficher les projets associes.";
 
   async function readResponseBody(response: Response) {
     const text = await response.text();
@@ -148,7 +173,10 @@ export function TaskForm({ mode, task, defaults, peopleOptions, organizationOpti
       <div className="form-grid">
         <label>
           Personne
-          <select className="input" name="person_id" defaultValue={defaultValue(task, defaults, "person_id")}>
+          <select className="input" name="person_id" value={personId} onChange={(event) => {
+            setPersonId(event.target.value);
+            setProjectId("");
+          }}>
             <option value="">Aucune personne</option>
             {peopleOptions.map((person) => <option key={person.id} value={person.id}>{person.display_name}</option>)}
           </select>
@@ -156,7 +184,10 @@ export function TaskForm({ mode, task, defaults, peopleOptions, organizationOpti
         </label>
         <label>
           Organisation
-          <select className="input" name="organization_id" defaultValue={defaultValue(task, defaults, "organization_id")}>
+          <select className="input" name="organization_id" value={organizationId} onChange={(event) => {
+            setOrganizationId(event.target.value);
+            setProjectId("");
+          }}>
             <option value="">Aucune organisation</option>
             {organizationOptions.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}
           </select>
@@ -164,7 +195,10 @@ export function TaskForm({ mode, task, defaults, peopleOptions, organizationOpti
         </label>
         <label>
           Relation
-          <select className="input" name="relationship_id" defaultValue={defaultValue(task, defaults, "relationship_id")}>
+          <select className="input" name="relationship_id" value={relationshipId} onChange={(event) => {
+            setRelationshipId(event.target.value);
+            setProjectId("");
+          }}>
             <option value="">Aucune relation</option>
             {relationshipOptions.map((relationship) => <option key={relationship.id} value={relationship.id}>{relationship.relationship_type} - {relationship.pipeline_stage}</option>)}
           </select>
@@ -180,10 +214,11 @@ export function TaskForm({ mode, task, defaults, peopleOptions, organizationOpti
         </label>
         <label>
           Projet
-          <select className="input" name="project_id" defaultValue={defaultValue(task, defaults, "project_id")}>
+          <select className="input" name="project_id" value={selectedProjectAvailable ? projectId : ""} onChange={(event) => setProjectId(event.target.value)}>
             <option value="">Aucun projet</option>
-            {projectOptions.map((project) => <option key={project.id} value={project.id}>{project.title}</option>)}
+            {filteredProjectOptions.map((project) => <option key={project.id} value={project.id}>{project.title}</option>)}
           </select>
+          <span className="field-help">{projectHelp}</span>
           <FieldError name="project_id" />
         </label>
       </div>

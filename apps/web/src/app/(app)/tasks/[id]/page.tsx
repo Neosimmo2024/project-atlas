@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DeleteTaskButton } from "@/components/tasks/delete-task-button";
+import { SafeBackLink } from "@/components/navigation/safe-back-link";
 import { TaskForm } from "@/components/tasks/task-form";
 import { TaskStatusButton } from "@/components/tasks/task-status-button";
 import { TASK_PRIORITY_LABELS, TASK_STATUS_LABELS } from "@/features/tasks/options";
@@ -10,6 +11,7 @@ import {
   listTaskInteractionOptions,
   listTaskOrganizationOptions,
   listTaskPeopleOptions,
+  listTaskProjectOptions,
   listTaskRelationshipOptions
 } from "@/repositories/tasks";
 import { getTenantContext } from "@/repositories/tenant-context";
@@ -31,12 +33,13 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
   const detail = await getTaskDetail(context, id);
   if (!detail) notFound();
 
-  const { task, person, organization, relationship, interaction } = detail;
-  const [peopleOptions, organizationOptions, relationshipOptions, interactionOptions] = await Promise.all([
+  const { task, person, organization, relationship, interaction, project } = detail;
+  const [peopleOptions, organizationOptions, relationshipOptions, interactionOptions, projectOptions] = await Promise.all([
     listTaskPeopleOptions(context),
     listTaskOrganizationOptions(context),
     listTaskRelationshipOptions(context),
-    listTaskInteractionOptions(context)
+    listTaskInteractionOptions(context),
+    listTaskProjectOptions(context)
   ]);
 
   return (
@@ -46,7 +49,7 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
           <p className="muted">Smart Tasks</p>
           <h1>{task.title}</h1>
         </div>
-        <Link className="button subtle-button" href="/tasks">Retour</Link>
+        <SafeBackLink fallbackHref="/tasks" />
       </header>
 
       <div className="grid">
@@ -63,6 +66,7 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
           <p><strong>Organisation</strong><br />{organization ? <Link href={`/organizations/${organization.id}`}>{organization.name}</Link> : "-"}</p>
           <p><strong>Relation</strong><br />{relationship ? <Link href={`/relationships/${relationship.id}`}>{relationship.relationship_type} - {relationship.pipeline_stage}</Link> : "-"}</p>
           <p><strong>Interaction</strong><br />{interaction ? <Link href={`/interactions/${interaction.id}`}>{interaction.title}</Link> : "-"}</p>
+          <p><strong>Projet</strong><br />{project ? <Link href={`/projects/${project.id}`}>{project.title}</Link> : "-"}</p>
         </section>
         <section className="card stack">
           <h2>Dates</h2>
@@ -95,6 +99,7 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
           organizationOptions={organizationOptions}
           relationshipOptions={relationshipOptions}
           interactionOptions={interactionOptions}
+          projectOptions={projectOptions}
         />
       </section>
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DeleteOrganizationButton } from "@/components/organizations/delete-organization-button";
+import { SafeBackLink } from "@/components/navigation/safe-back-link";
 import { OrganizationForm } from "@/components/organizations/organization-form";
 import { ContextProjects } from "@/components/projects/context-projects";
 import { TaskCard } from "@/components/tasks/task-card";
@@ -57,7 +58,7 @@ export default async function OrganizationDetailPage({ params, searchParams }: O
           <p className="muted">Organizations</p>
           <h1>{organization.name}</h1>
         </div>
-        <Link className="button subtle-button" href="/organizations">Retour</Link>
+        <SafeBackLink fallbackHref="/organizations" />
       </header>
 
       <div className="grid">

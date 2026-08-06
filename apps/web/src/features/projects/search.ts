@@ -1,4 +1,4 @@
-import { escapePostgrestLikePattern, quotePostgrestFilterValue } from "../people/search";
+import { escapePostgrestLikePattern, quotePostgrestFilterValue, textMatchesSearch } from "../people/search";
 
 export type ProjectsSearchParams = {
   query?: string;
@@ -19,6 +19,13 @@ export type ProjectsSearchParams = {
 export function buildProjectsSearchOrFilter(columns: string[], query: string) {
   const pattern = quotePostgrestFilterValue(`*${escapePostgrestLikePattern(query.trim())}*`);
   return columns.map((column) => `${column}.ilike.${pattern}`).join(",");
+}
+
+export function projectMatchesSearch(
+  project: { title?: string | null; short_description?: string | null; closing_note?: string | null },
+  query: string
+) {
+  return textMatchesSearch([project.title, project.short_description, project.closing_note], query);
 }
 
 export function normalizeProjectsListParams(params: ProjectsSearchParams) {

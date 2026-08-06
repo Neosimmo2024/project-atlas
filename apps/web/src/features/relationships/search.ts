@@ -1,5 +1,5 @@
 import type { Relationship, RoleSlug } from "@/types/domain";
-import { escapePostgrestLikePattern, quotePostgrestFilterValue } from "../people/search";
+import { escapePostgrestLikePattern, normalizeSearchValue, quotePostgrestFilterValue, textMatchesSearch } from "../people/search";
 
 export type RelationshipsSearchParams = {
   query?: string;
@@ -15,10 +15,6 @@ export type RelationshipDuplicateMatch = {
   reasons: ["active_identity"];
 };
 
-export function normalizeSearchValue(value: string | null | undefined) {
-  return (value ?? "").trim().toLowerCase();
-}
-
 export function buildRelationshipsSearchOrFilter(columns: string[], query: string) {
   const pattern = quotePostgrestFilterValue(`*${escapePostgrestLikePattern(query.trim())}*`);
   return columns.map((column) => `${column}.ilike.${pattern}`).join(",");
@@ -31,12 +27,12 @@ export function relationshipMatchesSearch(
   const normalizedQuery = normalizeSearchValue(query);
   if (!normalizedQuery) return true;
 
-  return [
+  return textMatchesSearch([
     relationship.relationship_type,
     relationship.pipeline_stage,
     relationship.status,
     relationship.notes
-  ].some((value) => normalizeSearchValue(value).includes(normalizedQuery));
+  ], normalizedQuery);
 }
 
 export function findRelationshipDuplicateMatches(

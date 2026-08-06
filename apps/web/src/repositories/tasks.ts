@@ -1,4 +1,5 @@
-import { buildTasksSearchOrFilter, canDeleteTasks, normalizeTasksListParams, type TasksSearchParams } from "@/features/tasks/search";
+import { canDeleteTasks, normalizeTasksListParams, taskMatchesSearch, type TasksSearchParams } from "@/features/tasks/search";
+import { paginateSearchResults } from "@/features/people/search";
 import type { TaskFormInput } from "@/features/tasks/validation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { recordTaskChanged, recordTaskDeleted } from "@/services/timeline-service";
@@ -28,6 +29,8 @@ export type TaskDetail = {
   interaction: Interaction | null;
   project: Project | null;
 };
+
+export type TaskProjectOption = Pick<Project, "id" | "title" | "person_id" | "organization_id" | "relationship_id" | "status" | "archived_at">;
 
 type TaskJoinedRow = Task & {
   people?: TaskListItem["person"];
@@ -112,18 +115,18 @@ export async function listTaskInteractionOptions(context: TenantContext): Promis
   return (data ?? []) as Pick<Interaction, "id" | "title">[];
 }
 
-export async function listTaskProjectOptions(context: TenantContext): Promise<Pick<Project, "id" | "title">[]> {
+export async function listTaskProjectOptions(context: TenantContext): Promise<TaskProjectOption[]> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("projects")
-    .select("id, title")
+    .select("id, title, person_id, organization_id, relationship_id, status, archived_at")
     .eq("tenant_id", context.tenantId)
     .is("archived_at", null)
     .order("updated_at", { ascending: false })
     .limit(200);
 
   if (error) throw error;
-  return (data ?? []) as Pick<Project, "id" | "title">[];
+  return (data ?? []) as TaskProjectOption[];
 }
 
 export async function listTasks(context: TenantContext, params: TasksSearchParams = {}): Promise<TasksListResult> {
@@ -143,7 +146,6 @@ export async function listTasks(context: TenantContext, params: TasksSearchParam
   if (normalized.relationshipId) query = query.eq("relationship_id", normalized.relationshipId);
   if (normalized.interactionId) query = query.eq("interaction_id", normalized.interactionId);
   if (normalized.projectId) query = query.eq("project_id", normalized.projectId);
-  if (normalized.query) query = query.or(buildTasksSearchOrFilter(["title", "description", "reason"], normalized.query));
   if (normalized.due) {
     const today = startOfToday();
     const tomorrow = addDays(today, 1);
@@ -152,6 +154,22 @@ export async function listTasks(context: TenantContext, params: TasksSearchParam
     if (normalized.due === "overdue") query = query.lt("due_at", today.toISOString()).neq("status", "completed");
     if (normalized.due === "today") query = query.gte("due_at", today.toISOString()).lt("due_at", tomorrow.toISOString());
     if (normalized.due === "week") query = query.gte("due_at", today.toISOString()).lt("due_at", weekEnd.toISOString());
+  }
+
+  if (normalized.query) {
+    const { data, error } = await query
+      .order("due_at", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    const filtered = ((data ?? []) as TaskJoinedRow[]).map(mapTaskRow).filter((task) => taskMatchesSearch(task, normalized.query));
+    const paged = paginateSearchResults(filtered, normalized.page, normalized.pageSize);
+    return {
+      tasks: paged.rows,
+      total: paged.total,
+      page: normalized.page,
+      pageSize: normalized.pageSize,
+      pageCount: paged.pageCount
+    };
   }
 
   const { data, error, count } = await query

@@ -1,5 +1,5 @@
 import type { Interaction, RoleSlug } from "@/types/domain";
-import { escapePostgrestLikePattern, quotePostgrestFilterValue } from "../people/search";
+import { escapePostgrestLikePattern, normalizeSearchValue, quotePostgrestFilterValue, textMatchesSearch } from "../people/search";
 
 export type InteractionsSearchParams = {
   query?: string;
@@ -11,10 +11,6 @@ export type InteractionsSearchParams = {
   page?: number;
   pageSize?: number;
 };
-
-export function normalizeSearchValue(value: string | null | undefined) {
-  return (value ?? "").trim().toLowerCase();
-}
 
 export function buildInteractionsSearchOrFilter(columns: string[], query: string) {
   const pattern = quotePostgrestFilterValue(`*${escapePostgrestLikePattern(query.trim())}*`);
@@ -28,7 +24,7 @@ export function interactionMatchesSearch(
   const normalizedQuery = normalizeSearchValue(query);
   if (!normalizedQuery) return true;
 
-  return [
+  return textMatchesSearch([
     interaction.title,
     interaction.summary,
     interaction.location,
@@ -36,7 +32,7 @@ export function interactionMatchesSearch(
     interaction.change_reason,
     interaction.main_obstacle,
     interaction.timing
-  ].some((value) => normalizeSearchValue(value).includes(normalizedQuery));
+  ], normalizedQuery);
 }
 
 export function canDeleteInteractions(role: RoleSlug) {
