@@ -12,7 +12,7 @@ export default async function NewRelationshipPage() {
     <div className="page stack">
       <header className="page-header">
         <div>
-          <p className="muted">Relationships</p>
+          <p className="muted">Relations</p>
           <h1>Nouvelle relation</h1>
         </div>
         <Link className="button subtle-button" href="/relationships">Retour</Link>

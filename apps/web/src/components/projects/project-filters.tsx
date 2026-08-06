@@ -34,7 +34,7 @@ export function ProjectFilters(props: ProjectFiltersProps) {
         </select>
       </label>
       <label>
-        Etape
+        Étape
         <select className="input" name="stage" defaultValue={props.stage}>
           <option value="">Toutes</option>
           {stages.map((stage) => <option key={stage} value={stage}>{PROJECT_STAGE_LABELS[stage]}</option>)}
@@ -60,12 +60,12 @@ export function ProjectFilters(props: ProjectFiltersProps) {
           <label>Organisation<input className="input" name="organizationId" defaultValue={props.organizationId} /></label>
           <label>Personne<input className="input" name="personId" defaultValue={props.personId} /></label>
           <label>Relation<input className="input" name="relationshipId" defaultValue={props.relationshipId} /></label>
-          <label>Date de cloture prevue<input className="input" type="date" name="expectedClose" defaultValue={props.expectedClose} /></label>
+          <label>Date de clôture prévue<input className="input" type="date" name="expectedClose" defaultValue={props.expectedClose} /></label>
           <label className="checkbox-label"><input type="checkbox" name="includeArchived" value="true" defaultChecked={props.includeArchived} /> Afficher les archives</label>
         </div>
       </details>
       <button className="button" type="submit">Filtrer</button>
-      <Link className="button subtle-button" href="/projects">Reinitialiser</Link>
+      <Link className="button subtle-button" href="/projects">Réinitialiser</Link>
     </FilterBar>
   );
 }

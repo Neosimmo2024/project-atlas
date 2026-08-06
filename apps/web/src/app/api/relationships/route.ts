@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { parseRelationshipInput } from "@/features/relationships/validation";
 import { apiErrorResponse } from "@/lib/security/api-errors";
 import { createRelationship, findPotentialRelationshipDuplicates, listRelationships } from "@/repositories/relationships";
@@ -6,7 +6,7 @@ import { getTenantContext } from "@/repositories/tenant-context";
 
 function validationErrorResponse(error: { issues: { path: PropertyKey[]; message: string }[] }) {
   return NextResponse.json(
-    { error: "Validation failed", fields: error.issues.map((issue) => ({ field: issue.path.join("."), message: issue.message })) },
+    { error: "Les informations saisies sont invalides.", fields: error.issues.map((issue) => ({ field: issue.path.join("."), message: issue.message })) },
     { status: 400 }
   );
 }

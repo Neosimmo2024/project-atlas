@@ -12,9 +12,9 @@ export function Pagination({ page, pageCount, total, hrefForPage, label = "Pagin
   if (pageCount <= 1) return null;
   return (
     <nav className="pagination" aria-label={label}>
-      <span>{total} resultat(s)</span>
+      <span>{total} résultat(s)</span>
       <div>
-        {page > 1 ? <Link className="button subtle-button" href={hrefForPage(page - 1)}>Precedent</Link> : null}
+        {page > 1 ? <Link className="button subtle-button" href={hrefForPage(page - 1)}>Précédent</Link> : null}
         <span>Page {page} / {pageCount}</span>
         {page < pageCount ? <Link className="button subtle-button" href={hrefForPage(page + 1)}>Suivant</Link> : null}
       </div>

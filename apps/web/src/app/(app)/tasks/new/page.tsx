@@ -53,7 +53,7 @@ export default async function NewTaskPage({ searchParams }: NewTaskPageProps) {
       <header className="page-header">
         <div>
           <p className="muted">Smart Tasks</p>
-          <h1>Nouvelle tache</h1>
+          <h1>Nouvelle tâche</h1>
         </div>
         <Link className="button subtle-button" href="/tasks">Retour</Link>
       </header>

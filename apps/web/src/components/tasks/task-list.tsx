@@ -17,16 +17,16 @@ function tasksUrl(params: URLSearchParams, page: number) {
 export function TaskList({ result, currentParams }: TaskListProps) {
   return (
     <div className="stack">
-      {result.tasks.length === 0 ? <EmptyState title="Aucune tache" body="Les prochaines actions liees aux personnes, organisations, relations et interactions seront listees ici." /> : (
+      {result.tasks.length === 0 ? <EmptyState title="Aucune tâche" body="Les prochaines actions liées aux personnes, organisations, relations et échanges seront listées ici." /> : (
         <div className="task-list">
           {result.tasks.map((task) => <TaskCard key={task.id} task={task} />)}
         </div>
       )}
 
       <nav className="pagination" aria-label="Pagination Tasks">
-        <span>{result.total} resultat(s)</span>
+        <span>{result.total} résultat(s)</span>
         <div>
-          {result.page > 1 ? <Link className="button subtle-button" href={tasksUrl(currentParams, result.page - 1)}>Precedent</Link> : null}
+          {result.page > 1 ? <Link className="button subtle-button" href={tasksUrl(currentParams, result.page - 1)}>Précédent</Link> : null}
           <span>Page {result.page} / {result.pageCount}</span>
           {result.page < result.pageCount ? <Link className="button subtle-button" href={tasksUrl(currentParams, result.page + 1)}>Suivant</Link> : null}
         </div>

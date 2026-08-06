@@ -3,7 +3,7 @@ import { TASK_PRIORITY_LABELS, TASK_STATUS_LABELS } from "@/features/tasks/optio
 import type { TaskListItem } from "@/repositories/tasks";
 
 function formatDate(value: string | null) {
-  if (!value) return "Aucune echeance";
+  if (!value) return "Aucune échéance";
   return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 

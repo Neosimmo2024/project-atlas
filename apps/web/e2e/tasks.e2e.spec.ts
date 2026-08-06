@@ -33,7 +33,7 @@ test.describe("Tasks authenticated flow", () => {
     await expect(page).toHaveURL(/\/organizations\/[^/]+$/);
 
     await page.goto(`${personUrl.replace("http://127.0.0.1:3000", "")}`);
-    await page.getByRole("link", { name: "Nouvelle tache" }).click();
+    await page.getByRole("link", { name: "Nouvelle tâche" }).click();
     await page.getByLabel("Titre").fill(marker);
     await page.getByLabel("Description").fill("Created from Tasks E2E");
     await page.getByRole("button", { name: "Enregistrer" }).click();
@@ -48,9 +48,9 @@ test.describe("Tasks authenticated flow", () => {
     await expect(page.getByText("Updated from Tasks E2E")).toBeVisible();
 
     await page.getByRole("button", { name: "Terminer" }).click();
-    await expect(page.getByText("Terminee")).toBeVisible();
+    await expect(page.getByText("Terminée")).toBeVisible();
     await page.getByRole("button", { name: "Rouvrir" }).click();
-    await expect(page.getByText("A faire")).toBeVisible();
+    await expect(page.getByText("À faire")).toBeVisible();
 
     page.once("dialog", (dialog) => dialog.accept());
     await page.getByRole("button", { name: "Supprimer" }).click();

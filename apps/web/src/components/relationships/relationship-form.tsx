@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -164,7 +164,7 @@ export function RelationshipForm({ mode, relationship, peopleOptions, organizati
         <label>
           Personne
           <select className="input" name="person_id" required defaultValue={relationship?.person_id ?? ""}>
-            <option value="">Selectionner</option>
+            <option value="">Sélectionner</option>
             {peopleOptions.map((person) => <option key={person.id} value={person.id}>{person.display_name}</option>)}
           </select>
           <FieldError name="person_id" />
@@ -172,7 +172,7 @@ export function RelationshipForm({ mode, relationship, peopleOptions, organizati
         <label>
           Organisation
           <select className="input" name="organization_id" required defaultValue={relationship?.organization_id ?? ""}>
-            <option value="">Selectionner</option>
+            <option value="">Sélectionner</option>
             {organizationOptions.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}
           </select>
           <FieldError name="organization_id" />
@@ -198,18 +198,20 @@ export function RelationshipForm({ mode, relationship, peopleOptions, organizati
           </select>
           <FieldError name="status" />
         </label>
-        <label>Responsable utilisateur<Input name="owner_user_id" defaultValue={valueOrEmpty(relationship?.owner_user_id) as string} /><FieldError name="owner_user_id" /></label>
+        <input type="hidden" name="owner_user_id" value={valueOrEmpty(relationship?.owner_user_id) as string} />
+        <FieldError name="owner_user_id" />
         <label>Score<Input name="score" type="number" min={0} max={100} defaultValue={valueOrEmpty(relationship?.score) as string} /><FieldError name="score" /></label>
         <label>Confiance<Input name="confidence" type="number" min={0} max={100} defaultValue={valueOrEmpty(relationship?.confidence) as string} /><FieldError name="confidence" /></label>
-        <label>Debut<Input name="started_at" type="datetime-local" defaultValue={toDateTimeLocal(relationship?.started_at)} /><FieldError name="started_at" /></label>
+        <label>Début<Input name="started_at" type="datetime-local" defaultValue={toDateTimeLocal(relationship?.started_at)} /><FieldError name="started_at" /></label>
         <label>Fin<Input name="ended_at" type="datetime-local" defaultValue={toDateTimeLocal(relationship?.ended_at)} /><FieldError name="ended_at" /></label>
         <label>Prochaine action<Input name="next_action_at" type="datetime-local" defaultValue={toDateTimeLocal(relationship?.next_action_at)} /><FieldError name="next_action_at" /></label>
-        <label>Derniere interaction<Input name="last_interaction_at" type="datetime-local" defaultValue={toDateTimeLocal(relationship?.last_interaction_at)} /><FieldError name="last_interaction_at" /></label>
+        <label>Dernier échange<Input name="last_interaction_at" type="datetime-local" defaultValue={toDateTimeLocal(relationship?.last_interaction_at)} /><FieldError name="last_interaction_at" /></label>
         <label>Tags<Input name="tags" defaultValue={valueOrEmpty(relationship?.tags) as string} placeholder="recrutement, prioritaire" /><FieldError name="tags" /></label>
       </div>
 
       <label>Notes<textarea className="input textarea" name="notes" defaultValue={valueOrEmpty(relationship?.notes) as string} /><FieldError name="notes" /></label>
-      <label>Metadata JSON<textarea className="input textarea" name="metadata" defaultValue={valueOrEmpty(relationship?.metadata) as string} /><FieldError name="metadata" /></label>
+      <input type="hidden" name="metadata" value={valueOrEmpty(relationship?.metadata) as string} />
+      <FieldError name="metadata" />
       {fieldErrors.length > 0 ? (
         <ul className="error-list">
           {fieldErrors.map((item) => <li key={`${item.field}-${item.message}`}>{item.message}</li>)}

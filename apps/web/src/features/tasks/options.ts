@@ -1,10 +1,10 @@
 import type { TaskPriority, TaskStatus } from "@/types/domain";
 
 export const TASK_STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
-  { value: "todo", label: "A faire" },
+  { value: "todo", label: "À faire" },
   { value: "in_progress", label: "En cours" },
   { value: "waiting", label: "En attente" },
-  { value: "completed", label: "Terminee" },
+  { value: "completed", label: "Terminée" },
   { value: "cancelled", label: "Annulee" }
 ];
 

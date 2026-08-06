@@ -60,7 +60,7 @@ export default async function InteractionDetailPage({ params, searchParams }: In
     <div className="page stack">
       <header className="page-header">
         <div>
-          <p className="muted">Interactions</p>
+          <p className="muted">Échanges</p>
           <h1>{interaction.title}</h1>
         </div>
         <SafeBackLink fallbackHref={returnTo} />
@@ -71,7 +71,7 @@ export default async function InteractionDetailPage({ params, searchParams }: In
           <h2>Contexte</h2>
           <p><strong>Type</strong><br />{type?.label ?? "-"}</p>
           <p><strong>Date</strong><br />{formatDate(interaction.interaction_date)}</p>
-          <p><strong>Duree</strong><br />{interaction.duration_minutes ? `${interaction.duration_minutes} min` : "-"}</p>
+          <p><strong>Durée</strong><br />{interaction.duration_minutes ? `${interaction.duration_minutes} min` : "-"}</p>
           <p><strong>Lieu</strong><br />{interaction.location ?? "-"}</p>
         </section>
         <section className="card stack">
@@ -82,37 +82,32 @@ export default async function InteractionDetailPage({ params, searchParams }: In
         </section>
         <section className="card stack">
           <h2>Dates</h2>
-          <p><strong>Cree le</strong><br />{formatDate(interaction.created_at)}</p>
-          <p><strong>Modifie le</strong><br />{formatDate(interaction.updated_at)}</p>
+          <p><strong>Créé le</strong><br />{formatDate(interaction.created_at)}</p>
+          <p><strong>Modifié le</strong><br />{formatDate(interaction.updated_at)}</p>
         </section>
       </div>
 
       <section className="card stack">
-        <h2>Resume</h2>
-        <p>{interaction.summary ?? "Aucun resume."}</p>
+        <h2>Résumé</h2>
+        <p>{interaction.summary ?? "Aucun résumé."}</p>
       </section>
 
       <section className="card stack">
-        <h2>Qualification metier</h2>
+        <h2>Qualification métier</h2>
         <p><strong>Pourquoi changer ?</strong><br />{interaction.change_reason ?? "-"}</p>
         <p><strong>Frein principal</strong><br />{interaction.main_obstacle ?? "-"}</p>
         <p><strong>Timing</strong><br />{interaction.timing ?? "-"}</p>
-        <p><strong>Compatibilite ADN</strong><br />{interaction.dna_compatibility ?? "-"}</p>
+        <p><strong>Compatibilité ADN</strong><br />{interaction.dna_compatibility ?? "-"}</p>
         <p><strong>Envie de travailler avec cette personne</strong><br />{interaction.work_with_person_desire ?? "-"}</p>
         <p><strong>Commentaires</strong><br />{interaction.comments ?? "-"}</p>
       </section>
 
       <section className="card stack">
-        <h2>Metadata</h2>
-        <pre className="code-block">{JSON.stringify(interaction.metadata ?? {}, null, 2)}</pre>
-      </section>
-
-      <section className="card stack">
         <div className="page-header">
-          <h2>Taches liees</h2>
-          <Link className="button subtle-button" href={`/tasks/new?sourceType=interaction&sourceId=${interaction.id}&interactionId=${interaction.id}`}>Nouvelle tache</Link>
+          <h2>Tâches liées</h2>
+          <Link className="button subtle-button" href={`/tasks/new?sourceType=interaction&sourceId=${interaction.id}&interactionId=${interaction.id}`}>Nouvelle tâche</Link>
         </div>
-        {tasks.tasks.length === 0 ? <p className="muted">Aucune tache liee.</p> : tasks.tasks.map((task) => <TaskCard key={task.id} task={task} />)}
+        {tasks.tasks.length === 0 ? <p className="muted">Aucune tâche liée.</p> : tasks.tasks.map((task) => <TaskCard key={task.id} task={task} />)}
       </section>
 
       <section className="card stack">
@@ -123,7 +118,7 @@ export default async function InteractionDetailPage({ params, searchParams }: In
       {canDeleteInteractions(context.role) ? (
         <section className="card stack danger-zone">
           <h2>Suppression</h2>
-          <p>Suppression logique reservee aux roles owner et admin.</p>
+          <p>Suppression logique réservée aux rôles owner et admin.</p>
           <DeleteInteractionButton interactionId={interaction.id} redirectTo={returnTo} />
         </section>
       ) : null}

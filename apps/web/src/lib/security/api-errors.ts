@@ -43,7 +43,7 @@ function technicalErrorDiagnostic(error: unknown) {
 
 export function publicErrorMessage(error: unknown) {
   if (isApiError(error)) return error.message;
-  if (error instanceof ZodError) return "Validation failed";
+  if (error instanceof ZodError) return "Les informations saisies sont invalides.";
   if (error instanceof Error && error.message.startsWith("Suppression refusee")) return error.message;
   const code = postgresCode(error);
   const message = postgresMessage(error);

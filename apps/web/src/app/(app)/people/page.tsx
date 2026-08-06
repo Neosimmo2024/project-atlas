@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import type { InputHTMLAttributes } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { PERSON_STATUS_LABELS, PERSON_STATUSES, PRIORITIES, PRIORITY_LABELS } from "@/features/people/options";
@@ -54,7 +54,7 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
           </select>
         </label>
         <label>
-          Priorite
+          Priorité
           <select className="input" name="priority" defaultValue={priority}>
             <option value="">Toutes</option>
             {PRIORITIES.map((item) => <option key={item} value={item}>{PRIORITY_LABELS[item]}</option>)}
@@ -63,10 +63,10 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
         <button className="button" type="submit">Filtrer</button>
       </form>
 
-      {result.people.length === 0 ? <EmptyState title="Aucune personne" body="Les talents importes ou crees apparaitront ici." /> : (
+      {result.people.length === 0 ? <EmptyState title="Aucune personne" body="Les talents importés ou créés apparaîtront ici." /> : (
         <div className="data-table people-table">
           <div className="table-head">
-            <span>Nom</span><span>Prenom</span><span>Email</span><span>Telephone</span><span>Ville</span><span>Statut</span><span>Priorite</span><span>Score</span><span>Source</span>
+            <span>Nom</span><span>Prénom</span><span>Email</span><span>Téléphone</span><span>Ville</span><span>Statut</span><span>Priorité</span><span>Score</span><span>Source</span>
           </div>
           {result.people.map((person) => (
             <Link key={person.id} href={`/people/${person.id}`} className="table-row">
@@ -85,9 +85,9 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
       )}
 
       <nav className="pagination" aria-label="Pagination People">
-        <span>{result.total} resultat(s)</span>
+        <span>{result.total} résultat(s)</span>
         <div>
-          {result.page > 1 ? <Link className="button subtle-button" href={peopleUrl(currentParams, result.page - 1)}>Precedent</Link> : null}
+          {result.page > 1 ? <Link className="button subtle-button" href={peopleUrl(currentParams, result.page - 1)}>Précédent</Link> : null}
           <span>Page {result.page} / {result.pageCount}</span>
           {result.page < result.pageCount ? <Link className="button subtle-button" href={peopleUrl(currentParams, result.page + 1)}>Suivant</Link> : null}
         </div>

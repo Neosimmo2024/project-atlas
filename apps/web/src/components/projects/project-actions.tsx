@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -51,7 +51,7 @@ export function ProjectActions({ project }: { project: Project }) {
       router.push(`/projects/${project.id}?toast=${encodeURIComponent(success)}`);
       router.refresh();
     } catch {
-      setError("Erreur reseau pendant l'action.");
+      setError("Erreur réseau pendant l'action.");
     } finally {
       setLoading(false);
     }
@@ -61,23 +61,23 @@ export function ProjectActions({ project }: { project: Project }) {
     <div className="stack">
       {error ? <p className="error" role="alert">{error}</p> : null}
       <div className="actions">
-        {!isArchived ? <Button type="button" onClick={() => setActive("stage")} disabled={isClosed}>Changer etape</Button> : null}
-        {!isArchived && !isClosed ? <Button type="button" onClick={() => setActive("win")}>Marquer comme gagne</Button> : null}
+        {!isArchived ? <Button type="button" onClick={() => setActive("stage")} disabled={isClosed}>Changer étape</Button> : null}
+        {!isArchived && !isClosed ? <Button type="button" onClick={() => setActive("win")}>Marquer comme gagné</Button> : null}
         {!isArchived && !isClosed ? <Button type="button" onClick={() => setActive("lose")}>Marquer comme perdu</Button> : null}
-        {isClosed ? <Button type="button" onClick={() => setActive("reopen")}>Reouvrir</Button> : null}
-        {!isArchived ? <Button type="button" className="subtle-button" onClick={() => setActive("archive")}>Archiver</Button> : <Button type="button" onClick={() => setActive("reactivate")}>Reactiver</Button>}
+        {isClosed ? <Button type="button" onClick={() => setActive("reopen")}>Rouvrir</Button> : null}
+        {!isArchived ? <Button type="button" className="subtle-button" onClick={() => setActive("archive")}>Archiver</Button> : <Button type="button" onClick={() => setActive("reactivate")}>Réactiver</Button>}
       </div>
-      {isClosed ? <p className="muted">Rouvrez le Projet avant de modifier son etape.</p> : null}
+      {isClosed ? <p className="muted">Rouvrez le Projet avant de modifier son étape.</p> : null}
 
       {active === "stage" ? (
         <form className="card stack" onSubmit={(event) => {
           event.preventDefault();
           const data = new FormData(event.currentTarget);
-          void request(`/api/projects/${project.id}`, { stage: String(data.get("stage") ?? "") }, "PATCH", "Etape mise a jour.");
+          void request(`/api/projects/${project.id}`, { stage: String(data.get("stage") ?? "") }, "PATCH", "Étape mise à jour.");
         }}>
-          <h2>Changer etape du Projet</h2>
+          <h2>Changer étape du Projet</h2>
           <label>
-            Etape
+            Étape
             <select className="input" name="stage" defaultValue={project.stage}>
               {stages.map((stage) => <option key={stage} value={stage}>{PROJECT_STAGE_LABELS[stage]}</option>)}
             </select>
@@ -90,9 +90,9 @@ export function ProjectActions({ project }: { project: Project }) {
         <form className="card stack" onSubmit={(event) => {
           event.preventDefault();
           const data = new FormData(event.currentTarget);
-          void request(`/api/projects/${project.id}/win`, { finalValue: String(data.get("finalValue") ?? ""), wonAt: String(data.get("wonAt") ?? ""), note: String(data.get("note") ?? "") }, "POST", "Projet marque comme gagne.");
+          void request(`/api/projects/${project.id}/win`, { finalValue: String(data.get("finalValue") ?? ""), wonAt: String(data.get("wonAt") ?? ""), note: String(data.get("note") ?? "") }, "POST", "Projet marqué comme gagné.");
         }}>
-          <h2>Marquer ce Projet comme gagne</h2>
+          <h2>Marquer ce Projet comme gagné</h2>
           <div className="form-grid">
             <label>Valeur finale<input className="input" name="finalValue" inputMode="decimal" defaultValue={project.estimated_value ?? ""} /></label>
             <label>Date de gain<input className="input" name="wonAt" type="date" defaultValue={todayLocal()} /></label>
@@ -106,7 +106,7 @@ export function ProjectActions({ project }: { project: Project }) {
         <form className="card stack" onSubmit={(event) => {
           event.preventDefault();
           const data = new FormData(event.currentTarget);
-          void request(`/api/projects/${project.id}/lose`, { lossReason: String(data.get("lossReason") ?? ""), lostAt: String(data.get("lostAt") ?? ""), note: String(data.get("note") ?? "") }, "POST", "Projet marque comme perdu.");
+          void request(`/api/projects/${project.id}/lose`, { lossReason: String(data.get("lossReason") ?? ""), lostAt: String(data.get("lostAt") ?? ""), note: String(data.get("note") ?? "") }, "POST", "Projet marqué comme perdu.");
         }}>
           <h2>Marquer ce Projet comme perdu</h2>
           <div className="form-grid">
@@ -123,9 +123,9 @@ export function ProjectActions({ project }: { project: Project }) {
         </form>
       ) : null}
 
-      {active === "reopen" ? <Confirm title="Reouvrir ce Projet ?" body="Le Projet repassera au statut Ouvert. Son historique, ses taches et ses echanges seront conserves." loading={loading} confirm="Reouvrir" cancel={() => setActive(null)} action={() => request(`/api/projects/${project.id}/reopen`, {}, "POST", "Projet rouvert.")} /> : null}
-      {active === "archive" ? <Confirm title="Archiver ce Projet ?" body="Il disparaitra de la liste active, mais ses donnees seront conservees." loading={loading} confirm="Archiver" cancel={() => setActive(null)} action={() => request(`/api/projects/${project.id}/archive`, {}, "POST", "Projet archive.")} /> : null}
-      {active === "reactivate" ? <Confirm title="Reactiver ce Projet ?" body="Le Projet reviendra dans la liste active." loading={loading} confirm="Reactiver" cancel={() => setActive(null)} action={() => request(`/api/projects/${project.id}/reactivate`, {}, "POST", "Projet reactive.")} /> : null}
+      {active === "reopen" ? <Confirm title="Rouvrir ce Projet ?" body="Le Projet repassera au statut Ouvert. Son historique, ses tâches et ses échanges seront conservés." loading={loading} confirm="Rouvrir" cancel={() => setActive(null)} action={() => request(`/api/projects/${project.id}/reopen`, {}, "POST", "Projet rouvert.")} /> : null}
+      {active === "archive" ? <Confirm title="Archiver ce Projet ?" body="Il disparaîtra de la liste active, mais ses données seront conservées." loading={loading} confirm="Archiver" cancel={() => setActive(null)} action={() => request(`/api/projects/${project.id}/archive`, {}, "POST", "Projet archivé.")} /> : null}
+      {active === "reactivate" ? <Confirm title="Réactiver ce Projet ?" body="Le Projet reviendra dans la liste active." loading={loading} confirm="Réactiver" cancel={() => setActive(null)} action={() => request(`/api/projects/${project.id}/reactivate`, {}, "POST", "Projet réactivé.")} /> : null}
     </div>
   );
 }

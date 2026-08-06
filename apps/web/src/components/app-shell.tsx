@@ -10,10 +10,10 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/people", label: "People" },
   { href: "/organizations", label: "Organizations" },
-  { href: "/relationships", label: "Relationships" },
+  { href: "/relationships", label: "Relations" },
   { href: "/pipeline", label: "Pipeline" },
-  { href: "/interactions", label: "Interactions" },
-  { href: "/tasks", label: "Tasks" },
+  { href: "/interactions", label: "Échanges" },
+  { href: "/tasks", label: "Tâches" },
   { href: "/projects", label: "Projets" },
   { href: "/imports", label: "Imports" }
 ];

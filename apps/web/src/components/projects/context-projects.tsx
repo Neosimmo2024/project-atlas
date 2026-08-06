@@ -19,11 +19,11 @@ export function ContextProjects({ title = "Projets", result, newHref, allHref }:
           <Link className="button subtle-button" href={allHref}>Voir tous les Projets</Link>
         </div>
       </div>
-      {result.projects.length === 0 ? <p className="muted">Aucun Projet ouvert lie.</p> : result.projects.map((project) => (
+      {result.projects.length === 0 ? <p className="muted">Aucun Projet ouvert lié.</p> : result.projects.map((project) => (
         <Link key={project.id} className="card stack" href={`/projects/${project.id}`}>
           <strong>{project.title}</strong>
-          <span>Etape : {projectStageLabel(project.stage)}</span>
-          <span>Prochaine action : {project.nextAction?.title ?? "Aucune action planifiee"}</span>
+          <span>Étape : {projectStageLabel(project.stage)}</span>
+          <span>Prochaine action : {project.nextAction?.title ?? "Aucune action planifiée"}</span>
         </Link>
       ))}
     </section>

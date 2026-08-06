@@ -97,14 +97,14 @@ export function InteractionForm({ mode, interaction, types, peopleOptions, organ
 
       if (!response.ok) {
         setFieldErrors(result.fields ?? []);
-        setError(result.error ?? "Impossible d'enregistrer l'interaction.");
+        setError(result.error ?? "Impossible d'enregistrer l'échange.");
         return;
       }
 
       router.push(`/interactions/${result.data.id}`);
       router.refresh();
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Erreur reseau pendant l'enregistrement de l'interaction.");
+      setError(submitError instanceof Error ? submitError.message : "Erreur réseau pendant l'enregistrement de l'échange.");
     } finally {
       setLoading(false);
     }
@@ -112,20 +112,20 @@ export function InteractionForm({ mode, interaction, types, peopleOptions, organ
 
   return (
     <form className="form interaction-form" onSubmit={submit}>
-      {error ? <p className="error">{error}</p> : null}
+      {error ? <p className="error" role="alert" aria-live="assertive">{error}</p> : null}
 
       <div className="form-grid">
         <label>
           Type
           <select className="input" name="type_id" required defaultValue={interaction?.type_id ?? types[0]?.id ?? ""}>
-            <option value="">Selectionner</option>
+            <option value="">Sélectionner</option>
             {types.map((type) => <option key={type.id} value={type.id}>{type.label}</option>)}
           </select>
           <FieldError name="type_id" />
         </label>
         <label>Titre<Input name="title" required defaultValue={interaction?.title ?? ""} /><FieldError name="title" /></label>
         <label>Date<Input name="interaction_date" type="datetime-local" required defaultValue={toDateTimeLocal(interaction?.interaction_date ?? defaults?.interaction_date) || new Date().toISOString().slice(0, 16)} /><FieldError name="interaction_date" /></label>
-        <label>Duree minutes<Input name="duration_minutes" type="number" min={0} max={1440} defaultValue={valueOrEmpty(interaction?.duration_minutes) as string} /><FieldError name="duration_minutes" /></label>
+        <label>Durée en minutes<Input name="duration_minutes" type="number" min={0} max={1440} defaultValue={valueOrEmpty(interaction?.duration_minutes) as string} /><FieldError name="duration_minutes" /></label>
         <label>Lieu<Input name="location" defaultValue={valueOrEmpty(interaction?.location) as string} /><FieldError name="location" /></label>
         <label>
           Personne
@@ -163,18 +163,19 @@ export function InteractionForm({ mode, interaction, types, peopleOptions, organ
         </label>
       </div>
 
-      <label>Resume<textarea className="input textarea" name="summary" defaultValue={valueOrEmpty(interaction?.summary) as string} /><FieldError name="summary" /></label>
+      <label>Résumé<textarea className="input textarea" name="summary" defaultValue={valueOrEmpty(interaction?.summary) as string} /><FieldError name="summary" /></label>
 
       <div className="form-grid">
         <label>Pourquoi cette personne souhaite-t-elle changer ?<textarea className="input textarea" name="change_reason" defaultValue={valueOrEmpty(interaction?.change_reason) as string} /><FieldError name="change_reason" /></label>
         <label>Frein principal<textarea className="input textarea" name="main_obstacle" defaultValue={valueOrEmpty(interaction?.main_obstacle) as string} /><FieldError name="main_obstacle" /></label>
         <label>Timing<Input name="timing" defaultValue={valueOrEmpty(interaction?.timing) as string} /><FieldError name="timing" /></label>
-        <label>Compatibilite ADN<Input name="dna_compatibility" defaultValue={valueOrEmpty(interaction?.dna_compatibility) as string} /><FieldError name="dna_compatibility" /></label>
+        <label>Compatibilité ADN<Input name="dna_compatibility" defaultValue={valueOrEmpty(interaction?.dna_compatibility) as string} /><FieldError name="dna_compatibility" /></label>
         <label>Envie de travailler avec cette personne<Input name="work_with_person_desire" defaultValue={valueOrEmpty(interaction?.work_with_person_desire) as string} /><FieldError name="work_with_person_desire" /></label>
       </div>
 
       <label>Commentaires<textarea className="input textarea" name="comments" defaultValue={valueOrEmpty(interaction?.comments) as string} /><FieldError name="comments" /></label>
-      <label>Metadata JSON<textarea className="input textarea" name="metadata" defaultValue={valueOrEmpty(interaction?.metadata) as string} /><FieldError name="metadata" /></label>
+      <input type="hidden" name="metadata" value={valueOrEmpty(interaction?.metadata) as string} />
+      <FieldError name="metadata" />
 
       {fieldErrors.length > 0 ? (
         <ul className="error-list">

@@ -10,14 +10,14 @@ export function InteractionCard({ interaction }: { interaction: InteractionListI
   return (
     <Link className="card interaction-card stack" href={`/interactions/${interaction.id}`}>
       <div>
-        <p className="muted">{interaction.type?.label ?? "Interaction"} - {formatDate(interaction.interaction_date)}</p>
+        <p className="muted">{interaction.type?.label ?? "Échange"} - {formatDate(interaction.interaction_date)}</p>
         <h2>{interaction.title}</h2>
       </div>
-      <p>{interaction.summary ?? interaction.comments ?? "Aucun resume."}</p>
+      <p>{interaction.summary ?? interaction.comments ?? "Aucun résumé."}</p>
       <div className="interaction-meta">
         <span>{interaction.person?.display_name ?? "Aucune personne"}</span>
         <span>{interaction.organization?.name ?? "Aucune organisation"}</span>
-        <span>{interaction.duration_minutes ? `${interaction.duration_minutes} min` : "Duree non renseignee"}</span>
+        <span>{interaction.duration_minutes ? `${interaction.duration_minutes} min` : "Durée non renseignée"}</span>
       </div>
     </Link>
   );

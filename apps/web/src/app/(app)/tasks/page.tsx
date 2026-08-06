@@ -36,12 +36,12 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
       <header className="page-header">
         <div>
           <p className="muted">Smart Tasks</p>
-          <h1>Taches</h1>
+          <h1>Tâches</h1>
         </div>
-        <Link className="button link-button" href="/tasks/new">Nouvelle tache</Link>
+        <Link className="button link-button" href="/tasks/new">Nouvelle tâche</Link>
       </header>
 
-      {valueOf(params, "taskDeleted") === "1" ? <p className="success">Tache supprimee.</p> : null}
+      {valueOf(params, "taskDeleted") === "1" ? <p className="success">Tâche supprimée.</p> : null}
       <TaskFilters query={query} status={status} priority={priority} due={due} />
       <TaskList result={result} currentParams={currentParams} />
     </div>

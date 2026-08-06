@@ -19,9 +19,9 @@ function projectsUrl(params: URLSearchParams, page: number) {
 export function ProjectList({ result, currentParams, hasFilters }: ProjectListProps) {
   if (result.projects.length === 0) {
     return hasFilters ? (
-      <EmptyState title="Aucun Projet ne correspond a vos filtres." body="" action={<Link className="button link-button" href="/projects">Reinitialiser les filtres</Link>} />
+      <EmptyState title="Aucun Projet ne correspond à vos filtres." body="" action={<Link className="button link-button" href="/projects">Réinitialiser les filtres</Link>} />
     ) : (
-      <EmptyState title="Commencez votre premier Projet" body="Un Projet vous permet de suivre une demarche, ses echanges et sa prochaine action." action={<Link className="button link-button" href="/projects/new">Creer un Projet</Link>} />
+      <EmptyState title="Commencez votre premier Projet" body="Un Projet vous permet de suivre une démarche, ses échanges et sa prochaine action." action={<Link className="button link-button" href="/projects/new">Créer un Projet</Link>} />
     );
   }
 

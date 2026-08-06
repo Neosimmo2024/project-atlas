@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { PipelineFilters } from "@/components/recruitment-pipeline/pipeline-filters";
 import { PipelinePageClient } from "@/components/recruitment-pipeline/pipeline-page-client";
 import { EmptyState, ErrorState, PageHeader, Pagination } from "@/components/ui";
@@ -16,7 +16,7 @@ export default async function PipelinePage({ searchParams }: PipelinePageProps) 
     return (
       <div className="page stack">
         <PageHeader eyebrow="Pipeline" title="Pipeline de recrutement" />
-        <EmptyState title="Aucun tenant actif" body="Votre session est valide, mais aucun tenant actif n'est associe a ce compte." />
+        <EmptyState title="Aucun tenant actif" body="Votre session est valide, mais aucun tenant actif n'est associé à ce compte." />
       </div>
     );
   }
@@ -28,7 +28,7 @@ export default async function PipelinePage({ searchParams }: PipelinePageProps) 
   } catch (error) {
     return (
       <div className="page stack">
-        <PageHeader eyebrow="Pipeline" title="Pipeline de recrutement" actions={<Link className="button subtle-button" href="/relationships">Relationships</Link>} />
+        <PageHeader eyebrow="Pipeline" title="Pipeline de recrutement" actions={<Link className="button subtle-button" href="/relationships">Relations</Link>} />
         <ErrorState title="Pipeline indisponible" body={error instanceof Error ? error.message : "Impossible de charger le pipeline."} />
       </div>
     );
@@ -39,12 +39,12 @@ export default async function PipelinePage({ searchParams }: PipelinePageProps) 
       <PageHeader
         eyebrow={context.tenant.name}
         title="Pipeline de recrutement"
-        subtitle="Vue opérationnelle des Relationships, avec transitions sécurisées côté serveur."
+        subtitle="Vue opérationnelle des relations, avec transitions sécurisées côté serveur."
         actions={<Link className="button subtle-button" href="/relationships/new">Nouvelle relation</Link>}
       />
       <PipelineFilters filters={filters} owners={result.owners} />
       {result.total === 0 ? (
-        <EmptyState title="Pipeline vide" body="Créez une Relationship pour alimenter le pipeline de recrutement." action={<Link className="button link-button" href="/relationships/new">Créer une relation</Link>} />
+        <EmptyState title="Pipeline vide" body="Créez une relation pour alimenter le pipeline de recrutement." action={<Link className="button link-button" href="/relationships/new">Créer une relation</Link>} />
       ) : (
         <>
           <PipelinePageClient initialCards={result.cards} owners={result.owners} filters={filters} role={context.role} invalidStages={result.invalidStages} />

@@ -16,8 +16,9 @@ describe("task form source", () => {
     expect(projectOptionsSource).toContain("project.relationship_id === context.relationshipId");
     expect(projectOptionsSource).toContain("relationship?.person_id === context.personId");
     expect(projectOptionsSource).toContain("relationship?.organization_id === context.organizationId");
-    expect(source).toContain("Aucun projet actif associe au contexte selectionne.");
-    expect(source).toContain("Selectionnez d'abord une personne, une organisation ou une relation pour afficher les projets associes.");
+    expect(source).toContain("Aucun projet actif associé au contexte sélectionné.");
+    expect(source).toContain("Sélectionnez d'abord une personne, une organisation ou une relation pour afficher les projets associés.");
+    expect(source).toContain("Modifier le projet associé");
   });
 
   it("clears stale project selection when task context changes", () => {

@@ -54,7 +54,7 @@ describe("people API deletion", () => {
     const body = await response.json() as { error: string };
 
     expect(response.status).toBe(403);
-    expect(body.error).toBe("Only owner and admin roles can delete people.");
+    expect(body.error).toBe("Suppression réservée aux rôles owner et admin.");
   });
 
   it("returns explicit JSON when Supabase rejects deletion", async () => {

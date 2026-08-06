@@ -27,10 +27,10 @@ test.describe("Projects authenticated flow", () => {
     await page.goto("/projects/new");
     await page.getByLabel("Titre").fill(marker);
     await page.getByLabel("Description").fill("Created from Projects E2E");
-    await page.getByLabel("Valeur estimee").fill("1234.00");
-    await page.getByRole("button", { name: "Creer le Projet" }).click();
+    await page.getByLabel(/Valeur estim[eé]e/).fill("1234.00");
+    await page.getByRole("button", { name: /Cr[eé]er le Projet/ }).click();
     await expect(page).toHaveURL(/\/projects\/[^/]+\?projectSaved=1/);
-    await expect(page.getByText("Projet cree.")).toBeVisible();
+    await expect(page.getByText(/Projet cr[eé][eé]\./)).toBeVisible();
 
     const projectUrl = page.url().replace(/\?.*$/, "");
     await page.goto(`/projects?query=${encodeURIComponent(marker)}`);
@@ -42,8 +42,8 @@ test.describe("Projects authenticated flow", () => {
 
     await page.goto(projectUrl);
     await expect(page.getByRole("navigation", { name: "Onglets Projet" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Taches" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Echanges" })).toBeVisible();
+    await expect(page.getByRole("link", { name: /T[aâ]ches/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /[EÉ]changes/ })).toBeVisible();
     await expect(page.getByRole("link", { name: "Historique" })).toBeVisible();
 
     await page.getByLabel("Titre").fill(`${marker} updated`);
@@ -51,17 +51,17 @@ test.describe("Projects authenticated flow", () => {
     await expect(page).toHaveURL(/projectSaved=1/);
     await expect(page.getByRole("heading", { name: `${marker} updated` })).toBeVisible();
 
-    await page.getByRole("button", { name: "Changer etape" }).click();
-    const stageForm = page.locator("form").filter({ hasText: "Changer etape du Projet" });
-    await stageForm.getByLabel("Etape").selectOption("proposal");
+    await page.getByRole("button", { name: /Changer [eé]tape/ }).click();
+    const stageForm = page.locator("form").filter({ hasText: /Changer [eé]tape du Projet/ });
+    await stageForm.getByLabel(/[EÉ]tape/).selectOption("proposal");
     await stageForm.getByRole("button", { name: "Valider" }).click();
-    await expect(page.getByText("Etape mise a jour.")).toBeVisible();
+    await expect(page.getByText(/[EÉ]tape mise [aà] jour\./)).toBeVisible();
 
-    await page.getByRole("button", { name: "Marquer comme gagne" }).click();
-    const winForm = page.locator("form").filter({ hasText: "Marquer ce Projet comme gagne" });
+    await page.getByRole("button", { name: /Marquer comme gagn[eé]/ }).click();
+    const winForm = page.locator("form").filter({ hasText: /Marquer ce Projet comme gagn[eé]/ });
     await winForm.getByLabel("Valeur finale").fill("1500.00");
     await winForm.getByRole("button", { name: "Confirmer le gain" }).click();
-    await expect(page.getByText("Projet marque comme gagne.")).toBeVisible();
+    await expect(page.getByText(/Projet marqu[eé] comme gagn[eé]\./)).toBeVisible();
 
     await page.goto(`${projectUrl}?tab=tasks`);
     await expect(page).toHaveURL(/tab=tasks/);

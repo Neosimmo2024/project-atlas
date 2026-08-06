@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -106,7 +106,7 @@ export function OrganizationForm({ mode, organization, parentOptions }: Organiza
       router.push(`/organizations/${result.data.id}`);
       router.refresh();
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Erreur reseau pendant l'enregistrement de l'organisation.");
+      setError(submitError instanceof Error ? submitError.message : "Erreur réseau pendant l'enregistrement de l'organisation.");
     } finally {
       setLoading(false);
     }
@@ -128,7 +128,7 @@ export function OrganizationForm({ mode, organization, parentOptions }: Organiza
       {error ? <p className="error">{error}</p> : null}
       {duplicates.length > 0 ? (
         <div className="warning">
-          <strong>Doublon potentiel detecte</strong>
+          <strong>Doublon potentiel détecté</strong>
           <p>Verifiez ces organisations avant de confirmer la creation ou la modification.</p>
           <ul>
             {duplicates.map((duplicate) => (
@@ -162,9 +162,9 @@ export function OrganizationForm({ mode, organization, parentOptions }: Organiza
         <label>Complement d&apos;adresse<Input name="address_line2" defaultValue={valueOrEmpty(organization?.address_line2) as string} /><FieldError name="address_line2" /></label>
         <label>Code postal<Input name="postal_code" defaultValue={valueOrEmpty(organization?.postal_code) as string} /><FieldError name="postal_code" /></label>
         <label>Ville<Input name="city" defaultValue={valueOrEmpty(organization?.city) as string} /><FieldError name="city" /></label>
-        <label>Departement<Input name="department" defaultValue={valueOrEmpty(organization?.department) as string} /><FieldError name="department" /></label>
+        <label>Département<Input name="department" defaultValue={valueOrEmpty(organization?.department) as string} /><FieldError name="department" /></label>
         <label>Pays<Input name="country" defaultValue={valueOrEmpty(organization?.country) as string} /><FieldError name="country" /></label>
-        <label>Telephone<Input name="primary_phone" defaultValue={valueOrEmpty(organization?.primary_phone) as string} /><FieldError name="primary_phone" /></label>
+        <label>Téléphone<Input name="primary_phone" defaultValue={valueOrEmpty(organization?.primary_phone) as string} /><FieldError name="primary_phone" /></label>
         <label>Email<Input name="primary_email" type="email" defaultValue={valueOrEmpty(organization?.primary_email) as string} /><FieldError name="primary_email" /></label>
         <label>Site internet<Input name="website_url" type="url" defaultValue={valueOrEmpty(organization?.website_url) as string} /><FieldError name="website_url" /></label>
         <label>SIREN<Input name="siren" inputMode="numeric" defaultValue={valueOrEmpty(organization?.siren) as string} /><FieldError name="siren" /></label>
@@ -179,7 +179,7 @@ export function OrganizationForm({ mode, organization, parentOptions }: Organiza
           <FieldError name="vat_status" />
         </label>
         <label>
-          Reseau parent eventuel
+          Réseau parent éventuel
           <select className="input" name="parent_organization_id" defaultValue={organization?.parent_organization_id ?? ""}>
             <option value="">Aucun parent</option>
             {parentOptions.map((parent) => <option key={parent.id} value={parent.id}>{parent.name}</option>)}

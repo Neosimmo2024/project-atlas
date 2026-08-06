@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -105,7 +105,7 @@ export function PersonForm({ mode, person }: PersonFormProps) {
       {error ? <p className="error">{error}</p> : null}
       {duplicates.length > 0 ? (
         <div className="warning">
-          <strong>Doublon potentiel detecte</strong>
+          <strong>Doublon potentiel détecté</strong>
           <p>Verifiez ces personnes avant de confirmer la creation ou la modification.</p>
           <ul>
             {duplicates.map((duplicate) => (
@@ -119,14 +119,14 @@ export function PersonForm({ mode, person }: PersonFormProps) {
       ) : null}
 
       <div className="form-grid">
-        <label>Prenom<Input name="first_name" defaultValue={valueOrEmpty(person?.first_name) as string} /><FieldError name="first_name" /></label>
+        <label>Prénom<Input name="first_name" defaultValue={valueOrEmpty(person?.first_name) as string} /><FieldError name="first_name" /></label>
         <label>Nom<Input name="last_name" defaultValue={valueOrEmpty(person?.last_name) as string} /><FieldError name="last_name" /></label>
         <label>Nom d&apos;affichage<Input name="display_name" required defaultValue={person?.display_name ?? ""} /><FieldError name="display_name" /></label>
         <label>Email<Input name="primary_email" type="email" defaultValue={valueOrEmpty(person?.primary_email) as string} /><FieldError name="primary_email" /></label>
-        <label>Telephone<Input name="primary_phone" defaultValue={valueOrEmpty(person?.primary_phone) as string} /><FieldError name="primary_phone" /></label>
+        <label>Téléphone<Input name="primary_phone" defaultValue={valueOrEmpty(person?.primary_phone) as string} /><FieldError name="primary_phone" /></label>
         <label>Ville<Input name="city" defaultValue={valueOrEmpty(person?.city) as string} /><FieldError name="city" /></label>
         <label>Code postal<Input name="postal_code" defaultValue={valueOrEmpty(person?.postal_code) as string} /><FieldError name="postal_code" /></label>
-        <label>Departement<Input name="department" defaultValue={valueOrEmpty(person?.department) as string} /><FieldError name="department" /></label>
+        <label>Département<Input name="department" defaultValue={valueOrEmpty(person?.department) as string} /><FieldError name="department" /></label>
         <label>Fonction<Input name="job_title" defaultValue={valueOrEmpty(person?.job_title) as string} /><FieldError name="job_title" /></label>
         <label>Source<Input name="source" defaultValue={valueOrEmpty(person?.source) as string} /><FieldError name="source" /></label>
         <label>
@@ -137,7 +137,7 @@ export function PersonForm({ mode, person }: PersonFormProps) {
           <FieldError name="status" />
         </label>
         <label>
-          Priorite
+          Priorité
           <select className="input" name="priority" defaultValue={person?.priority ?? "medium"}>
             {PRIORITIES.map((priority) => <option key={priority} value={priority}>{PRIORITY_LABELS[priority]}</option>)}
           </select>

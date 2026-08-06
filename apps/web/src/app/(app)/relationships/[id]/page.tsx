@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DeleteRelationshipButton } from "@/components/relationships/delete-relationship-button";
 import { SafeBackLink } from "@/components/navigation/safe-back-link";
@@ -58,7 +58,7 @@ export default async function RelationshipDetailPage({ params, searchParams }: R
     <div className="page stack">
       <header className="page-header">
         <div>
-          <p className="muted">Relationships</p>
+          <p className="muted">Relations</p>
           <h1>{person?.display_name ?? "Relation"} - {organization?.name ?? "Organisation"}</h1>
         </div>
         <SafeBackLink fallbackHref="/relationships" />
@@ -68,7 +68,7 @@ export default async function RelationshipDetailPage({ params, searchParams }: R
 
       <div className="grid">
         <section className="card stack">
-          <h2>Identite</h2>
+          <h2>Identité</h2>
           <p><strong>Personne</strong><br />{person ? <Link href={`/people/${person.id}`}>{person.display_name}</Link> : "-"}</p>
           <p><strong>Organisation</strong><br />{organization ? <Link href={`/organizations/${organization.id}`}>{organization.name}</Link> : "-"}</p>
           <p><strong>Type</strong><br />{RELATIONSHIP_TYPE_LABELS[relationship.relationship_type]}</p>
@@ -79,16 +79,16 @@ export default async function RelationshipDetailPage({ params, searchParams }: R
           <p><strong>Phase</strong><br />{RELATIONSHIP_PIPELINE_STAGE_LABELS[relationship.pipeline_stage]}</p>
           <p><strong>Score</strong><br />{relationship.score ?? "-"}</p>
           <p><strong>Confiance</strong><br />{relationship.confidence ?? "-"}</p>
-          <p><strong>Responsable</strong><br />{relationship.owner_user_id ?? "-"}</p>
+          <p><strong>Responsable</strong><br />{relationship.owner_user_id ? "Assigné" : "Utilisateur non identifié"}</p>
         </section>
         <section className="card stack">
           <h2>Dates</h2>
-          <p><strong>Debut</strong><br />{formatDate(relationship.started_at)}</p>
+          <p><strong>Début</strong><br />{formatDate(relationship.started_at)}</p>
           <p><strong>Fin</strong><br />{formatDate(relationship.ended_at)}</p>
           <p><strong>Prochaine action</strong><br />{formatDate(relationship.next_action_at)}</p>
-          <p><strong>Derniere interaction</strong><br />{formatDate(relationship.last_interaction_at)}</p>
-          <p><strong>Cree le</strong><br />{formatDate(relationship.created_at)}</p>
-          <p><strong>Modifie le</strong><br />{formatDate(relationship.updated_at)}</p>
+          <p><strong>Dernier échange</strong><br />{formatDate(relationship.last_interaction_at)}</p>
+          <p><strong>Créé le</strong><br />{formatDate(relationship.created_at)}</p>
+          <p><strong>Modifié le</strong><br />{formatDate(relationship.updated_at)}</p>
         </section>
         <section className="card stack">
           <h2>Tags</h2>
@@ -99,11 +99,6 @@ export default async function RelationshipDetailPage({ params, searchParams }: R
       <section className="card stack">
         <h2>Notes</h2>
         <p>{relationship.notes ?? "Aucune note."}</p>
-      </section>
-
-      <section className="card stack">
-        <h2>Metadata</h2>
-        <pre className="code-block">{JSON.stringify(relationship.metadata ?? {}, null, 2)}</pre>
       </section>
 
       <ContextProjects result={projects} newHref={`/projects/new?relationshipId=${relationship.id}`} allHref={`/projects?relationshipId=${relationship.id}`} />
@@ -118,10 +113,10 @@ export default async function RelationshipDetailPage({ params, searchParams }: R
 
       <section className="card stack">
         <div className="page-header">
-          <h2>Taches liees</h2>
-          <Link className="button subtle-button" href={`/tasks/new?sourceType=relationship&sourceId=${relationship.id}&relationshipId=${relationship.id}`}>Nouvelle tache</Link>
+          <h2>Tâches liées</h2>
+          <Link className="button subtle-button" href={`/tasks/new?sourceType=relationship&sourceId=${relationship.id}&relationshipId=${relationship.id}`}>Nouvelle tâche</Link>
         </div>
-        {tasks.tasks.length === 0 ? <p className="muted">Aucune tache liee.</p> : tasks.tasks.map((task) => <TaskCard key={task.id} task={task} />)}
+        {tasks.tasks.length === 0 ? <p className="muted">Aucune tâche liée.</p> : tasks.tasks.map((task) => <TaskCard key={task.id} task={task} />)}
       </section>
 
       <section className="card stack">
@@ -132,7 +127,7 @@ export default async function RelationshipDetailPage({ params, searchParams }: R
       {canDeleteRelationships(context.role) ? (
         <section className="card stack danger-zone">
           <h2>Suppression</h2>
-          <p>Reservee aux roles owner et admin.</p>
+          <p>Réservée aux rôles owner et admin.</p>
           <DeleteRelationshipButton relationshipId={relationship.id} />
         </section>
       ) : null}

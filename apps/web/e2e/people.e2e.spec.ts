@@ -25,7 +25,7 @@ test.describe("People authenticated flow", () => {
     await page.getByLabel("Nom").fill("O'Connor (test)");
     await page.getByLabel("Nom d'affichage").fill(marker);
     await page.getByLabel("Email").fill(`${marker.toLowerCase().replaceAll(" ", ".")}@example.com`);
-    await page.getByLabel("Telephone").fill(`+33${Date.now()}`);
+    await page.getByLabel("Téléphone").fill(`+33${Date.now()}`);
     await page.getByLabel("Ville").fill("L'Haÿ-les-Roses");
     await page.getByRole("button", { name: "Enregistrer" }).click();
     await expect(page).toHaveURL(/\/people\/[^/]+$/);
@@ -42,7 +42,7 @@ test.describe("People authenticated flow", () => {
     await page.getByLabel("Nom d'affichage").fill(`${marker} duplicate`);
     await page.getByLabel("Email").fill(`${marker.toLowerCase().replaceAll(" ", ".")}@example.com`);
     await page.getByRole("button", { name: "Enregistrer" }).click();
-    await expect(page.getByText("Doublon potentiel detecte")).toBeVisible();
+    await expect(page.getByText("Doublon potentiel détecté")).toBeVisible();
 
     await page.goto(`/people?query=${encodeURIComponent(marker)}`);
     await page.getByText(marker).click();

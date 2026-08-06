@@ -37,8 +37,8 @@ export default async function NewInteractionPage({ searchParams }: NewInteractio
     <div className="page stack">
       <header className="page-header">
         <div>
-          <p className="muted">Interactions</p>
-          <h1>Nouvelle interaction</h1>
+          <p className="muted">Échanges</p>
+          <h1>Nouvel échange</h1>
         </div>
         <Link className="button subtle-button" href="/interactions">Retour</Link>
       </header>

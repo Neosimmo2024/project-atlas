@@ -97,9 +97,11 @@ export function TaskForm({ mode, task, defaults, peopleOptions, organizationOpti
   const selectedProjectAvailable = !projectId || filteredProjectOptions.some((project) => project.id === projectId);
   const projectHelp = personId || organizationId || relationshipId
     ? filteredProjectOptions.length === 0
-      ? "Aucun projet actif associe au contexte selectionne."
-      : "Projets actifs associes au contexte selectionne."
-    : "Selectionnez d'abord une personne, une organisation ou une relation pour afficher les projets associes.";
+      ? "Aucun projet actif associé au contexte sélectionné."
+      : mode === "edit"
+        ? "Ce champ modifie l'association projet affichée dans le bloc Contexte."
+        : "Projets actifs associés au contexte sélectionné."
+    : "Sélectionnez d'abord une personne, une organisation ou une relation pour afficher les projets associés.";
 
   async function readResponseBody(response: Response) {
     const text = await response.text();
@@ -128,14 +130,14 @@ export function TaskForm({ mode, task, defaults, peopleOptions, organizationOpti
 
       if (!response.ok) {
         setFieldErrors(result.fields ?? []);
-        setError(result.error ?? "Impossible d'enregistrer la tache.");
+        setError(result.error ?? "Impossible d'enregistrer la tâche.");
         return;
       }
 
       router.push(`/tasks/${result.data.id}`);
       router.refresh();
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Erreur reseau pendant l'enregistrement de la tache.");
+      setError(submitError instanceof Error ? submitError.message : "Erreur réseau pendant l'enregistrement de la tâche.");
     } finally {
       setLoading(false);
     }
@@ -155,13 +157,13 @@ export function TaskForm({ mode, task, defaults, peopleOptions, organizationOpti
           <FieldError name="status" />
         </label>
         <label>
-          Priorite
+          Priorité
           <select className="input" name="priority" defaultValue={task?.priority ?? "normal"}>
             {TASK_PRIORITY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
           <FieldError name="priority" />
         </label>
-        <label>Echeance<Input name="due_at" type="datetime-local" defaultValue={toDateTimeLocal(task?.due_at)} /><FieldError name="due_at" /></label>
+        <label>Échéance<Input name="due_at" type="datetime-local" defaultValue={toDateTimeLocal(task?.due_at)} /><FieldError name="due_at" /></label>
       </div>
       <input type="hidden" name="assigned_to" value={valueOrEmpty(task?.assigned_to) as string} />
 
@@ -202,15 +204,15 @@ export function TaskForm({ mode, task, defaults, peopleOptions, organizationOpti
           <FieldError name="relationship_id" />
         </label>
         <label>
-          Interaction
+          Échange
           <select className="input" name="interaction_id" defaultValue={defaultValue(task, defaults, "interaction_id")}>
-            <option value="">Aucune interaction</option>
+            <option value="">Aucun échange</option>
             {interactionOptions.map((interaction) => <option key={interaction.id} value={interaction.id}>{interaction.title}</option>)}
           </select>
           <FieldError name="interaction_id" />
         </label>
         <label>
-          Projet
+          {mode === "edit" ? "Modifier le projet associé" : "Projet"}
           <select className="input" name="project_id" value={selectedProjectAvailable ? projectId : ""} onChange={(event) => setProjectId(event.target.value)}>
             <option value="">Aucun projet</option>
             {filteredProjectOptions.map((project) => <option key={project.id} value={project.id}>{project.title}</option>)}

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { parseProjectArchiveInput } from "@/features/projects/validation";
 import { apiErrorResponse } from "@/lib/security/api-errors";
 import { archiveProject } from "@/repositories/projects";
@@ -12,7 +12,7 @@ export async function POST(request: Request, { params }: ProjectRouteParams) {
     if (!context) return NextResponse.json({ error: "Tenant context not found" }, { status: 401 });
     const parsed = parseProjectArchiveInput(await request.json());
     if (!parsed.success) {
-      return NextResponse.json({ error: "Validation failed", fields: parsed.error.issues.map((issue) => ({ field: issue.path.join("."), message: issue.message })) }, { status: 400 });
+      return NextResponse.json({ error: "Les informations saisies sont invalides.", fields: parsed.error.issues.map((issue) => ({ field: issue.path.join("."), message: issue.message })) }, { status: 400 });
     }
     const { id } = await params;
     const project = await archiveProject(context, id, parsed.data);

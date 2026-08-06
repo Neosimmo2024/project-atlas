@@ -56,24 +56,22 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
         <section className="card stack">
           <h2>Statut</h2>
           <p><strong>Statut</strong><br />{TASK_STATUS_LABELS[task.status]}</p>
-          <p><strong>Priorite</strong><br />{TASK_PRIORITY_LABELS[task.priority]}</p>
-          <p><strong>Echeance</strong><br />{formatDate(task.due_at)}</p>
-          <p><strong>Terminee le</strong><br />{formatDate(task.completed_at)}</p>
+          <p><strong>Priorité</strong><br />{TASK_PRIORITY_LABELS[task.priority]}</p>
+          <p><strong>Échéance</strong><br />{formatDate(task.due_at)}</p>
+          <p><strong>Terminée le</strong><br />{formatDate(task.completed_at)}</p>
         </section>
         <section className="card stack">
           <h2>Contexte</h2>
           <p><strong>Personne</strong><br />{person ? <Link href={`/people/${person.id}`}>{person.display_name}</Link> : "-"}</p>
           <p><strong>Organisation</strong><br />{organization ? <Link href={`/organizations/${organization.id}`}>{organization.name}</Link> : "-"}</p>
           <p><strong>Relation</strong><br />{relationship ? <Link href={`/relationships/${relationship.id}`}>{relationship.relationship_type} - {relationship.pipeline_stage}</Link> : "-"}</p>
-          <p><strong>Interaction</strong><br />{interaction ? <Link href={`/interactions/${interaction.id}`}>{interaction.title}</Link> : "-"}</p>
+          <p><strong>Échange</strong><br />{interaction ? <Link href={`/interactions/${interaction.id}`}>{interaction.title}</Link> : "-"}</p>
           <p><strong>Projet</strong><br />{project ? <Link href={`/projects/${project.id}`}>{project.title}</Link> : "-"}</p>
         </section>
         <section className="card stack">
           <h2>Dates</h2>
-          <p><strong>Cree le</strong><br />{formatDate(task.created_at)}</p>
-          <p><strong>Modifie le</strong><br />{formatDate(task.updated_at)}</p>
-          <p><strong>Assignee a</strong><br />{task.assigned_to ?? "-"}</p>
-          <p><strong>Creee par</strong><br />{task.created_by ?? "-"}</p>
+          <p><strong>Créé le</strong><br />{formatDate(task.created_at)}</p>
+          <p><strong>Modifié le</strong><br />{formatDate(task.updated_at)}</p>
         </section>
       </div>
 
@@ -106,7 +104,7 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
       {canDeleteTasks(context.role) ? (
         <section className="card stack danger-zone">
           <h2>Suppression</h2>
-          <p>Suppression logique reservee aux roles owner et admin.</p>
+          <p>Suppression logique réservée aux rôles owner et admin.</p>
           <DeleteTaskButton taskId={task.id} />
         </section>
       ) : null}
