@@ -1,14 +1,13 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
-  buildRelationshipsSearchOrFilter,
   canDeleteRelationships,
   findRelationshipDuplicateMatches,
   normalizeRelationshipsListParams,
+  relationshipMatchesSearch,
   type RelationshipDuplicateMatch,
   type RelationshipsSearchParams
 } from "@/features/relationships/search";
-import { buildOrganizationsSearchOrFilter } from "@/features/organizations/search";
-import { buildPeopleSearchOrFilter } from "@/features/people/search";
+import { paginateSearchResults, textMatchesSearch } from "@/features/people/search";
 import type { Organization, Person, Relationship, TenantContext } from "@/types/domain";
 import type { RelationshipFormInput } from "@/features/relationships/validation";
 import { recordOrganizationUnlinked, recordRelationshipCreated } from "@/services/timeline-service";
@@ -40,35 +39,18 @@ function mapRelationshipRow(row: Relationship & { people?: RelationshipListItem[
   };
 }
 
-async function relationshipSearchFilters(context: TenantContext, query: string) {
-  const supabase = await createSupabaseServerClient();
-  const filters = [buildRelationshipsSearchOrFilter(["relationship_type", "pipeline_stage", "status", "notes"], query)];
-
-  const [{ data: people, error: peopleError }, { data: organizations, error: organizationsError }] = await Promise.all([
-    supabase
-      .from("people")
-      .select("id")
-      .eq("tenant_id", context.tenantId)
-      .or(buildPeopleSearchOrFilter(["display_name", "first_name", "last_name", "primary_email", "primary_phone", "city"], query))
-      .limit(100),
-    supabase
-      .from("organizations")
-      .select("id")
-      .eq("tenant_id", context.tenantId)
-      .or(buildOrganizationsSearchOrFilter(["name", "city", "primary_email", "primary_phone", "siren"], query))
-      .limit(100)
-  ]);
-
-  if (peopleError) throw peopleError;
-  if (organizationsError) throw organizationsError;
-
-  const personIds = (people ?? []).map((person) => person.id as string);
-  const organizationIds = (organizations ?? []).map((organization) => organization.id as string);
-
-  if (personIds.length > 0) filters.push(`person_id.in.(${personIds.join(",")})`);
-  if (organizationIds.length > 0) filters.push(`organization_id.in.(${organizationIds.join(",")})`);
-
-  return filters.join(",");
+function relationshipListItemMatchesSearch(relationship: RelationshipListItem, query: string) {
+  return relationshipMatchesSearch(relationship, query) ||
+    textMatchesSearch([
+      relationship.person?.display_name,
+      relationship.person?.primary_email,
+      relationship.person?.primary_phone,
+      relationship.person?.city,
+      relationship.organization?.name,
+      relationship.organization?.primary_email,
+      relationship.organization?.primary_phone,
+      relationship.organization?.city
+    ], query);
 }
 
 export async function listRelationships(context: TenantContext, params: RelationshipsSearchParams = {}): Promise<RelationshipsListResult> {
@@ -84,7 +66,19 @@ export async function listRelationships(context: TenantContext, params: Relation
   if (normalized.status) query = query.eq("status", normalized.status);
   if (normalized.stage) query = query.eq("pipeline_stage", normalized.stage);
   if (normalized.query) {
-    query = query.or(await relationshipSearchFilters(context, normalized.query));
+    const { data, error } = await query.order("updated_at", { ascending: false });
+    if (error) throw error;
+    const filtered = ((data ?? []) as (Relationship & { people?: RelationshipListItem["person"]; organizations?: RelationshipListItem["organization"] })[])
+      .map(mapRelationshipRow)
+      .filter((relationship) => relationshipListItemMatchesSearch(relationship, normalized.query));
+    const paged = paginateSearchResults(filtered, normalized.page, normalized.pageSize);
+    return {
+      relationships: paged.rows,
+      total: paged.total,
+      page: normalized.page,
+      pageSize: normalized.pageSize,
+      pageCount: paged.pageCount
+    };
   }
 
   const { data, error, count } = await query

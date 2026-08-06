@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DeleteInteractionButton } from "@/components/interactions/delete-interaction-button";
+import { SafeBackLink } from "@/components/navigation/safe-back-link";
 import { InteractionForm } from "@/components/interactions/interaction-form";
 import { TaskCard } from "@/components/tasks/task-card";
 import { canDeleteInteractions } from "@/features/interactions/search";
@@ -62,7 +63,7 @@ export default async function InteractionDetailPage({ params, searchParams }: In
           <p className="muted">Interactions</p>
           <h1>{interaction.title}</h1>
         </div>
-        <Link className="button subtle-button" href={returnTo}>Retour</Link>
+        <SafeBackLink fallbackHref={returnTo} />
       </header>
 
       <div className="grid">

@@ -1,6 +1,6 @@
 import type { Organization, RoleSlug } from "@/types/domain";
 import type { OrganizationFormInput } from "./validation";
-import { escapePostgrestLikePattern, quotePostgrestFilterValue } from "../people/search";
+import { escapePostgrestLikePattern, normalizeSearchValue, quotePostgrestFilterValue, textMatchesSearch } from "../people/search";
 
 export type OrganizationsSearchParams = {
   query?: string;
@@ -17,10 +17,6 @@ export type OrganizationDuplicateMatch = {
   organization: Pick<Organization, "id" | "tenant_id" | "name" | "siren" | "siret" | "primary_email" | "primary_phone" | "city" | "postal_code">;
   reasons: OrganizationDuplicateReason[];
 };
-
-export function normalizeSearchValue(value: string | null | undefined) {
-  return (value ?? "").trim().toLowerCase();
-}
 
 export function buildOrganizationsSearchOrFilter(columns: string[], query: string) {
   const pattern = quotePostgrestFilterValue(`*${escapePostgrestLikePattern(query.trim())}*`);
@@ -51,13 +47,13 @@ export function organizationMatchesSearch(
   const normalizedQuery = normalizeSearchValue(query);
   if (!normalizedQuery) return true;
 
-  return [
+  return textMatchesSearch([
     organization.name,
     organization.city,
     organization.primary_email,
     organization.primary_phone,
     organization.siren
-  ].some((value) => normalizeSearchValue(value).includes(normalizedQuery));
+  ], normalizedQuery);
 }
 
 export function findOrganizationDuplicateMatches(

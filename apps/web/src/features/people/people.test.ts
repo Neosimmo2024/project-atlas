@@ -55,6 +55,15 @@ describe("people search", () => {
     expect(personMatchesSearch(basePerson, "marseille")).toBe(false);
   });
 
+  it("matches text without depending on case or accents", () => {
+    const person = { ...basePerson, display_name: "Présentation PRÉSENTATION" };
+
+    expect(personMatchesSearch(person, "presentation")).toBe(true);
+    expect(personMatchesSearch(person, "Présentation")).toBe(true);
+    expect(personMatchesSearch(person, "PRÉSENTATION")).toBe(true);
+    expect(personMatchesSearch(person, "présentation")).toBe(true);
+  });
+
   it("normalizes pagination bounds", () => {
     expect(normalizePeopleListParams({ page: -2, pageSize: 200 })).toMatchObject({ page: 1, pageSize: 50, from: 0, to: 49 });
   });

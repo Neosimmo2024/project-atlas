@@ -17,7 +17,27 @@ export type DuplicateMatch = {
 };
 
 export function normalizeSearchValue(value: string | null | undefined) {
-  return (value ?? "").trim().toLowerCase();
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+export function textMatchesSearch(values: Array<string | null | undefined>, query: string) {
+  const normalizedQuery = normalizeSearchValue(query);
+  if (!normalizedQuery) return true;
+  return values.some((value) => normalizeSearchValue(value).includes(normalizedQuery));
+}
+
+export function paginateSearchResults<T>(rows: T[], page: number, pageSize: number) {
+  const from = (page - 1) * pageSize;
+  const total = rows.length;
+  return {
+    rows: rows.slice(from, from + pageSize),
+    total,
+    pageCount: Math.max(Math.ceil(total / pageSize), 1)
+  };
 }
 
 export function quotePostgrestFilterValue(value: string) {

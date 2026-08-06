@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DeletePersonButton } from "@/components/people/delete-person-button";
+import { SafeBackLink } from "@/components/navigation/safe-back-link";
 import { PersonForm } from "@/components/people/person-form";
 import { ContextProjects } from "@/components/projects/context-projects";
 import { TaskCard } from "@/components/tasks/task-card";
@@ -54,7 +55,7 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
           <p className="muted">People</p>
           <h1>{person.display_name}</h1>
         </div>
-        <Link className="button subtle-button" href="/people">Retour</Link>
+        <SafeBackLink fallbackHref="/people" />
       </header>
 
       <div className="grid">

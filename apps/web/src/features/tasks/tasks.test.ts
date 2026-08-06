@@ -74,6 +74,19 @@ describe("tasks search and filters", () => {
     expect(taskMatchesSearch(baseTask, "absent")).toBe(false);
   });
 
+  it("matches title and description without depending on case or accents", () => {
+    const task = {
+      ...baseTask,
+      title: "PRÉSENTATION du dossier",
+      description: "Préparer la présentation finale"
+    };
+
+    expect(taskMatchesSearch(task, "presentation")).toBe(true);
+    expect(taskMatchesSearch(task, "Présentation")).toBe(true);
+    expect(taskMatchesSearch(task, "PRÉSENTATION")).toBe(true);
+    expect(taskMatchesSearch(task, "présentation")).toBe(true);
+  });
+
   it("normalizes pagination and filter bounds", () => {
     expect(normalizeTasksListParams({ page: -2, pageSize: 200, due: "today" })).toMatchObject({ page: 1, pageSize: 50, due: "today", from: 0, to: 49 });
   });

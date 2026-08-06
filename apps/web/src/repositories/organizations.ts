@@ -1,13 +1,14 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   buildOrganizationDuplicateOrFilter,
-  buildOrganizationsSearchOrFilter,
   canDeleteOrganizations,
   findOrganizationDuplicateMatches,
   normalizeOrganizationsListParams,
+  organizationMatchesSearch,
   type OrganizationDuplicateMatch,
   type OrganizationsSearchParams
 } from "@/features/organizations/search";
+import { paginateSearchResults } from "@/features/people/search";
 import type { Organization, Person, Relationship, TenantContext } from "@/types/domain";
 import type { OrganizationFormInput } from "@/features/organizations/validation";
 import { recordOrganizationCreated } from "@/services/timeline-service";
@@ -44,12 +45,22 @@ export async function listOrganizations(context: TenantContext, params: Organiza
 
   if (normalized.type) query = query.eq("organization_type", normalized.type);
   if (normalized.status) query = query.eq("status", normalized.status);
-  if (normalized.query) {
-    query = query.or(buildOrganizationsSearchOrFilter(["name", "city", "primary_email", "primary_phone", "siren"], normalized.query));
-  }
-
   const orderColumn = normalized.sort.startsWith("name") ? "name" : "created_at";
   const ascending = normalized.sort.endsWith("_asc");
+  if (normalized.query) {
+    const { data, error } = await query.order(orderColumn, { ascending });
+    if (error) throw error;
+    const filtered = ((data ?? []) as Organization[]).filter((organization) => organizationMatchesSearch(organization, normalized.query));
+    const paged = paginateSearchResults(filtered, normalized.page, normalized.pageSize);
+    return {
+      organizations: paged.rows,
+      total: paged.total,
+      page: normalized.page,
+      pageSize: normalized.pageSize,
+      pageCount: paged.pageCount
+    };
+  }
+
   const { data, error, count } = await query
     .order(orderColumn, { ascending })
     .range(normalized.from, normalized.to);

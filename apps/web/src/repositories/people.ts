@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { buildDuplicateOrFilter, buildPeopleSearchOrFilter, canDeletePeople, findDuplicateMatches, normalizePeopleListParams, type DuplicateMatch, type PeopleSearchParams } from "@/features/people/search";
+import { buildDuplicateOrFilter, canDeletePeople, findDuplicateMatches, normalizePeopleListParams, paginateSearchResults, personMatchesSearch, type DuplicateMatch, type PeopleSearchParams } from "@/features/people/search";
 import type { Organization, Person, Relationship, TenantContext } from "@/types/domain";
 import type { PersonFormInput } from "@/features/people/validation";
 import { recordPersonCreated } from "@/services/timeline-service";
@@ -30,7 +30,17 @@ export async function listPeople(context: TenantContext, params: PeopleSearchPar
   if (normalized.status) query = query.eq("status", normalized.status);
   if (normalized.priority) query = query.eq("priority", normalized.priority);
   if (normalized.query) {
-    query = query.or(buildPeopleSearchOrFilter(["display_name", "first_name", "last_name", "primary_email", "primary_phone", "city"], normalized.query));
+    const { data, error } = await query.order("updated_at", { ascending: false });
+    if (error) throw error;
+    const filtered = ((data ?? []) as Person[]).filter((person) => personMatchesSearch(person, normalized.query));
+    const paged = paginateSearchResults(filtered, normalized.page, normalized.pageSize);
+    return {
+      people: paged.rows,
+      total: paged.total,
+      page: normalized.page,
+      pageSize: normalized.pageSize,
+      pageCount: paged.pageCount
+    };
   }
 
   const { data, error, count } = await query

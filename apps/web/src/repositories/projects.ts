@@ -1,4 +1,4 @@
-import { buildProjectsSearchOrFilter, normalizeProjectsListParams, type ProjectsSearchParams } from "@/features/projects/search";
+import { normalizeProjectsListParams, projectMatchesSearch, type ProjectsSearchParams } from "@/features/projects/search";
 import type { ProjectArchiveInput, ProjectFormInput, ProjectLoseInput, ProjectPatchInput, ProjectWinInput } from "@/features/projects/validation";
 import { ApiError } from "@/lib/api-errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -335,17 +335,16 @@ export async function listProjects(context: TenantContext, params: ProjectsSearc
   if (normalized.status) query = query.eq("status", normalized.status);
   if (normalized.stage) query = query.eq("stage", normalized.stage);
   if (normalized.expectedClose) query = query.lte("expected_close_at", normalized.expectedClose);
-  if (normalized.query) query = query.or(buildProjectsSearchOrFilter(["title", "short_description", "closing_note"], normalized.query));
-
   const { rows } = await fetchAllPages<ProjectJoinedRow>(query.order("id", { ascending: true }));
   const projects = rows.map(mapProjectRow);
   const { tasks, lastEvents } = await listProjectActivityInputs(context, projects.map((project) => project.id));
   const enriched = enrichProjects(context, projects, tasks, lastEvents);
+  const searched = normalized.query ? enriched.filter((project) => projectMatchesSearch(project, normalized.query)) : enriched;
   const filtered = normalized.action === "overdue"
-    ? enriched.filter((project) => project.nextAction?.reason === "overdue")
+    ? searched.filter((project) => project.nextAction?.reason === "overdue")
     : normalized.action === "none"
-      ? enriched.filter((project) => project.status === "open" && !project.nextAction)
-      : enriched;
+      ? searched.filter((project) => project.status === "open" && !project.nextAction)
+      : searched;
   const sorted = sortProjects(filtered);
   const paged = sorted.slice(normalized.from, normalized.to + 1);
 

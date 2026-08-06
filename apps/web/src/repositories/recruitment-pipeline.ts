@@ -1,6 +1,4 @@
-import { buildOrganizationsSearchOrFilter } from "@/features/organizations/search";
-import { buildPeopleSearchOrFilter } from "@/features/people/search";
-import { buildRelationshipsSearchOrFilter } from "@/features/relationships/search";
+import { paginateSearchResults, textMatchesSearch } from "@/features/people/search";
 import {
   ownerLabel,
   isSignatureScheduled,
@@ -39,34 +37,17 @@ type PipelineRelationshipRow = Relationship & {
 
 const emptyUuid = "00000000-0000-4000-8000-000000000000";
 
-async function searchRelationshipScope(context: TenantContext, query: string) {
-  const supabase = await createSupabaseServerClient();
-  const filters = [buildRelationshipsSearchOrFilter(["relationship_type", "pipeline_stage", "status", "notes"], query)];
-
-  const [{ data: people, error: peopleError }, { data: organizations, error: organizationsError }] = await Promise.all([
-    supabase
-      .from("people")
-      .select("id")
-      .eq("tenant_id", context.tenantId)
-      .or(buildPeopleSearchOrFilter(["display_name", "first_name", "last_name", "primary_email", "primary_phone", "city"], query))
-      .limit(200),
-    supabase
-      .from("organizations")
-      .select("id")
-      .eq("tenant_id", context.tenantId)
-      .or(buildOrganizationsSearchOrFilter(["name", "city", "primary_email", "primary_phone", "siren"], query))
-      .limit(200)
-  ]);
-
-  if (peopleError) throw peopleError;
-  if (organizationsError) throw organizationsError;
-
-  const personIds = (people ?? []).map((person) => person.id as string);
-  const organizationIds = (organizations ?? []).map((organization) => organization.id as string);
-  if (personIds.length > 0) filters.push(`person_id.in.(${personIds.join(",")})`);
-  if (organizationIds.length > 0) filters.push(`organization_id.in.(${organizationIds.join(",")})`);
-
-  return filters.join(",");
+function pipelineRowMatchesSearch(row: PipelineRelationshipRow, query: string) {
+  return textMatchesSearch([
+    row.relationship_type,
+    row.pipeline_stage,
+    row.status,
+    row.notes,
+    row.people?.display_name,
+    row.people?.city,
+    row.organizations?.name,
+    row.organizations?.city
+  ], query);
 }
 
 async function contactScope(context: TenantContext, filter: PipelineContactFilter | "") {
@@ -123,7 +104,6 @@ export async function listRecruitmentPipeline(context: TenantContext, filters: P
   if (filters.stage) query = query.eq("pipeline_stage", filters.stage);
   if (filters.ownerId) query = query.eq("owner_user_id", filters.ownerId);
   if (filters.noOwner) query = query.is("owner_user_id", null);
-  if (filters.query) query = query.or(await searchRelationshipScope(context, filters.query));
   if (filters.nextAction === "overdue") query = query.lt("next_action_at", startOfTodayIso());
   if (filters.nextAction === "today") query = query.gte("next_action_at", startOfTodayIso()).lt("next_action_at", startOfTomorrowIso());
   if (filters.nextAction === "none") query = query.is("next_action_at", null);
@@ -139,25 +119,32 @@ export async function listRecruitmentPipeline(context: TenantContext, filters: P
     if (contact.organizationIds.length > 0) query = query.not("organization_id", "in", `(${contact.organizationIds.join(",")})`);
   }
 
-  const { data, error, count } = await query
+  const orderedQuery = query
     .order("pipeline_stage", { ascending: true })
     .order("updated_at", { ascending: false })
-    .order("id", { ascending: true })
-    .range(from, to);
+    .order("id", { ascending: true });
+
+  const { data, error, count } = filters.query
+    ? await orderedQuery
+    : await orderedQuery.range(from, to);
 
   if (error) throw error;
 
-  const rows = (data ?? []) as PipelineRelationshipRow[];
+  const rows = filters.query
+    ? ((data ?? []) as PipelineRelationshipRow[]).filter((row) => pipelineRowMatchesSearch(row, filters.query))
+    : (data ?? []) as PipelineRelationshipRow[];
   const invalidStages = rows
     .map((row) => row.pipeline_stage as string)
     .filter((stage) => !RECRUITMENT_PIPELINE_STAGES.includes(stage as RelationshipPipelineStage));
 
-  const cards = rows
+  const allCards = rows
     .filter((row) => RECRUITMENT_PIPELINE_STAGES.includes(row.pipeline_stage))
     .map((row) => mapPipelineCard(row, ownerNames));
-  const total = count ?? cards.length;
+  const paged = filters.query ? paginateSearchResults(allCards, filters.page, filters.pageSize) : { rows: allCards, total: count ?? allCards.length, pageCount: Math.max(1, Math.ceil((count ?? allCards.length) / filters.pageSize)) };
+  const cards = paged.rows;
+  const total = paged.total;
 
-  return { cards, owners, total, page: filters.page, pageSize: filters.pageSize, pageCount: Math.max(1, Math.ceil(total / filters.pageSize)), invalidStages };
+  return { cards, owners, total, page: filters.page, pageSize: filters.pageSize, pageCount: paged.pageCount, invalidStages };
 }
 
 function mapPipelineCard(row: PipelineRelationshipRow, ownerNames: Map<string, string>): PipelineCardModel {

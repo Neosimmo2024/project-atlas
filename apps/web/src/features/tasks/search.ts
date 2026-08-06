@@ -1,5 +1,5 @@
 import type { RoleSlug, Task, TaskDueFilter } from "@/types/domain";
-import { escapePostgrestLikePattern, quotePostgrestFilterValue } from "../people/search";
+import { escapePostgrestLikePattern, normalizeSearchValue, quotePostgrestFilterValue, textMatchesSearch } from "../people/search";
 
 export type TasksSearchParams = {
   query?: string;
@@ -15,10 +15,6 @@ export type TasksSearchParams = {
   pageSize?: number;
 };
 
-export function normalizeSearchValue(value: string | null | undefined) {
-  return (value ?? "").trim().toLowerCase();
-}
-
 export function buildTasksSearchOrFilter(columns: string[], query: string) {
   const pattern = quotePostgrestFilterValue(`*${escapePostgrestLikePattern(query.trim())}*`);
   return columns.map((column) => `${column}.ilike.${pattern}`).join(",");
@@ -28,7 +24,7 @@ export function taskMatchesSearch(task: Pick<Task, "title" | "description" | "re
   const normalizedQuery = normalizeSearchValue(query);
   if (!normalizedQuery) return true;
 
-  return [task.title, task.description, task.reason].some((value) => normalizeSearchValue(value).includes(normalizedQuery));
+  return textMatchesSearch([task.title, task.description, task.reason], normalizedQuery);
 }
 
 export function canDeleteTasks(role: RoleSlug) {
