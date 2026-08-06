@@ -3,10 +3,11 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TASK_PRIORITY_OPTIONS, TASK_STATUS_OPTIONS } from "@/features/tasks/options";
+import { projectMatchesTaskContext } from "@/features/tasks/project-options";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { Interaction, Organization, Person, Relationship, Task, TaskSourceType } from "@/types/domain";
-import type { TaskProjectOption } from "@/repositories/tasks";
+import type { Interaction, Organization, Person, Task, TaskSourceType } from "@/types/domain";
+import type { TaskProjectOption, TaskRelationshipOption } from "@/repositories/tasks";
 
 type FieldError = { field: string; message: string };
 
@@ -16,7 +17,7 @@ type TaskFormProps = {
   defaults?: Partial<Pick<Task, "person_id" | "organization_id" | "relationship_id" | "interaction_id" | "project_id" | "source_type" | "source_id" | "due_at" | "priority">>;
   peopleOptions: Pick<Person, "id" | "display_name">[];
   organizationOptions: Pick<Organization, "id" | "name">[];
-  relationshipOptions: Pick<Relationship, "id" | "relationship_type" | "pipeline_stage">[];
+  relationshipOptions: TaskRelationshipOption[];
   interactionOptions: Pick<Interaction, "id" | "title">[];
   projectOptions?: TaskProjectOption[];
 };
@@ -87,15 +88,11 @@ export function TaskForm({ mode, task, defaults, peopleOptions, organizationOpti
   const filteredProjectOptions = useMemo(() => {
     const hasContext = Boolean(personId || organizationId || relationshipId);
     if (!hasContext) return [];
+    const relationshipsById = new Map(relationshipOptions.map((relationship) => [relationship.id, relationship]));
     return projectOptions.filter((project) =>
-      Boolean(project.status === "open" && !project.archived_at) &&
-      (
-        (personId && project.person_id === personId) ||
-        (organizationId && project.organization_id === organizationId) ||
-        (relationshipId && project.relationship_id === relationshipId)
-      )
+      projectMatchesTaskContext(project, relationshipsById, { personId, organizationId, relationshipId })
     );
-  }, [organizationId, personId, projectOptions, relationshipId]);
+  }, [organizationId, personId, projectOptions, relationshipId, relationshipOptions]);
 
   const selectedProjectAvailable = !projectId || filteredProjectOptions.some((project) => project.id === projectId);
   const projectHelp = personId || organizationId || relationshipId
@@ -146,7 +143,7 @@ export function TaskForm({ mode, task, defaults, peopleOptions, organizationOpti
 
   return (
     <form className="form task-form" onSubmit={submit}>
-      {error ? <p className="error">{error}</p> : null}
+      {error ? <p className="error" role="alert" aria-live="assertive">{error}</p> : null}
 
       <div className="form-grid">
         <label>Titre<Input name="title" required defaultValue={task?.title ?? ""} /><FieldError name="title" /></label>

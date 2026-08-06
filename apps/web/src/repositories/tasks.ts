@@ -31,6 +31,7 @@ export type TaskDetail = {
 };
 
 export type TaskProjectOption = Pick<Project, "id" | "title" | "person_id" | "organization_id" | "relationship_id" | "status" | "archived_at">;
+export type TaskRelationshipOption = Pick<Relationship, "id" | "relationship_type" | "pipeline_stage" | "person_id" | "organization_id">;
 
 type TaskJoinedRow = Task & {
   people?: TaskListItem["person"];
@@ -88,17 +89,17 @@ export async function listTaskOrganizationOptions(context: TenantContext): Promi
   return (data ?? []) as Pick<Organization, "id" | "name">[];
 }
 
-export async function listTaskRelationshipOptions(context: TenantContext): Promise<Pick<Relationship, "id" | "relationship_type" | "pipeline_stage">[]> {
+export async function listTaskRelationshipOptions(context: TenantContext): Promise<TaskRelationshipOption[]> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("relationships")
-    .select("id, relationship_type, pipeline_stage")
+    .select("id, relationship_type, pipeline_stage, person_id, organization_id")
     .eq("tenant_id", context.tenantId)
     .order("updated_at", { ascending: false })
     .limit(200);
 
   if (error) throw error;
-  return (data ?? []) as Pick<Relationship, "id" | "relationship_type" | "pipeline_stage">[];
+  return (data ?? []) as TaskRelationshipOption[];
 }
 
 export async function listTaskInteractionOptions(context: TenantContext): Promise<Pick<Interaction, "id" | "title">[]> {

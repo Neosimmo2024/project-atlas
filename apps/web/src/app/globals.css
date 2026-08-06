@@ -399,8 +399,21 @@ button, input, select, textarea { font: inherit; }
 }
 .subtle-button { background: #edf5f2; color: var(--accent-strong); }
 .danger-button { background: var(--danger); }
-.error { color: var(--danger); }
-.success { border: 1px solid #a6e3c7; border-radius: 8px; background: #eefbf4; color: #067647; padding: 12px 14px; }
+.error,
+.success,
+.warning,
+.info {
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+.error { border-color: #fecdca; background: #fff4f3; color: var(--danger); }
+.success { border-color: #a6e3c7; background: #eefbf4; color: #067647; }
+.warning { border-color: #e9b949; background: #fff8df; color: #8a4b00; }
+.info { border-color: #b2ddff; background: #eff8ff; color: #175cd3; }
 .error-state { border-color: #fecdca; background: #fff4f3; }
 .loading-state { color: var(--muted); }
 .metric-value { color: var(--foreground); font-size: 28px; line-height: 1; }
@@ -433,7 +446,6 @@ button, input, select, textarea { font: inherit; }
   color: var(--danger);
   padding: 12px 14px;
 }
-.warning { border: 1px solid #e9b949; border-radius: 8px; background: #fff8df; padding: 14px; }
 .filters { align-items: flex-end; display: grid; gap: 12px; grid-template-columns: minmax(220px, 1fr) 180px 180px auto; }
 .data-table { border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; background: var(--panel); }
 .table-head, .table-row { display: grid; gap: 12px; min-width: 980px; padding: 12px 14px; }
@@ -449,7 +461,8 @@ button, input, select, textarea { font: inherit; }
 .form-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .textarea { min-height: 120px; resize: vertical; }
 .error-list { color: var(--danger); margin: 0; }
-.field-error { color: var(--danger); font-size: 13px; }
+.field-error { color: var(--danger); font-size: 13px; font-weight: 700; }
+.field-help { color: var(--muted); font-size: 13px; line-height: 1.4; }
 .danger-zone { border-color: #f3b8b3; }
 .code-block { overflow: auto; border: 1px solid var(--line); border-radius: 6px; background: #f7f7f4; padding: 12px; }
 .interaction-list, .task-list { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
