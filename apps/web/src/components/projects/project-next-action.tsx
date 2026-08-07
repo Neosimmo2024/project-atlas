@@ -1,5 +1,6 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { TaskStatusButton } from "@/components/tasks/task-status-button";
+import { TASK_PRIORITY_LABELS } from "@/features/tasks/options";
 import { formatDateTime } from "./project-utils";
 import type { ProjectDetail } from "@/repositories/projects";
 import type { TaskListItem } from "@/repositories/tasks";
@@ -21,7 +22,7 @@ export function ProjectNextAction({ detail, task }: { detail: ProjectDetail; tas
       <h2>Prochaine action</h2>
       {action ? (
         <>
-          <p><strong>{action.title}</strong><br />Échéance : {formatDateTime(action.dueAt)} - Priorité : {action.priority} - Motif : {reasonLabels[action.reason]}</p>
+          <p><strong>{action.title}</strong><br />Échéance : {formatDateTime(action.dueAt)} - Priorité : {TASK_PRIORITY_LABELS[action.priority] ?? action.priority} - Motif : {reasonLabels[action.reason]}</p>
           <div className="actions">
             <Link className="button subtle-button" href={`/tasks/${action.taskId}`}>Ouvrir la tâche</Link>
             {task ? <TaskStatusButton task={task} nextStatus="completed">Terminer</TaskStatusButton> : null}

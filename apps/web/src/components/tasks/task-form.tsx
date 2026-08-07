@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TASK_PRIORITY_OPTIONS, TASK_STATUS_OPTIONS } from "@/features/tasks/options";
 import { projectMatchesTaskContext } from "@/features/tasks/project-options";
+import { RELATIONSHIP_PIPELINE_STAGE_LABELS, RELATIONSHIP_TYPE_LABELS } from "@/features/relationships/options";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Interaction, Organization, Person, Task, TaskSourceType } from "@/types/domain";
@@ -36,6 +37,12 @@ function toDateTimeLocal(value: string | null | undefined) {
 
 function defaultValue(task: Task | undefined, defaults: TaskFormProps["defaults"], key: keyof NonNullable<TaskFormProps["defaults"]>) {
   return task?.[key] ?? defaults?.[key] ?? "";
+}
+
+function relationshipLabel(relationship: TaskRelationshipOption) {
+  const type = RELATIONSHIP_TYPE_LABELS[relationship.relationship_type] ?? relationship.relationship_type;
+  const stage = RELATIONSHIP_PIPELINE_STAGE_LABELS[relationship.pipeline_stage] ?? relationship.pipeline_stage;
+  return `${type} - ${stage}`;
 }
 
 function formToPayload(form: HTMLFormElement) {
@@ -199,7 +206,7 @@ export function TaskForm({ mode, task, defaults, peopleOptions, organizationOpti
             setProjectId("");
           }}>
             <option value="">Aucune relation</option>
-            {relationshipOptions.map((relationship) => <option key={relationship.id} value={relationship.id}>{relationship.relationship_type} - {relationship.pipeline_stage}</option>)}
+            {relationshipOptions.map((relationship) => <option key={relationship.id} value={relationship.id}>{relationshipLabel(relationship)}</option>)}
           </select>
           <FieldError name="relationship_id" />
         </label>

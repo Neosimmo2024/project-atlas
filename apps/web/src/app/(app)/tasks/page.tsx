@@ -35,7 +35,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
     <div className="page stack">
       <header className="page-header">
         <div>
-          <p className="muted">Smart Tasks</p>
+          <p className="muted">Tâches intelligentes</p>
           <h1>Tâches</h1>
         </div>
         <Link className="button link-button" href="/tasks/new">Nouvelle tâche</Link>

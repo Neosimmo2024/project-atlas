@@ -46,7 +46,7 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
     <div className="page stack">
       <header className="page-header">
         <div>
-          <p className="muted">Smart Tasks</p>
+          <p className="muted">Tâches intelligentes</p>
           <h1>{task.title}</h1>
         </div>
         <SafeBackLink fallbackHref="/tasks" />

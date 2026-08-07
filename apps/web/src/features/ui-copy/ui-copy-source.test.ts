@@ -84,6 +84,20 @@ describe("visible UI copy", () => {
     expect(styles).toContain(".tabs a.active");
   });
 
+  it("uses French labels for task headings and project next action priority", () => {
+    const taskSources = [
+      "src/app/(app)/tasks/page.tsx",
+      "src/app/(app)/tasks/new/page.tsx",
+      "src/app/(app)/tasks/[id]/page.tsx"
+    ].map(source).join("\n");
+    const projectNextAction = source("src/components/projects/project-next-action.tsx");
+
+    expect(taskSources).toContain("Tâches intelligentes");
+    expect(taskSources).not.toContain("Smart Tasks");
+    expect(projectNextAction).toContain("TASK_PRIORITY_LABELS");
+    expect(projectNextAction).not.toContain("Priorité : {action.priority}");
+  });
+
   it("does not expose common English technical API errors to users", () => {
     const apiSources = [
       "src/app/api/people/route.ts",
