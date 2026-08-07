@@ -32,6 +32,7 @@ export default async function NewInteractionPage({ searchParams }: NewInteractio
     project_id: valueOf(params, "projectId") || null,
     interaction_date: new Date().toISOString()
   };
+  const returnHref = defaults.project_id ? `/projects/${defaults.project_id}?tab=interactions` : "/interactions";
 
   return (
     <div className="page stack">
@@ -40,7 +41,7 @@ export default async function NewInteractionPage({ searchParams }: NewInteractio
           <p className="muted">Échanges</p>
           <h1>Nouvel échange</h1>
         </div>
-        <Link className="button subtle-button" href="/interactions">Retour</Link>
+        <Link className="button subtle-button" href={returnHref}>Retour</Link>
       </header>
       <section className="card">
         <InteractionForm mode="create" types={types} peopleOptions={peopleOptions} organizationOptions={organizationOptions} relationshipOptions={relationshipOptions} projectOptions={projectOptions} defaults={defaults} />

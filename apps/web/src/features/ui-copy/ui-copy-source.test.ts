@@ -64,6 +64,14 @@ describe("visible UI copy", () => {
     expect(interactionForm).not.toContain("{relationship.relationship_type} - {relationship.pipeline_stage}");
   });
 
+  it("keeps the new interaction back link scoped to the originating project when present", () => {
+    const newInteractionPage = source("src/app/(app)/interactions/new/page.tsx");
+
+    expect(newInteractionPage).toContain('const returnHref = defaults.project_id ? `/projects/${defaults.project_id}?tab=interactions` : "/interactions";');
+    expect(newInteractionPage).toContain('href={returnHref}');
+    expect(newInteractionPage).not.toContain('href="/interactions">Retour</Link>');
+  });
+
   it("clarifies the task project field without changing the project attachment control", () => {
     const taskForm = source("src/components/tasks/task-form.tsx");
 
