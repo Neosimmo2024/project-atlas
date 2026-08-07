@@ -16,6 +16,32 @@ describe("visible UI copy", () => {
     expect(interactionsPage).toContain("Nouvel échange");
   });
 
+  it("uses French labels for primary navigation and People headings", () => {
+    const shell = source("src/components/app-shell.tsx");
+    const dashboardPage = source("src/app/(app)/dashboard/page.tsx");
+    const peoplePage = source("src/app/(app)/people/page.tsx");
+
+    expect(shell).toContain('{ href: "/dashboard", label: "Tableau de bord" }');
+    expect(shell).toContain('{ href: "/people", label: "Personnes" }');
+    expect(shell).toContain('{ href: "/organizations", label: "Organisations" }');
+    expect(shell).toContain('{ href: "/projects", label: "Projets" }');
+    expect(dashboardPage).toContain("<h1>Tableau de bord</h1>");
+    expect(peoplePage).toContain("Base de talents");
+    expect(peoplePage).toContain("<h1>Personnes</h1>");
+    expect(peoplePage).not.toContain("Talent database");
+  });
+
+  it("keeps People table contact columns readable without overlapping adjacent cells", () => {
+    const peoplePage = source("src/app/(app)/people/page.tsx");
+    const styles = source("src/app/globals.css");
+
+    expect(peoplePage).toContain('className="cell-email"');
+    expect(peoplePage).toContain('className="cell-phone"');
+    expect(styles).toContain(".table-head > span, .table-row > span { min-width: 0; overflow-wrap: anywhere; }");
+    expect(styles).toContain("minmax(240px, 1.45fr)");
+    expect(styles).toContain("min-width: 1280px;");
+  });
+
   it("keeps technical metadata and UUID-like responsibility fields out of standard forms", () => {
     const interactionForm = source("src/components/interactions/interaction-form.tsx");
     const relationshipForm = source("src/components/relationships/relationship-form.tsx");

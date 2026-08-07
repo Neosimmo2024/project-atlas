@@ -63,8 +63,8 @@ export function CsvImportCancellationButton({ importId, eligibility, canRequest 
       <div className="grid import-review-summary">
         <Metric label="Supprimables" value={eligibility.summary.deletable} />
         <Metric label="Conservees" value={eligibility.summary.kept} />
-        <Metric label="People créées" value={eligibility.summary.peopleCreated} />
-        <Metric label="Organizations créées" value={eligibility.summary.organizationsCreated} />
+        <Metric label="Personnes créées" value={eligibility.summary.peopleCreated} />
+        <Metric label="Organisations créées" value={eligibility.summary.organizationsCreated} />
         <Metric label="Relations créées" value={eligibility.summary.relationshipsCreated} />
       </div>
 
@@ -90,10 +90,10 @@ export function CsvImportCancellationButton({ importId, eligibility, canRequest 
             <p>Cette action est irréversible pour les données effectivement supprimables. Les données rattachées, modifiées ou utilisées ailleurs seront conservées.</p>
 
             <div className="import-cancellation-columns">
-              <EntityList title="People supprimables" items={eligibility.people.filter((item) => item.deletable)} />
-              <EntityList title="People conservées" items={eligibility.people.filter((item) => !item.deletable)} />
-              <EntityList title="Organizations supprimables" items={eligibility.organizations.filter((item) => item.deletable)} />
-              <EntityList title="Organizations conservées" items={eligibility.organizations.filter((item) => !item.deletable)} />
+              <EntityList title="Personnes supprimables" items={eligibility.people.filter((item) => item.deletable)} />
+              <EntityList title="Personnes conservées" items={eligibility.people.filter((item) => !item.deletable)} />
+              <EntityList title="Organisations supprimables" items={eligibility.organizations.filter((item) => item.deletable)} />
+              <EntityList title="Organisations conservées" items={eligibility.organizations.filter((item) => !item.deletable)} />
               <EntityList title="Relations supprimables" items={eligibility.relationships.filter((item) => item.deletable)} />
               <EntityList title="Relations conservées" items={eligibility.relationships.filter((item) => !item.deletable)} />
             </div>

@@ -55,7 +55,7 @@ export default async function OrganizationDetailPage({ params, searchParams }: O
     <div className="page stack">
       <header className="page-header">
         <div>
-          <p className="muted">Organizations</p>
+          <p className="muted">Organisations</p>
           <h1>{organization.name}</h1>
         </div>
         <SafeBackLink fallbackHref="/organizations" />

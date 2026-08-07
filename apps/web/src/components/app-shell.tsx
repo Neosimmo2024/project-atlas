@@ -7,9 +7,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/people", label: "People" },
-  { href: "/organizations", label: "Organizations" },
+  { href: "/dashboard", label: "Tableau de bord" },
+  { href: "/people", label: "Personnes" },
+  { href: "/organizations", label: "Organisations" },
   { href: "/relationships", label: "Relations" },
   { href: "/pipeline", label: "Pipeline" },
   { href: "/interactions", label: "Échanges" },

@@ -54,9 +54,9 @@ export default async function ImportDetailPage({ params }: ImportDetailPageProps
 
       <section className="grid import-review-summary">
         <Metric label="Lignes" value={detail.run.total_rows} />
-        <Metric label="People créées" value={detail.run.people_created} />
+        <Metric label="Personnes créées" value={detail.run.people_created} />
         <Metric label="Personnes rattachées" value={detail.run.people_linked} />
-        <Metric label="Organizations créées" value={detail.run.organizations_created} />
+        <Metric label="Organisations créées" value={detail.run.organizations_created} />
         <Metric label="Organisations rattachées" value={detail.run.organizations_linked} />
         <Metric label="Relations créées" value={detail.run.relationships_created} />
         <Metric label="Rejetees" value={detail.run.rows_rejected} />
@@ -104,8 +104,8 @@ export default async function ImportDetailPage({ params }: ImportDetailPageProps
           <p className="muted">Les éléments non supprimables restent conservés avec leur motif.</p>
         </header>
         <div className="import-cancellation-columns">
-          <CancellationList title="People" items={detail.eligibility.people} />
-          <CancellationList title="Organizations" items={detail.eligibility.organizations} />
+          <CancellationList title="Personnes" items={detail.eligibility.people} />
+          <CancellationList title="Organisations" items={detail.eligibility.organizations} />
           <CancellationList title="Relations" items={detail.eligibility.relationships} />
         </div>
       </section>

@@ -46,13 +46,13 @@ export default async function OrganizationsPage({ searchParams }: OrganizationsP
       <header className="page-header">
         <div>
           <p className="muted">Companies and networks</p>
-          <h1>Organizations</h1>
+          <h1>Organisations</h1>
         </div>
         <Link className="button link-button" href="/organizations/new">Nouvelle organisation</Link>
       </header>
 
       <form className="filters organizations-filters" action="/organizations">
-        <label>Recherche<InputLike name="query" defaultValue={query} placeholder="Nom, ville, email, telephone, SIREN" /></label>
+        <label>Recherche<InputLike name="query" defaultValue={query} placeholder="Nom, ville, email, téléphone, SIREN" /></label>
         <label>
           Type
           <select className="input" name="type" defaultValue={type}>
@@ -103,7 +103,7 @@ export default async function OrganizationsPage({ searchParams }: OrganizationsP
         </div>
       )}
 
-      <nav className="pagination" aria-label="Pagination Organizations">
+      <nav className="pagination" aria-label="Pagination Organisations">
         <span>{result.total} résultat(s)</span>
         <div>
           {result.page > 1 ? <Link className="button subtle-button" href={organizationsUrl(currentParams, result.page - 1)}>Précédent</Link> : null}

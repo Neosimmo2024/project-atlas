@@ -38,14 +38,14 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
     <div className="page stack">
       <header className="page-header">
         <div>
-          <p className="muted">Talent database</p>
-          <h1>People</h1>
+          <p className="muted">Base de talents</p>
+          <h1>Personnes</h1>
         </div>
         <Link className="button link-button" href="/people/new">Nouvelle personne</Link>
       </header>
 
       <form className="filters" action="/people">
-        <label>Recherche<InputLike name="query" defaultValue={query} placeholder="Nom, email, telephone, ville" /></label>
+        <label>Recherche<InputLike name="query" defaultValue={query} placeholder="Nom, email, téléphone, ville" /></label>
         <label>
           Statut
           <select className="input" name="status" defaultValue={status}>
@@ -72,9 +72,9 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
             <Link key={person.id} href={`/people/${person.id}`} className="table-row">
               <span>{person.last_name ?? "-"}</span>
               <span>{person.first_name ?? "-"}</span>
-              <span>{person.primary_email ?? "-"}</span>
-              <span>{person.primary_phone ?? "-"}</span>
-              <span>{person.city ?? "-"}</span>
+              <span className="cell-email">{person.primary_email ?? "-"}</span>
+              <span className="cell-phone">{person.primary_phone ?? "-"}</span>
+              <span className="cell-city">{person.city ?? "-"}</span>
               <span>{PERSON_STATUS_LABELS[person.status]}</span>
               <span>{PRIORITY_LABELS[person.priority]}</span>
               <span>{person.talent_score ?? "-"}</span>
@@ -84,7 +84,7 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
         </div>
       )}
 
-      <nav className="pagination" aria-label="Pagination People">
+      <nav className="pagination" aria-label="Pagination Personnes">
         <span>{result.total} résultat(s)</span>
         <div>
           {result.page > 1 ? <Link className="button subtle-button" href={peopleUrl(currentParams, result.page - 1)}>Précédent</Link> : null}

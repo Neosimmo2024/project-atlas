@@ -52,7 +52,7 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
     <div className="page stack">
       <header className="page-header">
         <div>
-          <p className="muted">People</p>
+          <p className="muted">Personnes</p>
           <h1>{person.display_name}</h1>
         </div>
         <SafeBackLink fallbackHref="/people" />
