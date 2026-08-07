@@ -72,6 +72,16 @@ describe("visible UI copy", () => {
     expect(newInteractionPage).not.toContain('href="/interactions">Retour</Link>');
   });
 
+  it("keeps project history filters and pagination scoped to the History tab", () => {
+    const projectTabs = source("src/components/projects/project-tabs.tsx");
+    const timelineList = source("src/components/timeline/timeline-list.tsx");
+
+    expect(projectTabs).toContain('const historyHiddenFields = { tab: "history" };');
+    expect(projectTabs).toContain("hiddenFields={historyHiddenFields}");
+    expect(timelineList).toContain("hiddenFields?: Record<string, string>;");
+    expect(timelineList).toContain("new URLSearchParams({ ...hiddenFields, timelineCategory: category, timelinePage: String(page) })");
+  });
+
   it("clarifies the task project field without changing the project attachment control", () => {
     const taskForm = source("src/components/tasks/task-form.tsx");
 
@@ -99,6 +109,15 @@ describe("visible UI copy", () => {
     expect(styles).toContain(".tabs {");
     expect(styles).toContain("gap: 8px;");
     expect(styles).toContain(".tabs a.active");
+  });
+
+  it("uses French relationship type labels in timeline items instead of raw technical values", () => {
+    const timelineItem = source("src/components/timeline/timeline-item.tsx");
+
+    expect(timelineItem).toContain("RELATIONSHIP_TYPE_LABELS");
+    expect(timelineItem).toContain("relationshipTypeLabel(event.relationship.relationship_type)");
+    expect(timelineItem).toContain('userFacingTimelineText(event.description)');
+    expect(timelineItem).not.toContain("label: event.relationship.relationship_type");
   });
 
   it("uses French labels for task headings and project next action priority", () => {

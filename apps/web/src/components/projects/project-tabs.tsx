@@ -33,6 +33,7 @@ function relationshipLabel(relationship: NonNullable<ProjectDetail["relationship
 export function ProjectTabs({ detail, tasks, interactions, chronology, tab, timelineCategory }: ProjectTabsProps) {
   const current = ["overview", "tasks", "interactions", "history"].includes(tab) ? tab : "overview";
   const project = detail.project;
+  const historyHiddenFields = { tab: "history" };
   const newTaskHref = `/tasks/new?sourceType=project&sourceId=${project.id}&projectId=${project.id}&personId=${project.person_id ?? ""}&organizationId=${project.organization_id ?? ""}&relationshipId=${project.relationship_id ?? ""}`;
   const newInteractionHref = `/interactions/new?projectId=${project.id}&personId=${project.person_id ?? ""}&organizationId=${project.organization_id ?? ""}&relationshipId=${project.relationship_id ?? ""}`;
 
@@ -92,9 +93,9 @@ export function ProjectTabs({ detail, tasks, interactions, chronology, tab, time
         <div className="stack">
           <div className="page-header">
             <h2>Historique</h2>
-            <TimelineFilters category={normalizeTimelineCategory(timelineCategory)} hiddenFields={{}} />
+            <TimelineFilters category={normalizeTimelineCategory(timelineCategory)} hiddenFields={historyHiddenFields} />
           </div>
-          <TimelineList result={chronology} basePath={`/projects/${project.id}`} category={timelineCategory} />
+          <TimelineList result={chronology} basePath={`/projects/${project.id}`} category={timelineCategory} hiddenFields={historyHiddenFields} />
         </div>
       ) : null}
     </section>
