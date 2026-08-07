@@ -61,7 +61,7 @@ export function ProjectActions({ project }: { project: Project }) {
     <div className="stack">
       {error ? <p className="error" role="alert">{error}</p> : null}
       <div className="actions">
-        {!isArchived ? <Button type="button" onClick={() => setActive("stage")} disabled={isClosed}>Changer étape</Button> : null}
+        {!isArchived ? <Button type="button" onClick={() => setActive("stage")} disabled={isClosed}>Changer d’étape</Button> : null}
         {!isArchived && !isClosed ? <Button type="button" onClick={() => setActive("win")}>Marquer comme gagné</Button> : null}
         {!isArchived && !isClosed ? <Button type="button" onClick={() => setActive("lose")}>Marquer comme perdu</Button> : null}
         {isClosed ? <Button type="button" onClick={() => setActive("reopen")}>Rouvrir</Button> : null}
@@ -75,7 +75,7 @@ export function ProjectActions({ project }: { project: Project }) {
           const data = new FormData(event.currentTarget);
           void request(`/api/projects/${project.id}`, { stage: String(data.get("stage") ?? "") }, "PATCH", "Étape mise à jour.");
         }}>
-          <h2>Changer étape du Projet</h2>
+          <h2>Changer d’étape du Projet</h2>
           <label>
             Étape
             <select className="input" name="stage" defaultValue={project.stage}>

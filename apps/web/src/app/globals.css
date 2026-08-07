@@ -437,6 +437,37 @@ button, input, select, textarea { font: inherit; }
 .entity-header h1 { margin-bottom: 6px; }
 .entity-summary { align-items: start; }
 .entity-actions, .entity-tabs { flex-wrap: wrap; }
+.tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.tabs a {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--muted);
+  padding: 9px 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.tabs a:hover,
+.tabs a:focus-visible {
+  border-color: #bdd9d2;
+  background: #edf5f2;
+  color: var(--accent-strong);
+  outline: none;
+}
+.tabs a.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
 .timeline-item h2 { font-size: 16px; margin: 0; }
 .login-form-panel .error {
   margin: 0;

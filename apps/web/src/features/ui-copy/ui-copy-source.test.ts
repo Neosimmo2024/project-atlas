@@ -63,6 +63,22 @@ describe("visible UI copy", () => {
     expect(taskForm).toContain("Ce champ modifie l'association projet affichée dans le bloc Contexte.");
   });
 
+  it("keeps project detail tabs separated and uses French project action labels", () => {
+    const projectTabs = source("src/components/projects/project-tabs.tsx");
+    const projectActions = source("src/components/projects/project-actions.tsx");
+    const styles = source("src/app/globals.css");
+
+    expect(projectTabs).toContain("Vue d’ensemble");
+    expect(projectTabs).toContain("RELATIONSHIP_TYPE_LABELS");
+    expect(projectTabs).toContain("RELATIONSHIP_PIPELINE_STAGE_LABELS");
+    expect(projectTabs).not.toContain("Vue ensemble");
+    expect(projectActions).toContain("Changer d’étape");
+    expect(projectActions).not.toContain("Changer étape");
+    expect(styles).toContain(".tabs {");
+    expect(styles).toContain("gap: 8px;");
+    expect(styles).toContain(".tabs a.active");
+  });
+
   it("does not expose common English technical API errors to users", () => {
     const apiSources = [
       "src/app/api/people/route.ts",

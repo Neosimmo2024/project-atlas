@@ -5,6 +5,7 @@ import { TimelineFilters, normalizeTimelineCategory } from "@/components/timelin
 import { TimelineList } from "@/components/timeline/timeline-list";
 import { formatDate, formatMoney, projectStageLabel, projectStatusLabel, projectTypeLabel } from "./project-utils";
 import { EntityTabs } from "@/components/ui";
+import { RELATIONSHIP_PIPELINE_STAGE_LABELS, RELATIONSHIP_TYPE_LABELS } from "@/features/relationships/options";
 import type { InteractionsListResult } from "@/repositories/interactions";
 import type { ProjectDetail } from "@/repositories/projects";
 import type { TasksListResult } from "@/repositories/tasks";
@@ -23,6 +24,12 @@ function tabHref(projectId: string, tab: string) {
   return `/projects/${projectId}?tab=${tab}`;
 }
 
+function relationshipLabel(relationship: NonNullable<ProjectDetail["relationship"]>) {
+  const type = RELATIONSHIP_TYPE_LABELS[relationship.relationship_type] ?? relationship.relationship_type;
+  const stage = RELATIONSHIP_PIPELINE_STAGE_LABELS[relationship.pipeline_stage] ?? relationship.pipeline_stage;
+  return `${type} - ${stage}`;
+}
+
 export function ProjectTabs({ detail, tasks, interactions, chronology, tab, timelineCategory }: ProjectTabsProps) {
   const current = ["overview", "tasks", "interactions", "history"].includes(tab) ? tab : "overview";
   const project = detail.project;
@@ -32,7 +39,7 @@ export function ProjectTabs({ detail, tasks, interactions, chronology, tab, time
   return (
     <section className="card stack">
       <EntityTabs label="Onglets Projet">
-        <Link className={current === "overview" ? "active" : ""} href={tabHref(project.id, "overview")}>Vue ensemble</Link>
+        <Link className={current === "overview" ? "active" : ""} href={tabHref(project.id, "overview")}>Vue d’ensemble</Link>
         <Link className={current === "tasks" ? "active" : ""} href={tabHref(project.id, "tasks")}>Tâches</Link>
         <Link className={current === "interactions" ? "active" : ""} href={tabHref(project.id, "interactions")}>Échanges</Link>
         <Link className={current === "history" ? "active" : ""} href={tabHref(project.id, "history")}>Historique</Link>
@@ -53,7 +60,7 @@ export function ProjectTabs({ detail, tasks, interactions, chronology, tab, time
               <h2>Contacts</h2>
               <p><strong>Personne</strong><br />{detail.person ? <Link href={`/people/${detail.person.id}`}>{detail.person.display_name}</Link> : "-"}</p>
               <p><strong>Organisation</strong><br />{detail.organization ? <Link href={`/organizations/${detail.organization.id}`}>{detail.organization.name}</Link> : "-"}</p>
-              <p><strong>Relation</strong><br />{detail.relationship ? <Link href={`/relationships/${detail.relationship.id}`}>{detail.relationship.relationship_type} - {detail.relationship.pipeline_stage}</Link> : "-"}</p>
+              <p><strong>Relation</strong><br />{detail.relationship ? <Link href={`/relationships/${detail.relationship.id}`}>{relationshipLabel(detail.relationship)}</Link> : "-"}</p>
             </section>
           </div>
           <section className="stack">
