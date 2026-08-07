@@ -52,8 +52,8 @@ test.describe("Projects authenticated flow", () => {
     await expect(page).toHaveURL(/projectSaved=1/);
     await expect(page.getByRole("heading", { name: `${marker} updated` })).toBeVisible();
 
-    await page.getByRole("button", { name: /Changer [eé]tape/ }).click();
-    const stageForm = page.locator("form").filter({ hasText: /Changer [eé]tape du Projet/ });
+    await page.getByRole("button", { name: /Changer d[’']?[eé]tape/ }).click();
+    const stageForm = page.locator("form").filter({ hasText: /Changer d[’']?[eé]tape du Projet/ });
     await stageForm.getByLabel(/[EÉ]tape/).selectOption("proposal");
     await stageForm.getByRole("button", { name: "Valider" }).click();
     await expect(page.getByText(/[EÉ]tape mise [aà] jour\./)).toBeVisible();
