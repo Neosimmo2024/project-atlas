@@ -53,7 +53,7 @@ export default async function RelationshipsPage({ searchParams }: RelationshipsP
       <header className="page-header">
         <div>
           <p className="muted">Recruiting pipeline</p>
-          <h1>Relationships</h1>
+          <h1>Relations</h1>
         </div>
         <Link className="button link-button" href="/relationships/new">Nouvelle relation</Link>
       </header>
@@ -106,10 +106,10 @@ export default async function RelationshipsPage({ searchParams }: RelationshipsP
         </div>
       )}
 
-      <nav className="pagination" aria-label="Pagination Relationships">
-        <span>{result.total} resultat(s)</span>
+      <nav className="pagination" aria-label="Pagination des relations">
+        <span>{result.total} résultat(s)</span>
         <div>
-          {result.page > 1 ? <Link className="button subtle-button" href={relationshipsUrl(currentParams, result.page - 1)}>Precedent</Link> : null}
+          {result.page > 1 ? <Link className="button subtle-button" href={relationshipsUrl(currentParams, result.page - 1)}>Précédent</Link> : null}
           <span>Page {result.page} / {result.pageCount}</span>
           {result.page < result.pageCount ? <Link className="button subtle-button" href={relationshipsUrl(currentParams, result.page + 1)}>Suivant</Link> : null}
         </div>

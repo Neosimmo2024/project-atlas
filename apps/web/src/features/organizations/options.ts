@@ -15,7 +15,7 @@ export const ORGANIZATION_STATUSES = ["active", "inactive", "archived"] as const
 export const ORGANIZATION_VAT_STATUSES = ["assujetti", "non_assujetti", "a_verifier"] as const;
 
 export const ORGANIZATION_TYPE_LABELS: Record<(typeof ORGANIZATION_TYPES)[number], string> = {
-  network: "Reseau",
+  network: "Réseau",
   agency: "Agence",
   independent_agency: "Agence independante",
   franchise: "Franchise",
@@ -30,7 +30,7 @@ export const ORGANIZATION_TYPE_LABELS: Record<(typeof ORGANIZATION_TYPES)[number
 export const ORGANIZATION_STATUS_LABELS: Record<(typeof ORGANIZATION_STATUSES)[number], string> = {
   active: "Active",
   inactive: "Inactive",
-  archived: "Archivee"
+  archived: "Archivée"
 };
 
 export const ORGANIZATION_VAT_STATUS_LABELS: Record<(typeof ORGANIZATION_VAT_STATUSES)[number], string> = {

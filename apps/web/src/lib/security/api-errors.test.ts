@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 
 import { ApiError } from "@/lib/api-errors";
 import { apiErrorResponse, publicErrorCode, publicErrorMessage } from "@/lib/security/api-errors";
@@ -9,6 +10,14 @@ describe("public API errors", () => {
 
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toEqual({ error: "Action non autorisee.", code: "FORBIDDEN" });
+  });
+
+  it("maps validation failures to a French public message", () => {
+    const result = z.object({ title: z.string().min(1) }).safeParse({ title: "" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(publicErrorMessage(result.error)).toBe("Les informations saisies sont invalides.");
+    }
   });
 
   it("does not expose unexpected technical error messages", async () => {

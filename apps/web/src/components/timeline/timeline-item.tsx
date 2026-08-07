@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RELATIONSHIP_TYPE_LABELS } from "@/features/relationships/options";
 import { TIMELINE_EVENT_LABELS } from "@/features/timeline/options";
 import type { TimelineListItem } from "@/repositories/timeline-events";
 import type { TimelineEventType } from "@/types/domain";
@@ -20,10 +21,21 @@ function linkedContext(event: TimelineListItem) {
   const links = [
     event.person ? { href: `/people/${event.person.id}`, label: event.person.display_name } : null,
     event.organization ? { href: `/organizations/${event.organization.id}`, label: event.organization.name } : null,
-    event.relationship ? { href: `/relationships/${event.relationship.id}`, label: event.relationship.relationship_type } : null
+    event.relationship ? { href: `/relationships/${event.relationship.id}`, label: relationshipTypeLabel(event.relationship.relationship_type) } : null
   ].filter(Boolean) as { href: string; label: string }[];
 
   return links;
+}
+
+function relationshipTypeLabel(value: string) {
+  if (value in RELATIONSHIP_TYPE_LABELS) {
+    return RELATIONSHIP_TYPE_LABELS[value as keyof typeof RELATIONSHIP_TYPE_LABELS];
+  }
+  return value;
+}
+
+function userFacingTimelineText(value: string) {
+  return value.replace(/\brecruiting\b/g, relationshipTypeLabel("recruiting"));
 }
 
 function eventIconType(eventType: TimelineEventType) {
@@ -88,7 +100,7 @@ function displayTitle(event: TimelineListItem) {
     return TIMELINE_EVENT_LABELS[event.event_type];
   }
 
-  return event.title;
+  return userFacingTimelineText(event.title);
 }
 
 export function TimelineItem({ event }: { event: TimelineListItem }) {
@@ -106,7 +118,7 @@ export function TimelineItem({ event }: { event: TimelineListItem }) {
           <h3>{displayTitle(event)}</h3>
           <p className="muted">{formatDate(event.occurred_at)} · {authorLabel(event)}</p>
         </div>
-        {event.description ? <p className="chronology-description">{event.description}</p> : null}
+        {event.description ? <p className="chronology-description">{userFacingTimelineText(event.description)}</p> : null}
         <div className="interaction-meta">
           {contextLinks.map((link) => <Link key={link.href} href={link.href}>{link.label}</Link>)}
           {href ? <Link href={href}>Ouvrir l&apos;élément</Link> : <span>Source conservée dans l&apos;historique</span>}

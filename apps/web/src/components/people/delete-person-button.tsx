@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -27,7 +27,7 @@ export function DeletePersonButton({ personId }: { personId: string }) {
       router.push("/people");
       router.refresh();
     } catch {
-      setError("Erreur reseau pendant la suppression de la personne.");
+      setError("Erreur réseau pendant la suppression de la personne.");
     } finally {
       setLoading(false);
     }

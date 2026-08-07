@@ -11,7 +11,7 @@ export default async function NewOrganizationPage() {
     <div className="page stack">
       <header className="page-header">
         <div>
-          <p className="muted">Organizations</p>
+          <p className="muted">Organisations</p>
           <h1>Nouvelle organisation</h1>
         </div>
         <Link className="button subtle-button" href="/organizations">Retour</Link>

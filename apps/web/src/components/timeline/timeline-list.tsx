@@ -8,13 +8,19 @@ type TimelineListProps = {
   result: TimelineListResult;
   basePath: string;
   category: string;
+  hiddenFields?: Record<string, string>;
 };
 
-export function TimelineList({ result, basePath, category }: TimelineListProps) {
+function timelineHref(basePath: string, category: string, page: number, hiddenFields: Record<string, string>) {
+  const params = new URLSearchParams({ ...hiddenFields, timelineCategory: category, timelinePage: String(page) });
+  return `${basePath}?${params.toString()}`;
+}
+
+export function TimelineList({ result, basePath, category, hiddenFields = {} }: TimelineListProps) {
   if (result.events.length === 0) return <TimelineEmptyState />;
 
-  const previousHref = `${basePath}?timelineCategory=${category}&timelinePage=${Math.max(result.page - 1, 1)}`;
-  const nextHref = `${basePath}?timelineCategory=${category}&timelinePage=${Math.min(result.page + 1, result.pageCount)}`;
+  const previousHref = timelineHref(basePath, category, Math.max(result.page - 1, 1), hiddenFields);
+  const nextHref = timelineHref(basePath, category, Math.min(result.page + 1, result.pageCount), hiddenFields);
 
   return (
     <div className="stack">

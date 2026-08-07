@@ -55,7 +55,7 @@ export function TaskStatusButton({ task, nextStatus, children }: TaskStatusButto
 
       router.refresh();
     } catch {
-      setError("Erreur reseau pendant la mise a jour de la tache.");
+      setError("Erreur réseau pendant la mise à jour de la tâche.");
     } finally {
       setLoading(false);
     }

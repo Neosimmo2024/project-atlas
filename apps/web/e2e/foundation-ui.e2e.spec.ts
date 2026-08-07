@@ -32,8 +32,18 @@ test("Projects pages exercise Foundation UI primitives", async ({ page }) => {
   const firstProject = page.locator("a.project-card").first();
   if (await firstProject.count() === 0) test.skip(true, "No project data available to verify detail tabs and confirmations.");
   await firstProject.click();
-  await expect(page.getByRole("navigation", { name: "Onglets Projet" })).toBeVisible();
-  await page.getByRole("link", { name: "Taches" }).click();
+  const projectTabs = page.getByRole("navigation", { name: "Onglets Projet" });
+  await expect(projectTabs).toBeVisible();
+  await expect(projectTabs.getByRole("link", { name: "Vue d’ensemble" })).toBeVisible();
+  await expect(projectTabs.getByRole("link", { name: /T[aâ]ches/ })).toBeVisible();
+  await expect(projectTabs.getByRole("link", { name: "Échanges" })).toBeVisible();
+  await expect(projectTabs.getByRole("link", { name: "Historique" })).toBeVisible();
+  await expectProjectTabsAreSeparated(projectTabs);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(projectTabs).toBeVisible();
+  await expectProjectTabsAreSeparated(projectTabs);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await projectTabs.getByRole("link", { name: /T[aâ]ches/ }).click();
   await expect(page).toHaveURL(/tab=tasks/);
 
   const archive = page.getByRole("button", { name: "Archiver" });
@@ -44,3 +54,17 @@ test("Projects pages exercise Foundation UI primitives", async ({ page }) => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
   }
 });
+
+async function expectProjectTabsAreSeparated(projectTabs: import("@playwright/test").Locator) {
+  const links = projectTabs.getByRole("link");
+  const count = await links.count();
+  expect(count).toBeGreaterThanOrEqual(4);
+
+  for (let index = 0; index < Math.min(count - 1, 3); index += 1) {
+    const current = await links.nth(index).boundingBox();
+    const next = await links.nth(index + 1).boundingBox();
+    expect(current).not.toBeNull();
+    expect(next).not.toBeNull();
+    expect(next!.x - (current!.x + current!.width)).toBeGreaterThanOrEqual(4);
+  }
+}

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -27,7 +27,7 @@ export function DeleteOrganizationButton({ organizationId }: { organizationId: s
       router.push("/organizations");
       router.refresh();
     } catch {
-      setError("Erreur reseau pendant la suppression de l'organisation.");
+      setError("Erreur réseau pendant la suppression de l'organisation.");
     } finally {
       setLoading(false);
     }

@@ -34,13 +34,13 @@ export default async function InteractionsPage({ searchParams }: InteractionsPag
     <div className="page stack">
       <header className="page-header">
         <div>
-          <p className="muted">Chronologie des echanges</p>
-          <h1>Interactions</h1>
+          <p className="muted">Chronologie des échanges</p>
+          <h1>Échanges</h1>
         </div>
-        <Link className="button link-button" href="/interactions/new">Nouvelle interaction</Link>
+        <Link className="button link-button" href="/interactions/new">Nouvel échange</Link>
       </header>
 
-      {valueOf(params, "interactionDeleted") === "1" ? <p className="success">Interaction supprimee.</p> : null}
+      {valueOf(params, "interactionDeleted") === "1" ? <p className="success">Échange supprimé.</p> : null}
       <InteractionFilters query={query} typeId={typeId} types={types} />
       <InteractionList result={result} currentParams={currentParams} />
     </div>

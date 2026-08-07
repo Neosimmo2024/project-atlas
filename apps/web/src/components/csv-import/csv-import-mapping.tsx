@@ -38,7 +38,7 @@ type ExecuteApiResponse = {
 const decisionLabels: Record<CsvImportDecision | "", string> = {
   "": "Decision a prendre",
   create_new: "Considerer comme nouvelle entree",
-  link_existing: "Rattacher a l'enregistrement Atlas",
+  link_existing: "Rattacher à l'enregistrement Atlas",
   ignore_row: "Ignorer la ligne",
   review_later: "Conserver a examiner"
 };
@@ -230,7 +230,7 @@ export function CsvImportMapping() {
 
   return (
     <div className="stack">
-      <ol className="import-steps" aria-label="Etapes de l'import">
+      <ol className="import-steps" aria-label="Étapes de l'import">
         <li className={step !== "upload" ? "done" : "active"}>1. Previsualisation</li>
         <li className={step === "review" || step === "ready" || step === "report" ? "done" : step === "mapping" ? "active" : ""}>2. Correspondance</li>
         <li className={step === "review" ? "active" : step === "ready" || step === "report" ? "done" : ""}>3. Vérification des données</li>
@@ -244,7 +244,7 @@ export function CsvImportMapping() {
             <p>Le fichier est lu pour afficher ses colonnes. Aucune donnée n&apos;est créée dans Atlas.</p>
           </div>
           <label className="button link-button import-file-button">
-            {loading ? "Lecture en cours..." : "Selectionner un CSV"}
+            {loading ? "Lecture en cours..." : "Sélectionner un CSV"}
             <input
               accept=".csv,text/csv"
               disabled={loading}
@@ -457,11 +457,11 @@ export function CsvImportMapping() {
               </div>
               <div className="grid import-review-summary">
                 <Metric label="Personnes créées" value={report.summary.peopleCreated} />
-                <Metric label="Personnes rattachees" value={report.summary.peopleLinked} />
+                <Metric label="Personnes rattachées" value={report.summary.peopleLinked} />
                 <Metric label="Organisations créées" value={report.summary.organizationsCreated} />
-                <Metric label="Organisations rattachees" value={report.summary.organizationsLinked} />
+                <Metric label="Organisations rattachées" value={report.summary.organizationsLinked} />
                 <Metric label="Relations créées" value={report.summary.relationshipsCreated} />
-                <Metric label="Relations rattachees" value={report.summary.relationshipsLinked} />
+                <Metric label="Relations rattachées" value={report.summary.relationshipsLinked} />
                 <Metric label="Lignes ignorees" value={report.summary.rowsIgnored} />
                 <Metric label="A examiner" value={report.summary.rowsReviewLater} />
               </div>

@@ -31,7 +31,7 @@ test.describe("Organizations authenticated flow", () => {
     await page.getByLabel("Nom", { exact: true }).fill(childName);
     await page.getByLabel("Email").fill(`${marker.toLowerCase().replaceAll(" ", ".")}@example.com`);
     await page.getByLabel("SIREN").fill("123 456 789");
-    await page.getByLabel("Reseau parent eventuel").selectOption({ label: parentName });
+    await page.getByLabel("Réseau parent éventuel").selectOption({ label: parentName });
     await page.getByRole("button", { name: "Enregistrer" }).click();
     await expect(page).toHaveURL(/\/organizations\/[^/]+$/);
 
@@ -48,7 +48,7 @@ test.describe("Organizations authenticated flow", () => {
     await page.getByLabel("Nom", { exact: true }).fill(`${childName} duplicate`);
     await page.getByLabel("Email").fill(`${marker.toLowerCase().replaceAll(" ", ".")}@example.com`);
     await page.getByRole("button", { name: "Enregistrer" }).click();
-    await expect(page.getByText("Doublon potentiel detecte")).toBeVisible();
+    await expect(page.getByText("Doublon potentiel détecté")).toBeVisible();
 
     await page.goto(`/organizations?query=${encodeURIComponent(childName)}`);
     await page.getByText(childName).click();

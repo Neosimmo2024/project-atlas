@@ -28,7 +28,7 @@ test.describe("Interactions authenticated flow", () => {
     await page.goto("/interactions/new");
     await page.getByLabel("Personne").selectOption({ label: personName });
     await page.getByLabel("Titre").fill(marker);
-    await page.getByLabel("Resume").fill("Created from Interactions E2E");
+    await page.getByLabel("Résumé").fill("Created from Interactions E2E");
     await page.getByRole("button", { name: "Enregistrer" }).click();
     await expect(page).toHaveURL(/\/interactions\/[^/]+$/);
 

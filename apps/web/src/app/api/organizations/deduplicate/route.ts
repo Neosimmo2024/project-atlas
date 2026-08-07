@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { parseOrganizationInput } from "@/features/organizations/validation";
 import { findPotentialOrganizationDuplicates } from "@/repositories/organizations";
 import { getTenantContext } from "@/repositories/tenant-context";
@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   const parsed = parseOrganizationInput(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Validation failed", fields: parsed.error.issues.map((issue) => ({ field: issue.path.join("."), message: issue.message })) },
+      { error: "Les informations saisies sont invalides.", fields: parsed.error.issues.map((issue) => ({ field: issue.path.join("."), message: issue.message })) },
       { status: 400 }
     );
   }

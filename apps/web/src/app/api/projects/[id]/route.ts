@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { parseProjectPatchInput } from "@/features/projects/validation";
 import { apiErrorResponse } from "@/lib/security/api-errors";
 import { getProjectDetail, patchProject } from "@/repositories/projects";
@@ -8,7 +8,7 @@ type ProjectRouteParams = { params: Promise<{ id: string }> };
 
 function validationErrorResponse(error: { issues: { path: PropertyKey[]; message: string }[] }) {
   return NextResponse.json(
-    { error: "Validation failed", fields: error.issues.map((issue) => ({ field: issue.path.join("."), message: issue.message })) },
+    { error: "Les informations saisies sont invalides.", fields: error.issues.map((issue) => ({ field: issue.path.join("."), message: issue.message })) },
     { status: 400 }
   );
 }

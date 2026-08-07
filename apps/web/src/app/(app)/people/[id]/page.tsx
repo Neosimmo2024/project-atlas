@@ -52,7 +52,7 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
     <div className="page stack">
       <header className="page-header">
         <div>
-          <p className="muted">People</p>
+          <p className="muted">Personnes</p>
           <h1>{person.display_name}</h1>
         </div>
         <SafeBackLink fallbackHref="/people" />
@@ -60,28 +60,28 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
 
       <div className="grid">
         <section className="card stack">
-          <h2>Identite et coordonnees</h2>
-          <p><strong>Prenom</strong><br />{person.first_name ?? "-"}</p>
+          <h2>Identité et coordonnées</h2>
+          <p><strong>Prénom</strong><br />{person.first_name ?? "-"}</p>
           <p><strong>Nom</strong><br />{person.last_name ?? "-"}</p>
           <p><strong>Email</strong><br />{person.primary_email ?? "-"}</p>
-          <p><strong>Telephone</strong><br />{person.primary_phone ?? "-"}</p>
+          <p><strong>Téléphone</strong><br />{person.primary_phone ?? "-"}</p>
           <p><strong>Ville</strong><br />{person.city ?? "-"} {person.postal_code ? `(${person.postal_code})` : ""}</p>
-          <p><strong>Departement</strong><br />{person.department ?? "-"}</p>
+          <p><strong>Département</strong><br />{person.department ?? "-"}</p>
           <p><strong>Fonction</strong><br />{person.job_title ?? "-"}</p>
         </section>
         <section className="card stack">
           <h2>Qualification</h2>
           <p><strong>Statut</strong><br />{PERSON_STATUS_LABELS[person.status]}</p>
-          <p><strong>Priorite</strong><br />{PRIORITY_LABELS[person.priority]}</p>
+          <p><strong>Priorité</strong><br />{PRIORITY_LABELS[person.priority]}</p>
           <p><strong>Score</strong><br />{person.talent_score ?? "-"}</p>
           <p><strong>Source</strong><br />{person.source ?? "-"}</p>
-          <p><strong>Contact autorise</strong><br />{person.contact_allowed ? "Oui" : "Non"}</p>
+          <p><strong>Contact autorisé</strong><br />{person.contact_allowed ? "Oui" : "Non"}</p>
           <p><strong>Ne pas contacter</strong><br />{person.do_not_contact ? "Oui" : "Non"}</p>
         </section>
         <section className="card stack">
           <h2>Dates</h2>
-          <p><strong>Cree le</strong><br />{formatDate(person.created_at)}</p>
-          <p><strong>Modifie le</strong><br />{formatDate(person.updated_at)}</p>
+          <p><strong>Créé le</strong><br />{formatDate(person.created_at)}</p>
+          <p><strong>Modifié le</strong><br />{formatDate(person.updated_at)}</p>
         </section>
       </div>
 
@@ -91,13 +91,13 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
       </section>
 
       <section className="card stack">
-        <h2>Organisations liees</h2>
-        {organizations.length === 0 ? <p className="muted">Aucune organisation liee.</p> : organizations.map((organization) => <p key={organization.id}>{organization.name}</p>)}
+        <h2>Organisations liées</h2>
+        {organizations.length === 0 ? <p className="muted">Aucune organisation liée.</p> : organizations.map((organization) => <p key={organization.id}>{organization.name}</p>)}
       </section>
 
       <section className="card stack">
-        <h2>Relations de recrutement liees</h2>
-        {relationships.length === 0 ? <p className="muted">Aucune relation liee.</p> : relationships.map((relationship) => (
+        <h2>Relations de recrutement liées</h2>
+        {relationships.length === 0 ? <p className="muted">Aucune relation liée.</p> : relationships.map((relationship) => (
           <p key={relationship.id}>{relationship.relationship_type} - {relationship.pipeline_stage} - {relationship.status}</p>
         ))}
       </section>
@@ -109,17 +109,17 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
           <h2>Chronologie</h2>
           <TimelineFilters category={timelineCategory} hiddenFields={{}} />
         </div>
-        {valueOf(query, "interactionDeleted") === "1" ? <p className="success">Interaction supprimee.</p> : null}
+        {valueOf(query, "interactionDeleted") === "1" ? <p className="success">Échange supprimé.</p> : null}
         <TimelineList result={chronology} basePath={`/people/${person.id}`} category={timelineCategory} />
       </section>
 
       <section className="card stack">
         <div className="page-header">
-          <h2>Taches liees</h2>
-          <Link className="button subtle-button" href={`/tasks/new?sourceType=person&sourceId=${person.id}&personId=${person.id}`}>Nouvelle tache</Link>
+          <h2>Tâches liées</h2>
+          <Link className="button subtle-button" href={`/tasks/new?sourceType=person&sourceId=${person.id}&personId=${person.id}`}>Nouvelle tâche</Link>
         </div>
-        {valueOf(query, "taskDeleted") === "1" ? <p className="success">Tache supprimee.</p> : null}
-        {tasks.tasks.length === 0 ? <p className="muted">Aucune tache liee.</p> : tasks.tasks.map((task) => <TaskCard key={task.id} task={task} />)}
+        {valueOf(query, "taskDeleted") === "1" ? <p className="success">Tâche supprimée.</p> : null}
+        {tasks.tasks.length === 0 ? <p className="muted">Aucune tâche liée.</p> : tasks.tasks.map((task) => <TaskCard key={task.id} task={task} />)}
       </section>
 
       <section className="card stack">
@@ -130,7 +130,7 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
       {canDeletePeople(context.role) ? (
         <section className="card stack danger-zone">
           <h2>Suppression</h2>
-          <p>Reservee aux roles owner et admin.</p>
+          <p>Réservée aux rôles owner et admin.</p>
           <DeletePersonButton personId={person.id} />
         </section>
       ) : null}

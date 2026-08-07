@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -39,7 +39,7 @@ export function DeleteInteractionButton({ interactionId, redirectTo = "/interact
 
       router.replace(deletedUrl(redirectTo));
     } catch {
-      setError("Erreur reseau pendant la suppression de l'interaction.");
+      setError("Erreur réseau pendant la suppression de l'interaction.");
     } finally {
       setLoading(false);
     }
