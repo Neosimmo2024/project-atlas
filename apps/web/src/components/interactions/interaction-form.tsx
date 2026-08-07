@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { RELATIONSHIP_PIPELINE_STAGE_LABELS, RELATIONSHIP_TYPE_LABELS } from "@/features/relationships/options";
 import type { Interaction, InteractionType, Organization, Person, Project, Relationship } from "@/types/domain";
 
 type FieldError = { field: string; message: string };
@@ -29,6 +30,12 @@ function toDateTimeLocal(value: string | null | undefined) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   return date.toISOString().slice(0, 16);
+}
+
+function relationshipLabel(relationship: Pick<Relationship, "relationship_type" | "pipeline_stage">) {
+  const type = RELATIONSHIP_TYPE_LABELS[relationship.relationship_type] ?? relationship.relationship_type;
+  const stage = RELATIONSHIP_PIPELINE_STAGE_LABELS[relationship.pipeline_stage] ?? relationship.pipeline_stage;
+  return `${type} - ${stage}`;
 }
 
 function formToPayload(form: HTMLFormElement) {
@@ -148,7 +155,7 @@ export function InteractionForm({ mode, interaction, types, peopleOptions, organ
           <select className="input" name="relationship_id" defaultValue={interaction?.relationship_id ?? defaults?.relationship_id ?? ""}>
             <option value="">Aucune relation</option>
             {relationshipOptions.map((relationship) => (
-              <option key={relationship.id} value={relationship.id}>{relationship.relationship_type} - {relationship.pipeline_stage}</option>
+              <option key={relationship.id} value={relationship.id}>{relationshipLabel(relationship)}</option>
             ))}
           </select>
           <FieldError name="relationship_id" />

@@ -55,6 +55,15 @@ describe("visible UI copy", () => {
     expect(relationshipDetail).toContain("Utilisateur non identifié");
   });
 
+  it("uses French relationship labels in the interaction form selector", () => {
+    const interactionForm = source("src/components/interactions/interaction-form.tsx");
+
+    expect(interactionForm).toContain("relationshipLabel(relationship)");
+    expect(interactionForm).toContain("RELATIONSHIP_TYPE_LABELS");
+    expect(interactionForm).toContain("RELATIONSHIP_PIPELINE_STAGE_LABELS");
+    expect(interactionForm).not.toContain("{relationship.relationship_type} - {relationship.pipeline_stage}");
+  });
+
   it("clarifies the task project field without changing the project attachment control", () => {
     const taskForm = source("src/components/tasks/task-form.tsx");
 
