@@ -65,6 +65,7 @@ describe("visible UI copy", () => {
 
   it("keeps project detail tabs separated and uses French project action labels", () => {
     const projectTabs = source("src/components/projects/project-tabs.tsx");
+    const projectForm = source("src/components/projects/project-form.tsx");
     const projectActions = source("src/components/projects/project-actions.tsx");
     const styles = source("src/app/globals.css");
 
@@ -74,6 +75,10 @@ describe("visible UI copy", () => {
     expect(projectTabs).not.toContain("Vue ensemble");
     expect(projectActions).toContain("Changer d’étape");
     expect(projectActions).not.toContain("Changer étape");
+    expect(projectForm).toContain("relationshipLabel(relationship)");
+    expect(projectForm).toContain("RELATIONSHIP_TYPE_LABELS");
+    expect(projectForm).toContain("RELATIONSHIP_PIPELINE_STAGE_LABELS");
+    expect(projectForm).not.toContain("{relationship.relationship_type} - {relationship.pipeline_stage}");
     expect(styles).toContain(".tabs {");
     expect(styles).toContain("gap: 8px;");
     expect(styles).toContain(".tabs a.active");

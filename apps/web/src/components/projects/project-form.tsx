@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PROJECT_STAGE_LABELS, PROJECT_TYPE_LABELS } from "@/features/projects/options";
+import { RELATIONSHIP_PIPELINE_STAGE_LABELS, RELATIONSHIP_TYPE_LABELS } from "@/features/relationships/options";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { ProjectOwnerOption, ProjectRelationshipOption } from "@/repositories/projects";
@@ -33,6 +34,12 @@ function valueOrEmpty(value: string | number | Record<string, unknown> | null | 
 function dateValue(value: string | null | undefined) {
   if (!value) return "";
   return new Date(value).toISOString().slice(0, 10);
+}
+
+function relationshipLabel(relationship: ProjectRelationshipOption) {
+  const type = RELATIONSHIP_TYPE_LABELS[relationship.relationship_type] ?? relationship.relationship_type;
+  const stage = RELATIONSHIP_PIPELINE_STAGE_LABELS[relationship.pipeline_stage] ?? relationship.pipeline_stage;
+  return `${type} - ${stage}`;
 }
 
 function formToPayload(form: HTMLFormElement) {
@@ -185,7 +192,7 @@ export function ProjectForm({ mode, project, defaults, peopleOptions, organizati
             Relation
             <select className="input" name="relationship_id" value={relationshipId} onChange={(event) => onRelationshipChange(event.target.value)}>
               <option value="">Aucune relation</option>
-              {relationshipOptions.map((relationship) => <option key={relationship.id} value={relationship.id}>{relationship.relationship_type} - {relationship.pipeline_stage}</option>)}
+              {relationshipOptions.map((relationship) => <option key={relationship.id} value={relationship.id}>{relationshipLabel(relationship)}</option>)}
             </select>
             <FieldError name="relationship_id" />
           </label>
