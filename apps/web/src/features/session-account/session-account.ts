@@ -5,6 +5,7 @@ export type SessionAccountSummary = {
   identityLabel: string;
   tenantLabel: string;
   roleLabel: string;
+  role: RoleSlug | null;
 };
 
 const ROLE_LABELS: Record<RoleSlug, string> = {
@@ -44,6 +45,7 @@ export function sessionAccountSummary(input: {
     statusLabel: "Connecté",
     identityLabel: accountIdentityLabel(input.fullName, input.email),
     tenantLabel: tenantDisplayLabel(input.tenantName),
-    roleLabel: roleDisplayLabel(input.role)
+    roleLabel: roleDisplayLabel(input.role),
+    role: input.role ?? null
   };
 }

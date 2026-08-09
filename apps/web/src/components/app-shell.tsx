@@ -6,9 +6,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-const navItems = [
+const navItems: Array<{ href: string; label: string; adminOnly?: boolean }> = [
   { href: "/dashboard", label: "Tableau de bord" },
   { href: "/action-plan", label: "Plan d’action" },
+  { href: "/admin/team", label: "Administration de l’équipe", adminOnly: true },
   { href: "/people", label: "Personnes" },
   { href: "/organizations", label: "Organisations" },
   { href: "/relationships", label: "Relations" },
@@ -66,6 +67,7 @@ function AccountIndicator({ account }: { account: SessionAccountSummary | null }
 export function AppShell({ children, account }: { children: React.ReactNode; account: SessionAccountSummary | null }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const visibleNavItems = navItems.filter((item) => !item.adminOnly || account?.role === "owner" || account?.role === "admin");
 
   useEffect(() => {
     setMenuOpen(false);
@@ -105,7 +107,7 @@ export function AppShell({ children, account }: { children: React.ReactNode; acc
           <p className="brand">Project Atlas</p>
           <p className="muted">Talent CRM</p>
         </div>
-        <nav>{navItems.map((item) => <Link key={item.href} href={item.href}>{item.label}</Link>)}</nav>
+        <nav>{visibleNavItems.map((item) => <Link key={item.href} href={item.href}>{item.label}</Link>)}</nav>
         <AccountIndicator account={account} />
         <button className="button subtle-button sidebar-close" type="button" onClick={() => setMenuOpen(false)}>Fermer</button>
       </aside>

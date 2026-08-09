@@ -42,4 +42,4 @@
 - [x] Grille GO/NO-GO beta
 - [x] Recette humaine complete sur preview automatique
 - [x] UX centrale du Plan d'action
-- [ ] Administration tenants/utilisateurs
+- [x] Administration tenants/utilisateurs

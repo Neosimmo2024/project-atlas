@@ -20,7 +20,8 @@ describe("session account indicator", () => {
       statusLabel: "Connecté",
       identityLabel: "Ada Lovelace",
       tenantLabel: "Atlas Test Tenant",
-      roleLabel: "Propriétaire"
+      roleLabel: "Propriétaire",
+      role: "owner"
     });
   });
 
@@ -41,6 +42,8 @@ describe("session account indicator", () => {
     expect(shell).toContain("Compte utilisateur connecté");
     expect(shell).toContain("account-status-dot");
     expect(shell).toContain("Se déconnecter");
+    expect(shell).toContain("/admin/team");
+    expect(shell).toContain("account?.role === \"owner\"");
     expect(shell).toContain("supabase.auth.signOut()");
     expect(shell).toContain('router.replace("/login")');
     expect(shell).toContain("router.refresh()");

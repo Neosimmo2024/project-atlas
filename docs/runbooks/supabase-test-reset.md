@@ -30,7 +30,7 @@ to:
 2. checkout the exact human-reviewed commit SHA supplied as `authorized_sha`;
 3. fetch repository history for that checkout and verify that it is based on the
    validated main SHA;
-4. verify that the migration set is exactly `0001` through `0014`;
+4. verify that the migration set is exactly `0001` through `0015`;
 5. install a pinned Supabase CLI version;
 6. link only the authorized Supabase project;
 7. configure PostgreSQL checks through the locked IPv4 Session Pooler with SSL
@@ -254,7 +254,7 @@ Do not put the password in GitHub Actions, Git, chat, or screenshots.
 
 The workflow verifies:
 
-- migration history includes `0001` through `0014`;
+- migration history includes `0001` through `0015`;
 - core tables are present;
 - `public.projects` exists;
 - `public.recruitment_pipeline_events` exists;
@@ -277,7 +277,7 @@ The workflow stops before reset if:
 - a required secret is missing;
 - the checked-out commit is not exactly `authorized_sha`;
 - the checked-out commit is not based on the validated main SHA;
-- the migration set is not exactly `0001` through `0014`;
+- the migration set is not exactly `0001` through `0015`;
 - the pre-reset table counts differ from the exact authorized snapshot.
 
 After reset starts, the workflow uses `set -euo pipefail` and `ON_ERROR_STOP=1`.
@@ -315,7 +315,7 @@ secrets, and does not contact a remote Supabase host.
 
 The simulation covers:
 
-- canonical migrations `0001` through `0014` from a local database;
+- canonical migrations `0001` through `0015` from a local database;
 - creation of a fictitious pre-reset snapshot with the exact authorized counts;
 - strict equality guards for lower values, higher values, unexpected zero,
   missing/NULL observations, Storage buckets, Storage objects, and Auth user

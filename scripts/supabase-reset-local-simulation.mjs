@@ -21,7 +21,9 @@ export const EXPECTED_MIGRATIONS = [
   "0011_csv_import_execution.sql",
   "0012_csv_import_safe_cancellation.sql",
   "0013_csv_import_relationships_pipeline.sql",
-  "0014_organization_vat_status.sql"
+  "0014_organization_vat_status.sql",
+  "0015_tenant_user_administration.sql",
+  "0016_tenant_member_listing.sql"
 ];
 export const EXPECTED_COUNTS = Object.freeze({
   "auth.users": 1,
@@ -352,7 +354,7 @@ function verifyMigrationSet() {
   const actual = migrations.join("\n");
   const expected = EXPECTED_MIGRATIONS.join("\n");
   if (actual !== expected) {
-    throw new Error("Migration set is not exactly 0001 through 0014.");
+    throw new Error("Migration set is not exactly 0001 through 0016.");
   }
 }
 
@@ -569,13 +571,13 @@ declare
 begin
   select count(*)
   into missing_version_count
-  from unnest(array['0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011','0012','0013','0014']) as version_prefix
+  from unnest(array['0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011','0012','0013','0014','0015','0016']) as version_prefix
   where not exists (
     select 1 from supabase_migrations.schema_migrations sm
     where sm.version like version_prefix || '%'
   );
   if missing_version_count > 0 then
-    raise exception 'Expected migration history 0001 through 0014 is incomplete.';
+    raise exception 'Expected migration history 0001 through 0016 is incomplete.';
   end if;
 
   select count(*)
@@ -681,6 +683,15 @@ begin
   end if;
   if has_function_privilege('anon', 'public.cancel_csv_import(uuid, uuid, text, uuid, boolean)', 'execute') then
     raise exception 'anon role must not execute cancel_csv_import.';
+  end if;
+  if not has_function_privilege('authenticated', 'public.list_tenant_members_for_admin()', 'execute') then
+    raise exception 'authenticated role cannot execute list_tenant_members_for_admin.';
+  end if;
+  if has_function_privilege('anon', 'public.list_tenant_members_for_admin()', 'execute') then
+    raise exception 'anon role must not execute list_tenant_members_for_admin.';
+  end if;
+  if not has_function_privilege('service_role', 'public.list_tenant_members_for_admin()', 'execute') then
+    raise exception 'service_role cannot execute list_tenant_members_for_admin.';
   end if;
 end $$;
 notify pgrst, 'reload schema';

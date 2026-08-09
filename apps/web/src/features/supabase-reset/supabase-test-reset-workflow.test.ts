@@ -95,7 +95,7 @@ describe("Supabase test reset workflow", () => {
     }
   });
 
-  it("requires exactly canonical migrations 0001 through 0014", () => {
+  it("requires exactly canonical migrations 0001 through 0016", () => {
     const migrations = readdirSync(resolve(root, "supabase/migrations")).filter((name) => name.endsWith(".sql")).sort();
     expect(migrations).toEqual([
       "0001_core.sql",
@@ -111,9 +111,11 @@ describe("Supabase test reset workflow", () => {
       "0011_csv_import_execution.sql",
       "0012_csv_import_safe_cancellation.sql",
       "0013_csv_import_relationships_pipeline.sql",
-      "0014_organization_vat_status.sql"
+      "0014_organization_vat_status.sql",
+      "0015_tenant_user_administration.sql",
+      "0016_tenant_member_listing.sql"
     ]);
-    expect(workflow).toContain("Refusing reset: migration set is not exactly 0001 through 0014.");
+    expect(workflow).toContain("Refusing reset: migration set is not exactly 0001 through 0016.");
   });
 
   it("verifies the CSV import execution schema and RPC privileges after reset", () => {
@@ -127,6 +129,9 @@ describe("Supabase test reset workflow", () => {
     expect(workflow).toContain("authenticated role must not insert public.csv_import_cancellations directly.");
     expect(workflow).toContain("authenticated role cannot execute cancel_csv_import.");
     expect(workflow).toContain("anon role must not execute cancel_csv_import.");
+    expect(workflow).toContain("authenticated role cannot execute list_tenant_members_for_admin.");
+    expect(workflow).toContain("anon role must not execute list_tenant_members_for_admin.");
+    expect(workflow).toContain("service_role cannot execute list_tenant_members_for_admin.");
   });
 
   it("stops unless the exact authorized pre-reset snapshot matches", () => {
