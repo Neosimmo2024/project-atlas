@@ -277,5 +277,8 @@ describe("Supabase reset local simulation guards", () => {
     expect(source).toContain("authenticated role must not insert public.csv_import_cancellations directly.");
     expect(source).toContain("authenticated role cannot execute cancel_csv_import.");
     expect(source).toContain("anon role must not execute cancel_csv_import.");
+    expect(source).toContain("authenticated role cannot execute list_tenant_members_for_admin.");
+    expect(source).toContain("anon role must not execute list_tenant_members_for_admin.");
+    expect(source).toContain("service_role cannot execute list_tenant_members_for_admin.");
   });
 });

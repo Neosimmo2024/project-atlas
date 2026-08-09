@@ -22,6 +22,13 @@ if (hasIntegrationEnv) {
 
 type TestUser = { email: string; password: string };
 type UserFixture = { client: SupabaseClient; userId: string; tenantId: string };
+type TenantMemberListing = {
+  user_id: string;
+  full_name: string | null;
+  email: string | null;
+  role_slug: string;
+  status: string;
+};
 
 function clientFor(key: string) {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, key, {
@@ -138,6 +145,72 @@ describeIntegration("tenant administration RLS integration", () => {
     const reactivate = await ownerA.client.rpc("manage_tenant_member", { p_target_user_id: recruiterA.userId, p_action: "reactivate", p_role_slug: null });
     expect(reactivate.error).toBeNull();
     expect(await membership(recruiterA.userId)).toMatchObject({ status: "active" });
+  });
+
+  it("allows only active owners and admins to list same-tenant members with public profile fields", async () => {
+    const ownerList = await ownerA.client.rpc("list_tenant_members_for_admin");
+    expect(ownerList.error).toBeNull();
+    const ownerMembers = (ownerList.data ?? []) as TenantMemberListing[];
+    expect(ownerMembers.some((member) => member.user_id === adminA.userId)).toBe(true);
+    expect(ownerMembers.some((member) => member.user_id === ownerB.userId)).toBe(false);
+    expect(Object.keys(ownerList.data?.[0] ?? {}).sort()).toEqual(["email", "full_name", "role_slug", "status", "user_id"]);
+
+    const adminList = await adminA.client.rpc("list_tenant_members_for_admin");
+    expect(adminList.error).toBeNull();
+    const adminMembers = (adminList.data ?? []) as TenantMemberListing[];
+    expect(adminMembers.some((member) => member.user_id === ownerA.userId)).toBe(true);
+
+    const recruiterList = await recruiterA.client.rpc("list_tenant_members_for_admin");
+    expect(recruiterList.error).not.toBeNull();
+
+    const managerA = await createTenantMember(tenantA.tenantId, "manager");
+    const managerList = await managerA.client.rpc("list_tenant_members_for_admin");
+    expect(managerList.error).not.toBeNull();
+
+    const readerA = await createTenantMember(tenantA.tenantId, "reader");
+    const readerList = await readerA.client.rpc("list_tenant_members_for_admin");
+    expect(readerList.error).not.toBeNull();
+
+    const suspendedOwner = await createTenantMember(tenantA.tenantId, "owner", "suspended");
+    const suspendedList = await suspendedOwner.client.rpc("list_tenant_members_for_admin");
+    expect(suspendedList.error).not.toBeNull();
+
+    const anonList = await clientFor(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!).rpc("list_tenant_members_for_admin");
+    expect(anonList.error).not.toBeNull();
+  });
+
+  it("refuses tenant member listing when a user is not attached or has ambiguous active tenants", async () => {
+    const email = `${marker}-detached-${randomUUID()}@atlas.local.test`;
+    const password = `Atlas-${randomUUID()}-Aa1!`;
+    const { data, error } = await serviceClient().auth.admin.createUser({ email, password, email_confirm: true });
+    if (error || !data.user?.id) throw error ?? new Error("Missing detached user");
+
+    const detachedClient = await supabaseForUser({ email, password });
+    const detachedList = await detachedClient.rpc("list_tenant_members_for_admin");
+    expect(detachedList.error).not.toBeNull();
+
+    const ambiguousEmail = `${marker}-ambiguous-${randomUUID()}@atlas.local.test`;
+    const ambiguousPassword = `Atlas-${randomUUID()}-Aa1!`;
+    const ambiguousUser = await serviceClient().auth.admin.createUser({
+      email: ambiguousEmail,
+      password: ambiguousPassword,
+      email_confirm: true
+    });
+    if (ambiguousUser.error || !ambiguousUser.data.user?.id) {
+      throw ambiguousUser.error ?? new Error("Missing ambiguous user");
+    }
+
+    const secondTenantId = await createTenant(`${marker} second active tenant`);
+    const ownerRoleId = await roleId("owner");
+    const { error: ambiguousMembershipError } = await serviceClient().from("tenant_users").insert([
+      { tenant_id: tenantA.tenantId, user_id: ambiguousUser.data.user.id, role_id: ownerRoleId, status: "active" },
+      { tenant_id: secondTenantId, user_id: ambiguousUser.data.user.id, role_id: ownerRoleId, status: "active" }
+    ]);
+    if (ambiguousMembershipError) throw ambiguousMembershipError;
+
+    const ambiguousClient = await supabaseForUser({ email: ambiguousEmail, password: ambiguousPassword });
+    const ambiguousList = await ambiguousClient.rpc("list_tenant_members_for_admin");
+    expect(ambiguousList.error).not.toBeNull();
   });
 
   it("limits admins, rejected actors, invited rows and cross-tenant targets", async () => {

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const repoRoot = join(process.cwd(), "../..");
 const migration = readFileSync(join(repoRoot, "supabase/migrations/0015_tenant_user_administration.sql"), "utf8");
+const listingMigration = readFileSync(join(repoRoot, "supabase/migrations/0016_tenant_member_listing.sql"), "utf8");
 
 describe("tenant user administration migration", () => {
   it("removes broad direct authenticated mutations and keeps member reads policy separate", () => {
@@ -30,5 +31,23 @@ describe("tenant user administration migration", () => {
     expect(migration).toContain("TENANT_MEMBER_SELF_SUSPEND_FORBIDDEN");
     expect(migration).not.toMatch(/\bdelete\s+from\s+public\.tenant_users/i);
     expect(migration).not.toMatch(/\binsert\s+into\s+public\.tenant_users/i);
+  });
+
+  it("adds a secure tenant member listing RPC without widening profiles RLS", () => {
+    expect(listingMigration).toContain("create or replace function public.list_tenant_members_for_admin()");
+    expect(listingMigration).toContain("security definer");
+    expect(listingMigration).toContain("set search_path = public, pg_temp");
+    expect(listingMigration).toContain("v_actor_user_id uuid := auth.uid()");
+    expect(listingMigration).toContain("v_active_membership_count <> 1");
+    expect(listingMigration).toContain("v_actor_role not in ('owner', 'admin')");
+    expect(listingMigration).toContain("where tu.tenant_id = v_actor_tenant_id");
+    expect(listingMigration).toContain("revoke all on function public.list_tenant_members_for_admin() from public");
+    expect(listingMigration).toContain("revoke all on function public.list_tenant_members_for_admin() from anon");
+    expect(listingMigration).toContain("grant execute on function public.list_tenant_members_for_admin() to authenticated, service_role");
+    expect(listingMigration).not.toMatch(/create policy .*profiles/i);
+    expect(listingMigration).not.toMatch(/alter policy .*profiles/i);
+    expect(listingMigration).not.toMatch(/\binsert\s+into\b/i);
+    expect(listingMigration).not.toMatch(/\bupdate\s+public\./i);
+    expect(listingMigration).not.toMatch(/\bdelete\s+from\b/i);
   });
 });
