@@ -8,6 +8,7 @@ type SafeBackLinkProps = {
   fallbackHref: string;
   children?: ReactNode;
   className?: string;
+  useHistory?: boolean;
 };
 
 function isInternalPreviousPage() {
@@ -20,7 +21,7 @@ function isInternalPreviousPage() {
   }
 }
 
-export function SafeBackLink({ fallbackHref, children = "Retour", className = "button subtle-button" }: SafeBackLinkProps) {
+export function SafeBackLink({ fallbackHref, children = "Retour", className = "button subtle-button", useHistory = true }: SafeBackLinkProps) {
   const router = useRouter();
 
   return (
@@ -28,6 +29,7 @@ export function SafeBackLink({ fallbackHref, children = "Retour", className = "b
       className={className}
       href={fallbackHref}
       onClick={(event) => {
+        if (!useHistory) return;
         if (!isInternalPreviousPage()) return;
         event.preventDefault();
         router.back();

@@ -46,4 +46,13 @@ describe("central action plan page source", () => {
     expect(component).not.toContain("Convertir");
     expect(component).toContain("actionPlanItemLinkLabel(item)");
   });
+
+  it("preserves the selected organization when opening a task recommendation", () => {
+    const component = source("src/components/action-plan/action-plan-page-client.tsx");
+    const ui = source("src/features/action-plan/action-plan-ui.ts");
+
+    expect(component).toContain('`/action-plan?organizationId=${encodeURIComponent(item.organizationId)}`');
+    expect(component).toContain("actionPlanItemHref(item, returnTo)");
+    expect(ui).toContain("returnTo ? `${href}?returnTo=${encodeURIComponent(returnTo)}` : href");
+  });
 });

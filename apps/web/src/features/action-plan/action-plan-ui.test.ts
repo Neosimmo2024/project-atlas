@@ -58,6 +58,7 @@ describe("action plan UI helpers", () => {
 
   it("links consultation cards to the existing source detail pages", () => {
     expect(actionPlanItemHref(item())).toBe("/tasks/task-1");
+    expect(actionPlanItemHref(item(), "/action-plan?organizationId=organization-1")).toBe("/tasks/task-1?returnTo=%2Faction-plan%3ForganizationId%3Dorganization-1");
     expect(actionPlanItemLinkLabel(item())).toBe("Ouvrir la tâche");
     expect(actionPlanItemHref(item({ sourceType: "relationship_recommendation", sourceId: "relationship-1" }))).toBe("/relationships/relationship-1");
     expect(actionPlanItemLinkLabel(item({ sourceType: "relationship_recommendation" }))).toBe("Ouvrir la relation");

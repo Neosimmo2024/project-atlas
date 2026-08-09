@@ -46,8 +46,11 @@ export function actionPlanReasonLabel(reason: ActionPlanReason) {
   }
 }
 
-export function actionPlanItemHref(item: ActionPlanItem) {
-  if (item.sourceType === "task") return `/tasks/${item.sourceId}`;
+export function actionPlanItemHref(item: ActionPlanItem, returnTo?: string) {
+  if (item.sourceType === "task") {
+    const href = `/tasks/${item.sourceId}`;
+    return returnTo ? `${href}?returnTo=${encodeURIComponent(returnTo)}` : href;
+  }
   if (item.sourceType === "relationship_recommendation") return `/relationships/${item.sourceId}`;
   return null;
 }

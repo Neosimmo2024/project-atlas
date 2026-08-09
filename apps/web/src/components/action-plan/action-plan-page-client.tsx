@@ -172,7 +172,8 @@ export function ActionPlanPageClient({ organizations, initialOrganizationId = ""
 }
 
 function ActionPlanCard({ item }: { item: ActionPlanItem }) {
-  const href = actionPlanItemHref(item);
+  const returnTo = item.organizationId ? `/action-plan?organizationId=${encodeURIComponent(item.organizationId)}` : "/action-plan";
+  const href = actionPlanItemHref(item, returnTo);
   const dueDate = formatActionPlanDate(item.dueAt);
 
   return (
