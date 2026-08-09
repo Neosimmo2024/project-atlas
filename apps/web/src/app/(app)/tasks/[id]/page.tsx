@@ -5,6 +5,7 @@ import { SafeBackLink } from "@/components/navigation/safe-back-link";
 import { TaskForm } from "@/components/tasks/task-form";
 import { TaskStatusButton } from "@/components/tasks/task-status-button";
 import { TASK_PRIORITY_LABELS, TASK_STATUS_LABELS } from "@/features/tasks/options";
+import { safeTaskReturnTo } from "@/features/tasks/task-detail-return";
 import { canDeleteTasks } from "@/features/tasks/search";
 import {
   getTaskDetail,
@@ -18,6 +19,7 @@ import { getTenantContext } from "@/repositories/tenant-context";
 
 type TaskDetailPageProps = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 function formatDate(value: string | null) {
@@ -25,8 +27,14 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
-export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
+function valueOf(params: Record<string, string | string[] | undefined>, key: string) {
+  const value = params[key];
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+}
+
+export default async function TaskDetailPage({ params, searchParams }: TaskDetailPageProps) {
   const { id } = await params;
+  const query = await searchParams;
   const context = await getTenantContext();
   if (!context) notFound();
 
@@ -34,6 +42,7 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
   if (!detail) notFound();
 
   const { task, person, organization, relationship, interaction, project } = detail;
+  const returnTo = safeTaskReturnTo(valueOf(query, "returnTo"));
   const [peopleOptions, organizationOptions, relationshipOptions, interactionOptions, projectOptions] = await Promise.all([
     listTaskPeopleOptions(context),
     listTaskOrganizationOptions(context),
@@ -49,7 +58,7 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
           <p className="muted">Tâches intelligentes</p>
           <h1>{task.title}</h1>
         </div>
-        <SafeBackLink fallbackHref="/tasks" />
+        <SafeBackLink fallbackHref={returnTo} useHistory={returnTo === "/tasks"} />
       </header>
 
       <div className="grid">
