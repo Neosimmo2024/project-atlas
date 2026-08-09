@@ -59,6 +59,13 @@ function organizationQuery(data: unknown) {
   return { select: vi.fn().mockReturnValue({ eq: eqTenant }), eqTenant, eqId, maybeSingle };
 }
 
+function organizationListQuery(data: unknown[]) {
+  const limit = vi.fn().mockResolvedValue({ data, error: null });
+  const order = vi.fn().mockReturnValue({ limit });
+  const eqTenant = vi.fn().mockReturnValue({ order });
+  return { select: vi.fn().mockReturnValue({ eq: eqTenant }), eqTenant, order, limit };
+}
+
 function relationshipsQuery(data: unknown[]) {
   const result = pagedResult(data);
   const order = vi.fn().mockReturnValue(result);
@@ -217,5 +224,26 @@ describe("action plan repository", () => {
     await getActionPlanForUser(context, { organizationId: "organization-1" });
 
     expect(tasks.or).toHaveBeenCalledWith("organization_id.eq.organization-1,relationship_id.in.(relationship-paused)");
+  });
+
+  it("lists tenant-scoped organization options for the central action plan selector", async () => {
+    const organizations = organizationListQuery([
+      { id: "organization-1", name: "Organisation A", status: "active" },
+      { id: "organization-2", name: "Organisation B", status: "inactive" }
+    ]);
+    mocks.fromMock.mockReturnValueOnce(organizations);
+    const { listActionPlanOrganizations } = await import("../../repositories/action-plan");
+
+    const result = await listActionPlanOrganizations(context);
+
+    expect(result).toEqual([
+      { id: "organization-1", name: "Organisation A", status: "active" },
+      { id: "organization-2", name: "Organisation B", status: "inactive" }
+    ]);
+    expect(mocks.fromMock).toHaveBeenCalledWith("organizations");
+    expect(organizations.select).toHaveBeenCalledWith("id,name,status");
+    expect(organizations.eqTenant).toHaveBeenCalledWith("tenant_id", "tenant-a");
+    expect(organizations.order).toHaveBeenCalledWith("name", { ascending: true });
+    expect(organizations.limit).toHaveBeenCalledWith(200);
   });
 });

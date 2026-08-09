@@ -138,6 +138,76 @@ button, input, select, textarea { font: inherit; }
 .import-row-table { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .import-row-table .card { display: grid; gap: 4px; }
 .import-row-table h3, .import-row-table p { margin: 0; overflow-wrap: anywhere; }
+.action-plan-page { max-width: 1180px; }
+.action-plan-layout { display: grid; gap: 16px; }
+.action-plan-selector {
+  display: grid;
+  align-items: end;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.45fr);
+}
+.action-plan-selector h2,
+.action-plan-selector p,
+.action-plan-context strong,
+.action-plan-card h3,
+.action-plan-card p,
+.action-plan-category-heading h2,
+.action-plan-category-heading p { margin: 0; }
+.action-plan-select-label { display: grid; gap: 6px; font-weight: 700; }
+.action-plan-select { width: 100%; }
+.action-plan-context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbfa;
+  padding: 12px 14px;
+}
+.action-plan-results { display: grid; gap: 18px; }
+.action-plan-category {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+.action-plan-category-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.action-plan-card-list { display: grid; gap: 12px; }
+.action-plan-card { display: grid; gap: 14px; }
+.action-plan-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.action-plan-card-header h3 { margin-top: 3px; font-size: 18px; }
+.action-plan-card-meta {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+.action-plan-card-meta div {
+  display: grid;
+  gap: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbfa;
+  padding: 10px 12px;
+}
+.action-plan-card-meta dt,
+.action-plan-reasons h4 { color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; }
+.action-plan-card-meta dd,
+.action-plan-reasons ul { margin: 0; }
+.action-plan-reasons { display: grid; gap: 8px; }
+.action-plan-reasons ul { display: grid; gap: 6px; padding-left: 18px; }
+.action-plan-empty-category { border: 1px dashed var(--line); border-radius: 8px; padding: 12px 14px; }
 .import-cancellation-panel { display: grid; gap: 16px; }
 .import-cancellation-panel h2, .import-cancellation-panel p { margin: 0; }
 .import-cancellation-result { border: 1px solid #abefc6; border-radius: 8px; background: #ecfdf3; color: #067647; padding: 12px 14px; }
@@ -756,6 +826,10 @@ button, input, select, textarea { font: inherit; }
   .pipeline-table { display: none; }
   .pipeline-list-cards { display: grid; gap: 12px; }
   .pipeline-meta-row { grid-template-columns: 1fr; }
+  .action-plan-selector,
+  .action-plan-card-meta { grid-template-columns: 1fr; }
+  .action-plan-category-heading,
+  .action-plan-card-header { align-items: stretch; flex-direction: column; }
   .import-steps { grid-template-columns: 1fr; }
   .import-upload, .import-actions { align-items: stretch; flex-direction: column; }
   .import-file-summary, .import-mapping-row, .import-review-heading, .import-review-values, .import-history-card, .import-detail-summary, .import-row-table, .import-cancellation-columns { grid-template-columns: 1fr; }

@@ -1,6 +1,6 @@
 import { buildActionPlan } from "@/features/action-plan/engine";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { ActionPlanDecision, ActionPlanItem, Interaction, Relationship, Task, TenantContext } from "@/types/domain";
+import type { ActionPlanDecision, ActionPlanItem, Interaction, Organization, Relationship, Task, TenantContext } from "@/types/domain";
 
 const ACTION_PLAN_PAGE_SIZE = 1000;
 
@@ -8,6 +8,8 @@ export type ActionPlanRequest = {
   organizationId: string;
   now?: Date;
 };
+
+export type ActionPlanOrganizationOption = Pick<Organization, "id" | "name" | "status">;
 
 type PagedQuery<T> = {
   range: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>;
@@ -27,6 +29,19 @@ async function fetchAllPages<T>(query: PagedQuery<T>) {
       return rows;
     }
   }
+}
+
+export async function listActionPlanOrganizations(context: TenantContext): Promise<ActionPlanOrganizationOption[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("organizations")
+    .select("id,name,status")
+    .eq("tenant_id", context.tenantId)
+    .order("name", { ascending: true })
+    .limit(200);
+
+  if (error) throw error;
+  return (data ?? []) as ActionPlanOrganizationOption[];
 }
 
 export async function getActionPlanForUser(context: TenantContext, request: ActionPlanRequest): Promise<ActionPlanItem[]> {

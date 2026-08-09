@@ -22,6 +22,7 @@ describe("visible UI copy", () => {
     const peoplePage = source("src/app/(app)/people/page.tsx");
 
     expect(shell).toContain('{ href: "/dashboard", label: "Tableau de bord" }');
+    expect(shell).toContain('{ href: "/action-plan", label: "Plan d’action" }');
     expect(shell).toContain('{ href: "/people", label: "Personnes" }');
     expect(shell).toContain('{ href: "/organizations", label: "Organisations" }');
     expect(shell).toContain('{ href: "/projects", label: "Projets" }');

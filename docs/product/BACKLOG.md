@@ -40,6 +40,6 @@
 - [x] Statut TVA facultatif porte par Organization
 - [x] Recette metier CSV -> People -> Organizations -> Relationships -> Pipeline
 - [x] Grille GO/NO-GO beta
-- [ ] Recette humaine complete sur preview automatique
-- [ ] UX centrale du Plan d'action
+- [x] Recette humaine complete sur preview automatique
+- [x] UX centrale du Plan d'action
 - [ ] Administration tenants/utilisateurs

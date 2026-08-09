@@ -13,6 +13,7 @@ Le moteur est deterministe, testable sans React et n'utilise pas d'IA en V1.
 - Configuration des scores : `apps/web/src/features/action-plan/config.ts`.
 - Repository serveur : `apps/web/src/repositories/action-plan.ts`.
 - API minimale : `GET /api/action-plan`.
+- Interface consultative : `/action-plan`.
 
 Le repository valide toujours l'organisation demandee dans le tenant courant avant de charger les donnees. Les taches sont filtrees en base sur l'organisation demandee et sur les relations actives de cette organisation ; le resultat ne depend pas d'une limite globale de tenant appliquee avant le filtrage metier. Les interactions liees aux relations actives sont aussi chargees sans limite arbitraire afin de determiner correctement le dernier echange.
 
@@ -166,6 +167,20 @@ Chaque item contient :
 - action principale ;
 - actions disponibles.
 
+## Interface React V1
+
+La premiere UX dediee du Plan d'action est consultative et disponible sur `/action-plan`.
+
+Elle permet :
+
+- de selectionner une organisation avant tout affichage ;
+- d'afficher uniquement les recommandations de cette organisation ;
+- de classer les recommandations par categorie existante ;
+- de lire le score, les raisons et les echeances en francais ;
+- d'ouvrir l'element source quand il existe.
+
+Elle ne permet aucune mutation : pas de terminaison, report, annulation, ignore, conversion en tache ou creation de donnee depuis cette interface.
+
 ## RLS et securite
 
 - `action_plan_decisions` active RLS.
@@ -177,7 +192,6 @@ Chaque item contient :
 
 ## Limites V1
 
-- Pas d'interface React dediee.
 - Pas de mutations UI pour terminer ou reporter.
 - Pas de creation automatique de taches depuis recommandations.
 - Pas d'evenement de Chronologie artificiel pour les recommandations.
@@ -186,7 +200,6 @@ Chaque item contient :
 
 ## Evolutions V2
 
-- Page "Mon Plan d'action".
 - Mutations utilisateur : terminer, reporter, convertir en tache.
 - Explications visuelles des raisons.
 - Preferences de score par tenant ou utilisateur.
