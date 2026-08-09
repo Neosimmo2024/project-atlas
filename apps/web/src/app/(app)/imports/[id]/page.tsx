@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CsvImportCancellationButton } from "@/components/csv-import/csv-import-cancellation-button";
 import { csvImportCancellationReasonLabels, csvImportCancellationStatusLabels } from "@/features/csv-import/csv-import-history";
@@ -54,10 +54,10 @@ export default async function ImportDetailPage({ params }: ImportDetailPageProps
 
       <section className="grid import-review-summary">
         <Metric label="Lignes" value={detail.run.total_rows} />
-        <Metric label="People créées" value={detail.run.people_created} />
-        <Metric label="People rattachees" value={detail.run.people_linked} />
-        <Metric label="Organizations créées" value={detail.run.organizations_created} />
-        <Metric label="Organizations rattachees" value={detail.run.organizations_linked} />
+        <Metric label="Personnes créées" value={detail.run.people_created} />
+        <Metric label="Personnes rattachées" value={detail.run.people_linked} />
+        <Metric label="Organisations créées" value={detail.run.organizations_created} />
+        <Metric label="Organisations rattachées" value={detail.run.organizations_linked} />
         <Metric label="Relations créées" value={detail.run.relationships_created} />
         <Metric label="Rejetees" value={detail.run.rows_rejected} />
       </section>
@@ -85,7 +85,7 @@ export default async function ImportDetailPage({ params }: ImportDetailPageProps
 
       <section className="stack">
         <header>
-          <h2>Elements seulement rattaches</h2>
+          <h2>Éléments seulement rattachés</h2>
           <p className="muted">Ces données existaient déjà et ne seront jamais supprimées par l&apos;annulation.</p>
         </header>
         <Rows rows={linkedRows} empty="Aucun rattachement." />
@@ -104,8 +104,8 @@ export default async function ImportDetailPage({ params }: ImportDetailPageProps
           <p className="muted">Les éléments non supprimables restent conservés avec leur motif.</p>
         </header>
         <div className="import-cancellation-columns">
-          <CancellationList title="People" items={detail.eligibility.people} />
-          <CancellationList title="Organizations" items={detail.eligibility.organizations} />
+          <CancellationList title="Personnes" items={detail.eligibility.people} />
+          <CancellationList title="Organisations" items={detail.eligibility.organizations} />
           <CancellationList title="Relations" items={detail.eligibility.relationships} />
         </div>
       </section>

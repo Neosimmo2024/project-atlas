@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PROJECT_STAGE_LABELS, PROJECT_TYPE_LABELS } from "@/features/projects/options";
+import { RELATIONSHIP_PIPELINE_STAGE_LABELS, RELATIONSHIP_TYPE_LABELS } from "@/features/relationships/options";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { ProjectOwnerOption, ProjectRelationshipOption } from "@/repositories/projects";
@@ -33,6 +34,12 @@ function valueOrEmpty(value: string | number | Record<string, unknown> | null | 
 function dateValue(value: string | null | undefined) {
   if (!value) return "";
   return new Date(value).toISOString().slice(0, 10);
+}
+
+function relationshipLabel(relationship: ProjectRelationshipOption) {
+  const type = RELATIONSHIP_TYPE_LABELS[relationship.relationship_type] ?? relationship.relationship_type;
+  const stage = RELATIONSHIP_PIPELINE_STAGE_LABELS[relationship.pipeline_stage] ?? relationship.pipeline_stage;
+  return `${type} - ${stage}`;
 }
 
 function formToPayload(form: HTMLFormElement) {
@@ -126,7 +133,7 @@ export function ProjectForm({ mode, project, defaults, peopleOptions, organizati
       const raw = formToPayload(event.currentTarget);
       const payload = mode === "edit" && project ? changedPayload(project, raw) : raw;
       if (mode === "edit" && Object.keys(payload).length === 0) {
-        setError("Aucune modification a enregistrer.");
+        setError("Aucune modification à enregistrer.");
         return;
       }
 
@@ -146,7 +153,7 @@ export function ProjectForm({ mode, project, defaults, peopleOptions, organizati
       router.push(`/projects/${result.data.id}?projectSaved=1`);
       router.refresh();
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Erreur reseau pendant l'enregistrement du Projet.");
+      setError(submitError instanceof Error ? submitError.message : "Erreur réseau pendant l'enregistrement du Projet.");
     } finally {
       setLoading(false);
     }
@@ -178,14 +185,14 @@ export function ProjectForm({ mode, project, defaults, peopleOptions, organizati
       </section>
 
       <section className="stack">
-        <h2>Contacts lies</h2>
-        <p className="muted">La personne et organisation sont automatiquement renseignees a partir de la relation selectionnee.</p>
+        <h2>Contacts liés</h2>
+        <p className="muted">La personne et l&apos;organisation sont automatiquement renseignées à partir de la relation sélectionnée.</p>
         <div className="form-grid">
           <label>
             Relation
             <select className="input" name="relationship_id" value={relationshipId} onChange={(event) => onRelationshipChange(event.target.value)}>
               <option value="">Aucune relation</option>
-              {relationshipOptions.map((relationship) => <option key={relationship.id} value={relationship.id}>{relationship.relationship_type} - {relationship.pipeline_stage}</option>)}
+              {relationshipOptions.map((relationship) => <option key={relationship.id} value={relationship.id}>{relationshipLabel(relationship)}</option>)}
             </select>
             <FieldError name="relationship_id" />
           </label>
@@ -212,22 +219,22 @@ export function ProjectForm({ mode, project, defaults, peopleOptions, organizati
         <h2>Suivi</h2>
         <div className="form-grid">
           <label>
-            Etape
+            Étape
             <select className="input" name="stage" defaultValue={project?.stage ?? "new"}>
               {projectStages.map((stage) => <option key={stage} value={stage}>{PROJECT_STAGE_LABELS[stage]}</option>)}
             </select>
             <FieldError name="stage" />
           </label>
-          <label>Valeur estimee<Input name="estimated_value" inputMode="decimal" defaultValue={valueOrEmpty(project?.estimated_value) as string} /><FieldError name="estimated_value" /></label>
+          <label>Valeur estimée<Input name="estimated_value" inputMode="decimal" defaultValue={valueOrEmpty(project?.estimated_value) as string} /><FieldError name="estimated_value" /></label>
           <label>Devise<Input name="currency" maxLength={3} defaultValue={project?.currency ?? "EUR"} /><FieldError name="currency" /></label>
-          <label>Date de cloture prevue<Input name="expected_close_at" type="date" defaultValue={dateValue(project?.expected_close_at)} /><FieldError name="expected_close_at" /></label>
+          <label>Date de clôture prévue<Input name="expected_close_at" type="date" defaultValue={dateValue(project?.expected_close_at)} /><FieldError name="expected_close_at" /></label>
         </div>
       </section>
 
       <input type="hidden" name="metadata" value={project ? JSON.stringify(project.metadata ?? {}) : "{}"} />
       {fieldErrors.length > 0 ? <ul className="error-list">{fieldErrors.map((item) => <li key={`${item.field}-${item.message}`}>{item.message}</li>)}</ul> : null}
       <div className="actions">
-        <Button type="submit" disabled={loading}>{loading ? "Enregistrement..." : mode === "create" ? "Creer le Projet" : "Enregistrer"}</Button>
+        <Button type="submit" disabled={loading}>{loading ? "Enregistrement..." : mode === "create" ? "Créer le Projet" : "Enregistrer"}</Button>
         <Link className="button subtle-button" href={project ? `/projects/${project.id}` : "/projects"}>Annuler</Link>
       </div>
     </form>

@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import type { InputHTMLAttributes } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { ORGANIZATION_STATUS_LABELS, ORGANIZATION_STATUSES, ORGANIZATION_TYPE_LABELS, ORGANIZATION_TYPES } from "@/features/organizations/options";
@@ -46,13 +46,13 @@ export default async function OrganizationsPage({ searchParams }: OrganizationsP
       <header className="page-header">
         <div>
           <p className="muted">Companies and networks</p>
-          <h1>Organizations</h1>
+          <h1>Organisations</h1>
         </div>
         <Link className="button link-button" href="/organizations/new">Nouvelle organisation</Link>
       </header>
 
       <form className="filters organizations-filters" action="/organizations">
-        <label>Recherche<InputLike name="query" defaultValue={query} placeholder="Nom, ville, email, telephone, SIREN" /></label>
+        <label>Recherche<InputLike name="query" defaultValue={query} placeholder="Nom, ville, email, téléphone, SIREN" /></label>
         <label>
           Type
           <select className="input" name="type" defaultValue={type}>
@@ -79,10 +79,10 @@ export default async function OrganizationsPage({ searchParams }: OrganizationsP
         <button className="button" type="submit">Filtrer</button>
       </form>
 
-      {result.organizations.length === 0 ? <EmptyState title="Aucune organisation" body="Les entreprises, agences et reseaux seront listes ici." /> : (
+      {result.organizations.length === 0 ? <EmptyState title="Aucune organisation" body="Les entreprises, agences et réseaux seront listés ici." /> : (
         <div className="data-table organizations-table">
           <div className="table-head">
-            <span>Nom</span><span>Type</span><span>Ville</span><span>Code postal</span><span>Departement</span><span>Telephone</span><span>Email</span><span>Site</span><span>SIREN</span><span>Statut</span><span>Source</span><span>Creation</span>
+            <span>Nom</span><span>Type</span><span>Ville</span><span>Code postal</span><span>Département</span><span>Téléphone</span><span>Email</span><span>Site</span><span>SIREN</span><span>Statut</span><span>Source</span><span>Creation</span>
           </div>
           {result.organizations.map((organization) => (
             <Link key={organization.id} href={`/organizations/${organization.id}`} className="table-row">
@@ -103,10 +103,10 @@ export default async function OrganizationsPage({ searchParams }: OrganizationsP
         </div>
       )}
 
-      <nav className="pagination" aria-label="Pagination Organizations">
-        <span>{result.total} resultat(s)</span>
+      <nav className="pagination" aria-label="Pagination Organisations">
+        <span>{result.total} résultat(s)</span>
         <div>
-          {result.page > 1 ? <Link className="button subtle-button" href={organizationsUrl(currentParams, result.page - 1)}>Precedent</Link> : null}
+          {result.page > 1 ? <Link className="button subtle-button" href={organizationsUrl(currentParams, result.page - 1)}>Précédent</Link> : null}
           <span>Page {result.page} / {result.pageCount}</span>
           {result.page < result.pageCount ? <Link className="button subtle-button" href={organizationsUrl(currentParams, result.page + 1)}>Suivant</Link> : null}
         </div>

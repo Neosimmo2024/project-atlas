@@ -20,14 +20,14 @@ export function TaskFilters({ query, status, priority, due }: TaskFiltersProps) 
         </select>
       </label>
       <label>
-        Priorite
+        Priorité
         <select className="input" name="priority" defaultValue={priority}>
           <option value="">Toutes</option>
           {TASK_PRIORITY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
         </select>
       </label>
       <label>
-        Echeance
+        Échéance
         <select className="input" name="due" defaultValue={due}>
           <option value="">Toutes</option>
           <option value="overdue">En retard</option>

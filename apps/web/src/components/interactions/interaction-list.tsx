@@ -17,16 +17,16 @@ function interactionsUrl(params: URLSearchParams, page: number) {
 export function InteractionList({ result, currentParams }: InteractionListProps) {
   return (
     <div className="stack">
-      {result.interactions.length === 0 ? <EmptyState title="Aucune interaction" body="Les appels, notes, reunions et messages seront listes ici." /> : (
+      {result.interactions.length === 0 ? <EmptyState title="Aucun échange" body="Les appels, notes, réunions et messages seront listés ici." /> : (
         <div className="interaction-list">
           {result.interactions.map((interaction) => <InteractionCard key={interaction.id} interaction={interaction} />)}
         </div>
       )}
 
-      <nav className="pagination" aria-label="Pagination Interactions">
-        <span>{result.total} resultat(s)</span>
+      <nav className="pagination" aria-label="Pagination Échanges">
+        <span>{result.total} résultat(s)</span>
         <div>
-          {result.page > 1 ? <Link className="button subtle-button" href={interactionsUrl(currentParams, result.page - 1)}>Precedent</Link> : null}
+          {result.page > 1 ? <Link className="button subtle-button" href={interactionsUrl(currentParams, result.page - 1)}>Précédent</Link> : null}
           <span>Page {result.page} / {result.pageCount}</span>
           {result.page < result.pageCount ? <Link className="button subtle-button" href={interactionsUrl(currentParams, result.page + 1)}>Suivant</Link> : null}
         </div>

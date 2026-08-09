@@ -8,7 +8,7 @@ type RouteParams = { params: Promise<{ id: string }> };
 
 function assertCancellationRole(role: string) {
   if (role !== "owner" && role !== "admin") {
-    throw new ApiError("Seuls les roles owner et admin peuvent annuler un import.", 403, "FORBIDDEN");
+    throw new ApiError("Seuls les rôles owner et admin peuvent annuler un import.", 403, "FORBIDDEN");
   }
 }
 

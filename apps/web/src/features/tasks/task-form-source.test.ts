@@ -16,8 +16,9 @@ describe("task form source", () => {
     expect(projectOptionsSource).toContain("project.relationship_id === context.relationshipId");
     expect(projectOptionsSource).toContain("relationship?.person_id === context.personId");
     expect(projectOptionsSource).toContain("relationship?.organization_id === context.organizationId");
-    expect(source).toContain("Aucun projet actif associe au contexte selectionne.");
-    expect(source).toContain("Selectionnez d'abord une personne, une organisation ou une relation pour afficher les projets associes.");
+    expect(source).toContain("Aucun projet actif associé au contexte sélectionné.");
+    expect(source).toContain("Sélectionnez d'abord une personne, une organisation ou une relation pour afficher les projets associés.");
+    expect(source).toContain("Modifier le projet associé");
   });
 
   it("clears stale project selection when task context changes", () => {
@@ -25,6 +26,15 @@ describe("task form source", () => {
 
     expect(source.match(/setProjectId\(""\)/g)?.length).toBeGreaterThanOrEqual(3);
     expect(source).toContain("selectedProjectAvailable");
+  });
+
+  it("uses French relationship labels in the task relationship selector", () => {
+    const source = readFileSync(join(process.cwd(), "src/components/tasks/task-form.tsx"), "utf8");
+
+    expect(source).toContain("relationshipLabel(relationship)");
+    expect(source).toContain("RELATIONSHIP_TYPE_LABELS");
+    expect(source).toContain("RELATIONSHIP_PIPELINE_STAGE_LABELS");
+    expect(source).not.toContain("{relationship.relationship_type} - {relationship.pipeline_stage}");
   });
 
   it("keeps a project selectable when it is linked through the selected person's relationship", () => {

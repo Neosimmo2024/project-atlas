@@ -24,7 +24,7 @@ export function DeleteTaskButton({ taskId, redirectTo = "/tasks" }: DeleteTaskBu
   const [loading, setLoading] = useState(false);
 
   async function onDelete() {
-    if (!window.confirm("Confirmer la suppression de cette tache ?")) return;
+    if (!window.confirm("Confirmer la suppression de cette tâche ?")) return;
 
     setLoading(true);
     setError(null);
@@ -39,7 +39,7 @@ export function DeleteTaskButton({ taskId, redirectTo = "/tasks" }: DeleteTaskBu
 
       router.replace(deletedUrl(redirectTo));
     } catch {
-      setError("Erreur reseau pendant la suppression de la tache.");
+      setError("Erreur réseau pendant la suppression de la tâche.");
     } finally {
       setLoading(false);
     }

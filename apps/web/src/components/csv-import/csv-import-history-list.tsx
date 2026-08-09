@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { csvImportCancellationStatusLabels } from "@/features/csv-import/csv-import-history";
 import type { CsvImportHistoryResult } from "@/repositories/csv-import-history";
 
@@ -32,8 +32,8 @@ export function CsvImportHistoryList({ result }: { result: CsvImportHistoryResul
             </div>
             <dl className="import-history-metrics">
               <div><dt>Lignes</dt><dd>{item.totalRows}</dd></div>
-              <div><dt>Creees</dt><dd>{item.peopleCreated + item.organizationsCreated + item.relationshipsCreated}</dd></div>
-              <div><dt>Rattachees</dt><dd>{item.peopleLinked + item.organizationsLinked}</dd></div>
+              <div><dt>Créées</dt><dd>{item.peopleCreated + item.organizationsCreated + item.relationshipsCreated}</dd></div>
+              <div><dt>Rattachées</dt><dd>{item.peopleLinked + item.organizationsLinked}</dd></div>
               <div><dt>Ignorees</dt><dd>{item.rowsIgnored}</dd></div>
               <div><dt>A examiner</dt><dd>{item.rowsReviewLater}</dd></div>
               <div><dt>Rejetees</dt><dd>{item.rowsRejected}</dd></div>
@@ -49,7 +49,7 @@ export function CsvImportHistoryList({ result }: { result: CsvImportHistoryResul
 
       {result.pageCount > 1 ? (
         <nav className="pagination" aria-label="Pagination des imports">
-          {result.page > 1 ? <Link className="button subtle-button" href={`/imports?page=${result.page - 1}`}>Precedent</Link> : null}
+          {result.page > 1 ? <Link className="button subtle-button" href={`/imports?page=${result.page - 1}`}>Précédent</Link> : null}
           <span>Page {result.page} / {result.pageCount}</span>
           {result.page < result.pageCount ? <Link className="button subtle-button" href={`/imports?page=${result.page + 1}`}>Suivant</Link> : null}
         </nav>

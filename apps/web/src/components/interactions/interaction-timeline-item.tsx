@@ -22,7 +22,7 @@ export function InteractionTimelineItem({ interaction, returnHref }: Interaction
     <article className="timeline-item">
       <div>
         <strong><Link href={interactionHref(interaction.id, returnHref)}>{interaction.title}</Link></strong>
-        <p className="muted">{interaction.type?.label ?? "Interaction"} - {formatDate(interaction.interaction_date)}</p>
+        <p className="muted">{interaction.type?.label ?? "Échange"} - {formatDate(interaction.interaction_date)}</p>
       </div>
       <p>{interaction.summary ?? interaction.comments ?? "Aucun detail."}</p>
     </article>

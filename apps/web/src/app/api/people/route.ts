@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { createPerson, findPotentialPersonDuplicates, listPeople } from "@/repositories/people";
 import { getTenantContext } from "@/repositories/tenant-context";
 import { parsePersonInput } from "@/features/people/validation";
 
 function validationErrorResponse(error: { issues: { path: PropertyKey[]; message: string }[] }) {
   return NextResponse.json(
-    { error: "Validation failed", fields: error.issues.map((issue) => ({ field: issue.path.join("."), message: issue.message })) },
+    { error: "Les informations saisies sont invalides.", fields: error.issues.map((issue) => ({ field: issue.path.join("."), message: issue.message })) },
     { status: 400 }
   );
 }

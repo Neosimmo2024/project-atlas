@@ -54,7 +54,7 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
 
     return (
       <div className="page stack">
-        <PageHeader eyebrow="Projets" title="Projets" subtitle="Suivez vos demarches, leur avancement et la prochaine action a realiser." actions={<Link className="button link-button" href="/projects/new">Nouveau Projet</Link>} />
+        <PageHeader eyebrow="Projets" title="Projets" subtitle="Suivez vos démarches, leur avancement et la prochaine action à réaliser." actions={<Link className="button link-button" href="/projects/new">Nouveau Projet</Link>} />
         <ProjectKpis projects={kpis.projects} />
         <ProjectFilters query={query} status={status} stage={stage} type={type} ownerId={ownerId} organizationId={organizationId} personId={personId} relationshipId={relationshipId} expectedClose={expectedClose} includeArchived={includeArchived} ownerOptions={ownerOptions} />
         <ProjectList result={result} currentParams={currentParams} hasFilters={hasFilters} />
@@ -65,9 +65,9 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
       <div className="page stack">
         <PageHeader eyebrow="Projets" title="Projets" actions={<Link className="button link-button" href="/projects/new">Nouveau Projet</Link>} />
         <EmptyState
-          title={isMissingMigration(error) ? "La base de donnees des Projets n'est pas encore configuree." : "Impossible de charger les Projets."}
+          title={isMissingMigration(error) ? "La base de données des Projets n'est pas encore configurée." : "Impossible de charger les Projets."}
           body=""
-          action={<Link className="button subtle-button" href="/projects">Reessayer</Link>}
+          action={<Link className="button subtle-button" href="/projects">Réessayer</Link>}
         />
       </div>
     );

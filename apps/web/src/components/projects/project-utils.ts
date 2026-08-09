@@ -35,17 +35,17 @@ export function projectSignals(
   referenceDate = new Date()
 ) {
   const signals: string[] = [];
-  if (project.archived_at) signals.push("Projet archive");
-  if (project.status === "won") signals.push("Projet gagne");
+  if (project.archived_at) signals.push("Projet archivé");
+  if (project.status === "won") signals.push("Projet gagné");
   if (project.status === "lost") signals.push("Projet perdu");
   if (nextActionReason === "overdue") signals.push("Action en retard");
-  if (project.status === "open" && !hasNextAction) signals.push("Aucune action planifiee");
+  if (project.status === "open" && !hasNextAction) signals.push("Aucune action planifiée");
   if (project.expected_close_at) {
     const due = new Date(project.expected_close_at);
     const now = referenceDate;
     const soon = new Date(referenceDate);
     soon.setDate(now.getDate() + 14);
-    if (due >= now && due <= soon) signals.push("Cloture prevue prochainement");
+    if (due >= now && due <= soon) signals.push("Clôture prévue prochainement");
   }
   return signals;
 }

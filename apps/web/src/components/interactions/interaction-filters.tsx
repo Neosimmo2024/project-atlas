@@ -10,7 +10,7 @@ type InteractionFiltersProps = {
 export function InteractionFilters({ query, typeId, types }: InteractionFiltersProps) {
   return (
     <form className="filters interactions-filters" action="/interactions">
-      <label>Recherche<InputLike name="query" defaultValue={query} placeholder="Titre, resume, lieu, commentaires" /></label>
+      <label>Recherche<InputLike name="query" defaultValue={query} placeholder="Titre, résumé, lieu, commentaires" /></label>
       <label>
         Type
         <select className="input" name="typeId" defaultValue={typeId}>

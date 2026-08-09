@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { parsePersonInput } from "@/features/people/validation";
 import { apiErrorResponse } from "@/lib/security/api-errors";
 import { deletePerson, findPotentialPersonDuplicates, getPersonDetail, updatePerson } from "@/repositories/people";
@@ -8,7 +8,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 function validationErrorResponse(error: { issues: { path: PropertyKey[]; message: string }[] }) {
   return NextResponse.json(
-    { error: "Validation failed", fields: error.issues.map((issue) => ({ field: issue.path.join("."), message: issue.message })) },
+    { error: "Les informations saisies sont invalides.", fields: error.issues.map((issue) => ({ field: issue.path.join("."), message: issue.message })) },
     { status: 400 }
   );
 }
@@ -49,7 +49,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
     const { id } = await context.params;
     const result = await deletePerson(tenantContext, id);
-    if (!result.allowed) return NextResponse.json({ error: "Only owner and admin roles can delete people." }, { status: 403 });
+    if (!result.allowed) return NextResponse.json({ error: "Suppression réservée aux rôles owner et admin." }, { status: 403 });
 
     return NextResponse.json({ deleted: true });
   } catch (error) {

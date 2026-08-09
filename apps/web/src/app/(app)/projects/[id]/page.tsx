@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { SafeBackLink } from "@/components/navigation/safe-back-link";
 import { ProjectActions } from "@/components/projects/project-actions";
 import { ProjectForm } from "@/components/projects/project-form";
 import { ProjectNextAction } from "@/components/projects/project-next-action";
@@ -53,21 +52,22 @@ export default async function ProjectDetailPage({ params, searchParams }: Projec
   const project = detail.project;
   const nextTask = detail.nextAction ? tasks.tasks.find((task) => task.id === detail.nextAction?.taskId) : undefined;
   const signals = projectSignals(project, Boolean(detail.nextAction), detail.nextAction?.reason);
+  const ownerLabel = ownerOptions.find((owner) => owner.id === project.owner_user_id)?.name ?? "Utilisateur non identifié";
 
   return (
     <div className="page stack">
-      <EntityHeader eyebrow="Projet" title={project.title} meta={`${projectTypeLabel(project.project_type)} - ${projectStatusLabel(project.status)} - ${projectStageLabel(project.stage)}`} actions={<SafeBackLink fallbackHref="/projects" />} />
+      <EntityHeader eyebrow="Projet" title={project.title} meta={`${projectTypeLabel(project.project_type)} - ${projectStatusLabel(project.status)} - ${projectStageLabel(project.stage)}`} actions={<Link className="button subtle-button" href="/projects">Retour</Link>} />
 
       {valueOf(query, "toast") ? <p className="success" aria-live="polite">{valueOf(query, "toast")}</p> : null}
-      {valueOf(query, "projectSaved") === "1" ? <p className="success" aria-live="polite">Projet cree.</p> : null}
+      {valueOf(query, "projectSaved") === "1" ? <p className="success" aria-live="polite">Projet enregistré.</p> : null}
       {signals.length > 0 ? <div className="tag-list">{signals.map((signal) => <span className="tag" key={signal}>{signal}</span>)}</div> : null}
 
       <PageSection>
         <EntitySummary>
-          <p><strong>Responsable</strong><br />{project.owner_user_id}</p>
+          <p><strong>Responsable</strong><br />{ownerLabel}</p>
           <p><strong>Personne</strong><br />{detail.person ? <Link href={`/people/${detail.person.id}`}>{detail.person.display_name}</Link> : "-"}</p>
           <p><strong>Organisation</strong><br />{detail.organization ? <Link href={`/organizations/${detail.organization.id}`}>{detail.organization.name}</Link> : "-"}</p>
-          <p><strong>Cloture prevue</strong><br />{formatDate(project.expected_close_at)}</p>
+          <p><strong>Clôture prévue</strong><br />{formatDate(project.expected_close_at)}</p>
         </EntitySummary>
         <ProjectActions project={project} />
       </PageSection>

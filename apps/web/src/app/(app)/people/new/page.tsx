@@ -6,7 +6,7 @@ export default function NewPersonPage() {
     <div className="page stack">
       <header className="page-header">
         <div>
-          <p className="muted">People</p>
+          <p className="muted">Personnes</p>
           <h1>Nouvelle personne</h1>
         </div>
         <Link className="button subtle-button" href="/people">Retour</Link>
