@@ -109,11 +109,12 @@ jobs:
           0012_csv_import_safe_cancellation.sql
           0013_csv_import_relationships_pipeline.sql
           0014_organization_vat_status.sql
+          0015_tenant_user_administration.sql
           EOF
           sed -i 's/^          //' "$expected_migrations"
           find supabase/migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort > "$actual_migrations"
           if ! diff -u "$expected_migrations" "$actual_migrations"; then
-            echo "Refusing reset: migration set is not exactly 0001 through 0014."
+            echo "Refusing reset: migration set is not exactly 0001 through 0015."
             exit 1
           fi
 
@@ -305,7 +306,7 @@ jobs:
           do $$
           declare
             expected_versions text[] := array[
-              '0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011','0012','0013','0014'
+              '0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011','0012','0013','0014','0015'
             ];
             missing_version_count integer;
             missing_table_count integer;
@@ -320,7 +321,7 @@ jobs:
               where sm.version like version_prefix || '%'
             );
             if missing_version_count > 0 then
-              raise exception 'Expected migration history 0001 through 0014 is incomplete.';
+              raise exception 'Expected migration history 0001 through 0015 is incomplete.';
             end if;
 
             select count(*)

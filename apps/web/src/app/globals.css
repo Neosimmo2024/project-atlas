@@ -746,6 +746,53 @@ button, input, select, textarea { font: inherit; }
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+.tenant-admin-layout,
+.tenant-admin-members {
+  display: grid;
+  gap: 16px;
+}
+.tenant-admin-summary {
+  display: grid;
+  gap: 6px;
+}
+.tenant-admin-summary h2,
+.tenant-admin-member-card h2 {
+  margin: 0;
+}
+.tenant-admin-member-card {
+  display: grid;
+  gap: 16px;
+}
+.tenant-admin-member-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.tenant-admin-member-main > div:first-child {
+  min-width: 0;
+}
+.tenant-admin-member-main p {
+  overflow-wrap: anywhere;
+}
+.tenant-admin-badges,
+.tenant-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+}
+.tenant-admin-actions label {
+  display: grid;
+  min-width: min(240px, 100%);
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+.tenant-admin-actions .button {
+  min-height: 42px;
+}
 
 @media (max-width: 900px) {
   .pipeline-filters { grid-template-columns: 1fr; }
@@ -830,6 +877,10 @@ button, input, select, textarea { font: inherit; }
   .action-plan-card-meta { grid-template-columns: 1fr; }
   .action-plan-category-heading,
   .action-plan-card-header { align-items: stretch; flex-direction: column; }
+  .tenant-admin-member-main,
+  .tenant-admin-actions { align-items: stretch; flex-direction: column; }
+  .tenant-admin-actions label,
+  .tenant-admin-actions .button { width: 100%; }
   .import-steps { grid-template-columns: 1fr; }
   .import-upload, .import-actions { align-items: stretch; flex-direction: column; }
   .import-file-summary, .import-mapping-row, .import-review-heading, .import-review-values, .import-history-card, .import-detail-summary, .import-row-table, .import-cancellation-columns { grid-template-columns: 1fr; }

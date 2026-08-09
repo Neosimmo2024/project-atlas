@@ -360,6 +360,20 @@ export type Database = {
         };
         Returns: Record<string, unknown>;
       };
+      manage_tenant_member: {
+        Args: {
+          p_target_user_id: string;
+          p_action: "change_role" | "suspend" | "reactivate";
+          p_role_slug?: "owner" | "admin" | "recruiter" | "manager" | "reader" | null;
+        };
+        Returns: {
+          tenant_user_id: string;
+          tenant_id: string;
+          user_id: string;
+          role_slug: "owner" | "admin" | "recruiter" | "manager" | "reader";
+          status: "active" | "invited" | "suspended";
+        }[];
+      };
     };
     Enums: Record<string, never>;
   };
