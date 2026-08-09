@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { SafeBackLink } from "@/components/navigation/safe-back-link";
 import { ProjectActions } from "@/components/projects/project-actions";
 import { ProjectForm } from "@/components/projects/project-form";
 import { ProjectNextAction } from "@/components/projects/project-next-action";
@@ -57,7 +56,7 @@ export default async function ProjectDetailPage({ params, searchParams }: Projec
 
   return (
     <div className="page stack">
-      <EntityHeader eyebrow="Projet" title={project.title} meta={`${projectTypeLabel(project.project_type)} - ${projectStatusLabel(project.status)} - ${projectStageLabel(project.stage)}`} actions={<SafeBackLink fallbackHref="/projects" />} />
+      <EntityHeader eyebrow="Projet" title={project.title} meta={`${projectTypeLabel(project.project_type)} - ${projectStatusLabel(project.status)} - ${projectStageLabel(project.stage)}`} actions={<Link className="button subtle-button" href="/projects">Retour</Link>} />
 
       {valueOf(query, "toast") ? <p className="success" aria-live="polite">{valueOf(query, "toast")}</p> : null}
       {valueOf(query, "projectSaved") === "1" ? <p className="success" aria-live="polite">Projet enregistré.</p> : null}

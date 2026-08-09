@@ -18,7 +18,6 @@ describe("safe back link source", () => {
       "src/app/(app)/organizations/[id]/page.tsx",
       "src/app/(app)/relationships/[id]/page.tsx",
       "src/app/(app)/tasks/[id]/page.tsx",
-      "src/app/(app)/projects/[id]/page.tsx",
       "src/app/(app)/interactions/[id]/page.tsx"
     ];
 
@@ -26,6 +25,13 @@ describe("safe back link source", () => {
       const source = readFileSync(join(process.cwd(), file), "utf8");
       expect(source).toContain("SafeBackLink");
     }
+  });
+
+  it("keeps the Project detail back action stable after in-page filter navigation", () => {
+    const source = readFileSync(join(process.cwd(), "src/app/(app)/projects/[id]/page.tsx"), "utf8");
+
+    expect(source).toContain('href="/projects">Retour</Link>');
+    expect(source).not.toContain("SafeBackLink");
   });
 });
 
