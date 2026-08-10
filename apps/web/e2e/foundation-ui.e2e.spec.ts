@@ -19,8 +19,9 @@ test("Projects pages exercise Foundation UI primitives", async ({ page }) => {
 
   await page.goto(`${baseUrl}/projects`);
   await expect(page.getByRole("heading", { name: "Projets" })).toBeVisible();
-  await expect(page.getByLabel("Recherche")).toBeVisible();
-  await page.getByLabel("Recherche").fill("qa");
+  const projectSearch = page.getByPlaceholder("Titre, description, note");
+  await expect(projectSearch).toBeVisible();
+  await projectSearch.fill("qa");
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/query=qa/);
 
