@@ -29,10 +29,19 @@ export async function listPeople(context: TenantContext, params: PeopleSearchPar
 
   if (normalized.status) query = query.eq("status", normalized.status);
   if (normalized.priority) query = query.eq("priority", normalized.priority);
-  if (normalized.query) {
+  if (normalized.query || normalized.qualificationState) {
     const { data, error } = await query.order("updated_at", { ascending: false });
     if (error) throw error;
-    const filtered = ((data ?? []) as Person[]).filter((person) => personMatchesSearch(person, normalized.query));
+    const people = (data ?? []) as Person[];
+    const { data: qualificationRows, error: qualificationError } = people.length
+      ? await supabase.from("talent_qualifications").select("person_id, state").eq("tenant_id", context.tenantId).in("person_id", people.map((person) => person.id))
+      : { data: [], error: null };
+    if (qualificationError) throw qualificationError;
+    const states = new Map((qualificationRows ?? []).map((row) => [row.person_id as string, row.state as "draft" | "completed"]));
+    const filtered = people
+      .map((person) => ({ ...person, qualification_state: states.get(person.id) ?? "none" } as Person))
+      .filter((person) => personMatchesSearch(person, normalized.query))
+      .filter((person) => !normalized.qualificationState || person.qualification_state === normalized.qualificationState);
     const paged = paginateSearchResults(filtered, normalized.page, normalized.pageSize);
     return {
       people: paged.rows,
@@ -50,8 +59,14 @@ export async function listPeople(context: TenantContext, params: PeopleSearchPar
   if (error) throw error;
 
   const total = count ?? 0;
+  const people = (data ?? []) as Person[];
+  const { data: qualificationRows, error: qualificationError } = people.length
+    ? await supabase.from("talent_qualifications").select("person_id, state").eq("tenant_id", context.tenantId).in("person_id", people.map((person) => person.id))
+    : { data: [], error: null };
+  if (qualificationError) throw qualificationError;
+  const states = new Map((qualificationRows ?? []).map((row) => [row.person_id as string, row.state as "draft" | "completed"]));
   return {
-    people: (data ?? []) as Person[],
+    people: people.map((person) => ({ ...person, qualification_state: states.get(person.id) ?? "none" })),
     total,
     page: normalized.page,
     pageSize: normalized.pageSize,

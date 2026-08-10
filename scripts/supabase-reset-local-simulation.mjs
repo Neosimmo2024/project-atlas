@@ -23,7 +23,8 @@ export const EXPECTED_MIGRATIONS = [
   "0013_csv_import_relationships_pipeline.sql",
   "0014_organization_vat_status.sql",
   "0015_tenant_user_administration.sql",
-  "0016_tenant_member_listing.sql"
+  "0016_tenant_member_listing.sql",
+  "0017_talent_qualifications.sql"
 ];
 export const EXPECTED_COUNTS = Object.freeze({
   "auth.users": 1,
@@ -354,7 +355,7 @@ function verifyMigrationSet() {
   const actual = migrations.join("\n");
   const expected = EXPECTED_MIGRATIONS.join("\n");
   if (actual !== expected) {
-    throw new Error("Migration set is not exactly 0001 through 0016.");
+    throw new Error("Migration set is not exactly 0001 through 0017.");
   }
 }
 
@@ -571,13 +572,13 @@ declare
 begin
   select count(*)
   into missing_version_count
-  from unnest(array['0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011','0012','0013','0014','0015','0016']) as version_prefix
+  from unnest(array['0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011','0012','0013','0014','0015','0016','0017']) as version_prefix
   where not exists (
     select 1 from supabase_migrations.schema_migrations sm
     where sm.version like version_prefix || '%'
   );
   if missing_version_count > 0 then
-    raise exception 'Expected migration history 0001 through 0016 is incomplete.';
+    raise exception 'Expected migration history 0001 through 0017 is incomplete.';
   end if;
 
   select count(*)

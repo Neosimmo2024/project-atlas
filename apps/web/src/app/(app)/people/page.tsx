@@ -4,6 +4,7 @@ import { EmptyState } from "@/components/empty-state";
 import { PERSON_STATUS_LABELS, PERSON_STATUSES, PRIORITIES, PRIORITY_LABELS } from "@/features/people/options";
 import { listPeople } from "@/repositories/people";
 import { getTenantContext } from "@/repositories/tenant-context";
+import { QUALIFICATION_STATES, QUALIFICATION_STATE_LABELS } from "@/features/talent-qualification/options";
 
 type PeoplePageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -26,13 +27,15 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
   const query = valueOf(params, "query");
   const status = valueOf(params, "status");
   const priority = valueOf(params, "priority");
+  const qualificationState = valueOf(params, "qualificationState");
   const page = Number(valueOf(params, "page") || 1);
   const currentParams = new URLSearchParams();
   if (query) currentParams.set("query", query);
   if (status) currentParams.set("status", status);
   if (priority) currentParams.set("priority", priority);
+  if (qualificationState) currentParams.set("qualificationState", qualificationState);
 
-  const result = context ? await listPeople(context, { query, status, priority, page, pageSize: 10 }) : { people: [], total: 0, page: 1, pageSize: 10, pageCount: 1 };
+  const result = context ? await listPeople(context, { query, status, priority, qualificationState, page, pageSize: 10 }) : { people: [], total: 0, page: 1, pageSize: 10, pageCount: 1 };
 
   return (
     <div className="page stack">
@@ -60,13 +63,20 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
             {PRIORITIES.map((item) => <option key={item} value={item}>{PRIORITY_LABELS[item]}</option>)}
           </select>
         </label>
+        <label>
+          Qualification
+          <select className="input" name="qualificationState" defaultValue={qualificationState}>
+            <option value="">Toutes</option>
+            {QUALIFICATION_STATES.map((item) => <option key={item} value={item}>{QUALIFICATION_STATE_LABELS[item]}</option>)}
+          </select>
+        </label>
         <button className="button" type="submit">Filtrer</button>
       </form>
 
       {result.people.length === 0 ? <EmptyState title="Aucune personne" body="Les talents importés ou créés apparaîtront ici." /> : (
         <div className="data-table people-table">
           <div className="table-head">
-            <span>Nom</span><span>Prénom</span><span>Email</span><span>Téléphone</span><span>Ville</span><span>Statut</span><span>Priorité</span><span>Score</span><span>Source</span>
+            <span>Nom</span><span>Prénom</span><span>Email</span><span>Téléphone</span><span>Ville</span><span>Statut</span><span>Priorité</span><span>Qualification</span><span>Score</span><span>Source</span>
           </div>
           {result.people.map((person) => (
             <Link key={person.id} href={`/people/${person.id}`} className="table-row">
@@ -77,6 +87,7 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
               <span className="cell-city">{person.city ?? "-"}</span>
               <span>{PERSON_STATUS_LABELS[person.status]}</span>
               <span>{PRIORITY_LABELS[person.priority]}</span>
+              <span>{QUALIFICATION_STATE_LABELS[person.qualification_state ?? "none"]}</span>
               <span>{person.talent_score ?? "-"}</span>
               <span>{person.source ?? "-"}</span>
             </Link>

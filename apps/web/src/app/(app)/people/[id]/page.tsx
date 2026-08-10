@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { DeletePersonButton } from "@/components/people/delete-person-button";
 import { SafeBackLink } from "@/components/navigation/safe-back-link";
 import { PersonForm } from "@/components/people/person-form";
+import { TalentQualificationForm } from "@/components/people/talent-qualification-form";
 import { ContextProjects } from "@/components/projects/context-projects";
 import { TaskCard } from "@/components/tasks/task-card";
 import { TimelineFilters, normalizeTimelineCategory } from "@/components/timeline/timeline-filters";
@@ -13,6 +14,8 @@ import { getPersonDetail } from "@/repositories/people";
 import { listContextProjects } from "@/repositories/projects";
 import { listPersonTasks } from "@/repositories/tasks";
 import { getTenantContext } from "@/repositories/tenant-context";
+import { getTalentQualification } from "@/repositories/talent-qualifications";
+import { QUALIFICATION_CONCLUSION_LABELS, QUALIFICATION_STATE_LABELS } from "@/features/talent-qualification/options";
 import { listTimelineEvents } from "@/repositories/timeline-events";
 
 type PersonDetailPageProps = {
@@ -42,10 +45,11 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
   const { person, organizations, relationships } = detail;
   const timelineCategory = normalizeTimelineCategory(valueOf(query, "timelineCategory"));
   const timelinePage = Number(valueOf(query, "timelinePage") || 1);
-  const [chronology, tasks, projects] = await Promise.all([
+  const [chronology, tasks, projects, qualification] = await Promise.all([
     listTimelineEvents(context, { personId: person.id, category: timelineCategory, page: timelinePage, pageSize: 10 }),
     listPersonTasks(context, person.id),
-    listContextProjects(context, { personId: person.id })
+    listContextProjects(context, { personId: person.id }),
+    getTalentQualification(context, person.id)
   ]);
 
   return (
@@ -84,6 +88,19 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
           <p><strong>Modifié le</strong><br />{formatDate(person.updated_at)}</p>
         </section>
       </div>
+
+      <section className="card stack qualification-summary">
+        <div className="page-header">
+          <div><p className="muted">Qualification structurée</p><h2>{QUALIFICATION_STATE_LABELS[qualification?.state ?? "none"]}</h2></div>
+          {qualification?.conclusion ? <span className="status-pill">{QUALIFICATION_CONCLUSION_LABELS[qualification.conclusion]}</span> : null}
+        </div>
+        {qualification ? <div className="qualification-meta">
+          <span>Dernière modification : {formatDate(qualification.updated_at)}</span>
+          <span>Par : {qualification.updated_by_label}</span>
+          {qualification.completed_at ? <span>Terminée le : {formatDate(qualification.completed_at)} par {qualification.completed_by_label}</span> : null}
+        </div> : <p className="muted">Aucune qualification commencée.</p>}
+        <TalentQualificationForm personId={person.id} qualification={qualification} canEdit={context.role !== "reader"} />
+      </section>
 
       <section className="card stack">
         <h2>Commentaires</h2>
