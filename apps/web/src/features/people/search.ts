@@ -5,6 +5,7 @@ export type PeopleSearchParams = {
   query?: string;
   status?: string;
   priority?: string;
+  qualificationState?: string;
   page?: number;
   pageSize?: number;
 };
@@ -128,6 +129,7 @@ export function normalizePeopleListParams(params: PeopleSearchParams) {
     query: params.query?.trim() || "",
     status: params.status?.trim() || "",
     priority: params.priority?.trim() || "",
+    qualificationState: params.qualificationState?.trim() || "",
     page,
     pageSize,
     from: (page - 1) * pageSize,
