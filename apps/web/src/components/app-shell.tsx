@@ -1,6 +1,7 @@
 "use client";
 
 import type { SessionAccountSummary } from "@/features/session-account/session-account";
+import { GlobalSearch } from "@/components/global-search";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -91,6 +92,7 @@ export function AppShell({ children, account }: { children: React.ReactNode; acc
           <p className="brand">Project Atlas</p>
           <p className="muted">Talent CRM</p>
         </div>
+        <GlobalSearch />
         <button
           aria-controls="atlas-sidebar"
           aria-expanded={menuOpen}
@@ -107,6 +109,7 @@ export function AppShell({ children, account }: { children: React.ReactNode; acc
           <p className="brand">Project Atlas</p>
           <p className="muted">Talent CRM</p>
         </div>
+        <GlobalSearch />
         <nav>{visibleNavItems.map((item) => <Link key={item.href} href={item.href}>{item.label}</Link>)}</nav>
         <AccountIndicator account={account} />
         <button className="button subtle-button sidebar-close" type="button" onClick={() => setMenuOpen(false)}>Fermer</button>
