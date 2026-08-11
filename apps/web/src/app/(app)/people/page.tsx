@@ -28,14 +28,16 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
   const status = valueOf(params, "status");
   const priority = valueOf(params, "priority");
   const qualificationState = valueOf(params, "qualificationState");
+  const talentScore = valueOf(params, "talentScore");
   const page = Number(valueOf(params, "page") || 1);
   const currentParams = new URLSearchParams();
   if (query) currentParams.set("query", query);
   if (status) currentParams.set("status", status);
   if (priority) currentParams.set("priority", priority);
   if (qualificationState) currentParams.set("qualificationState", qualificationState);
+  if (talentScore) currentParams.set("talentScore", talentScore);
 
-  const result = context ? await listPeople(context, { query, status, priority, qualificationState, page, pageSize: 10 }) : { people: [], total: 0, page: 1, pageSize: 10, pageCount: 1 };
+  const result = context ? await listPeople(context, { query, status, priority, qualificationState, talentScore, page, pageSize: 10 }) : { people: [], total: 0, page: 1, pageSize: 10, pageCount: 1 };
 
   return (
     <div className="page stack">
@@ -70,6 +72,14 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
             {QUALIFICATION_STATES.map((item) => <option key={item} value={item}>{QUALIFICATION_STATE_LABELS[item]}</option>)}
           </select>
         </label>
+        <label>
+          Score talent
+          <select className="input" name="talentScore" defaultValue={talentScore}>
+            <option value="">Tous</option>
+            <option value="unscored">Non renseigné</option>
+            {Array.from({ length: 11 }, (_, score) => <option key={score} value={score}>{score} / 10</option>)}
+          </select>
+        </label>
         <button className="button" type="submit">Filtrer</button>
       </form>
 
@@ -88,7 +98,7 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
               <span>{PERSON_STATUS_LABELS[person.status]}</span>
               <span>{PRIORITY_LABELS[person.priority]}</span>
               <span>{QUALIFICATION_STATE_LABELS[person.qualification_state ?? "none"]}</span>
-              <span>{person.talent_score ?? "-"}</span>
+              <span>{person.talent_score == null ? "Non renseigné" : `${person.talent_score} / 10`}</span>
               <span>{person.source ?? "-"}</span>
             </Link>
           ))}

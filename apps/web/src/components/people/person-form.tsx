@@ -143,7 +143,12 @@ export function PersonForm({ mode, person }: PersonFormProps) {
           </select>
           <FieldError name="priority" />
         </label>
-        <label>Score<Input name="talent_score" type="number" min={0} max={10} defaultValue={valueOrEmpty(person?.talent_score) as string} /><FieldError name="talent_score" /></label>
+        <label>
+          Score talent (0 à 10)
+          <Input name="talent_score" type="number" min={0} max={10} step={1} defaultValue={valueOrEmpty(person?.talent_score) as string} />
+          <span className="muted">Laissez vide si aucun score n’est attribué.</span>
+          <FieldError name="talent_score" />
+        </label>
       </div>
 
       <label>Commentaires<textarea className="input textarea" name="comments" defaultValue={valueOrEmpty(person?.comments) as string} /><FieldError name="comments" /></label>

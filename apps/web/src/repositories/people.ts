@@ -29,6 +29,8 @@ export async function listPeople(context: TenantContext, params: PeopleSearchPar
 
   if (normalized.status) query = query.eq("status", normalized.status);
   if (normalized.priority) query = query.eq("priority", normalized.priority);
+  if (normalized.talentScore === "unscored") query = query.is("talent_score", null);
+  if (/^(?:10|[0-9])$/.test(normalized.talentScore)) query = query.eq("talent_score", Number(normalized.talentScore));
   if (normalized.query || normalized.qualificationState) {
     const { data, error } = await query.order("updated_at", { ascending: false });
     if (error) throw error;
