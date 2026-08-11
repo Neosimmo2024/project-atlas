@@ -68,6 +68,12 @@ describe("people search", () => {
     expect(normalizePeopleListParams({ page: -2, pageSize: 200 })).toMatchObject({ page: 1, pageSize: 50, from: 0, to: 49 });
   });
 
+  it("normalizes a manual talent score filter without confusing zero and no score", () => {
+    expect(normalizePeopleListParams({ talentScore: "0" }).talentScore).toBe("0");
+    expect(normalizePeopleListParams({ talentScore: "unscored" }).talentScore).toBe("unscored");
+    expect(normalizePeopleListParams({}).talentScore).toBe("");
+  });
+
   it.each(["O'Connor", "L'Haÿ-les-Roses", "Jean, Pierre", "André", "Nom (test)"])("quotes special search value %s for PostgREST filters", (value) => {
     const filter = buildPeopleSearchOrFilter(["display_name", "city"], value);
 

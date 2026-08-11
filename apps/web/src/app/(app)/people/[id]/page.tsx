@@ -77,7 +77,7 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
           <h2>Qualification</h2>
           <p><strong>Statut</strong><br />{PERSON_STATUS_LABELS[person.status]}</p>
           <p><strong>Priorité</strong><br />{PRIORITY_LABELS[person.priority]}</p>
-          <p><strong>Score</strong><br />{person.talent_score ?? "-"}</p>
+          <p><strong>Score talent</strong><br />{person.talent_score == null ? "Non renseigné" : `${person.talent_score} / 10`}</p>
           <p><strong>Source</strong><br />{person.source ?? "-"}</p>
           <p><strong>Contact autorisé</strong><br />{person.contact_allowed ? "Oui" : "Non"}</p>
           <p><strong>Ne pas contacter</strong><br />{person.do_not_contact ? "Oui" : "Non"}</p>
@@ -85,7 +85,7 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
         <section className="card stack">
           <h2>Dates</h2>
           <p><strong>Créé le</strong><br />{formatDate(person.created_at)}</p>
-          <p><strong>Modifié le</strong><br />{formatDate(person.updated_at)}</p>
+          <p><strong>Dernière modification de la fiche</strong><br />{formatDate(person.updated_at)}</p>
         </section>
       </div>
 
