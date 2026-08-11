@@ -5,6 +5,7 @@ export type PersonStatus = "to_qualify" | "qualified" | "contacted" | "in_relati
 export type Priority = "low" | "medium" | "high";
 export type QualificationState = "draft" | "completed";
 export type QualificationConclusion = "continue" | "deepen" | "not_retained";
+export type RecruitmentEmailSequenceStatus = "pending" | "sent" | "error" | "stopped";
 export type TaskStatus = "todo" | "in_progress" | "waiting" | "completed" | "cancelled";
 export type TaskPriority = "low" | "normal" | "high" | "critical";
 export type TaskSourceType = "manual" | "person" | "organization" | "relationship" | "interaction" | "project";
@@ -83,7 +84,11 @@ export type TimelineEventType =
   | "relationship_rejected"
   | "relationship_reopened"
   | "relationship_owner_changed"
-  | "relationship_do_not_contact_changed";
+  | "relationship_do_not_contact_changed"
+  | "recruitment_email_queued"
+  | "recruitment_email_sent"
+  | "recruitment_email_error"
+  | "recruitment_email_stopped";
 export type TimelineSourceType = "person" | "organization" | "relationship" | "interaction" | "task" | "project";
 export type TimelineVisibility = "tenant";
 
@@ -133,6 +138,22 @@ export type TalentQualification = TenantScoped & {
   completed_by_label: string | null;
   updated_by: string;
   updated_by_label: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type RecruitmentEmailSequence = TenantScoped & {
+  id: string;
+  person_id: string;
+  email: string;
+  status: RecruitmentEmailSequenceStatus;
+  provider: "brevo";
+  provider_message_id: string | null;
+  sent_at: string | null;
+  stopped_at: string | null;
+  last_error: string | null;
+  created_by: string;
+  updated_by: string;
   created_at: string;
   updated_at: string;
 };
