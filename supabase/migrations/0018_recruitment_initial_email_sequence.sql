@@ -26,7 +26,7 @@ for each row execute function public.set_updated_at();
 
 create trigger audit_recruitment_email_sequences_changes
 after insert or update or delete on public.recruitment_email_sequences
-for each row execute function public.audit_row_change();
+for each row execute function public.audit_changes();
 
 alter table public.recruitment_email_sequences enable row level security;
 
