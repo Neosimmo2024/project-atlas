@@ -83,7 +83,7 @@ declare
 begin
   if v_user_id is null then raise exception 'AUTH_REQUIRED' using errcode = '42501'; end if;
 
-  select * into v_person from public.people where id = p_person_id and deleted_at is null;
+  select * into v_person from public.people where id = p_person_id;
   if v_person.id is null or not public.has_tenant_role(v_person.tenant_id, array['owner', 'admin', 'recruiter', 'manager']) then
     raise exception 'PERSON_NOT_FOUND_OR_FORBIDDEN' using errcode = '42501';
   end if;

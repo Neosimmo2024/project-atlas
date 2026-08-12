@@ -14,6 +14,8 @@ describe("lot 8 recruitment email migration", () => {
 
   it("derives identity and contact permission from trusted database state", () => {
     expect(migration).toContain("v_user_id uuid := auth.uid()");
+    expect(migration).toContain("select * into v_person from public.people where id = p_person_id;");
+    expect(migration).not.toMatch(/public\.people[^;]*deleted_at/);
     expect(migration).toContain("not v_person.contact_allowed or v_person.do_not_contact");
     expect(migration).toContain("public.has_tenant_role");
     expect(migration).toContain("PROVIDER_MESSAGE_ID_REQUIRED");
