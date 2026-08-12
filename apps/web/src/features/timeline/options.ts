@@ -31,7 +31,11 @@ export const TIMELINE_EVENT_LABELS: Record<TimelineEventType, string> = {
   relationship_rejected: "Relation rejetée",
   relationship_reopened: "Relation rouverte",
   relationship_owner_changed: "Responsable de relation modifié",
-  relationship_do_not_contact_changed: "Ne plus contacter modifié"
+  relationship_do_not_contact_changed: "Ne plus contacter modifié",
+  recruitment_email_queued: "Email de recrutement à envoyer",
+  recruitment_email_sent: "Email de recrutement envoyé",
+  recruitment_email_error: "Erreur d’envoi de l’email de recrutement",
+  recruitment_email_stopped: "Séquence email de recrutement arrêtée"
 };
 
 export const TIMELINE_FILTER_LABELS = {
@@ -40,7 +44,8 @@ export const TIMELINE_FILTER_LABELS = {
   tasks: "Tâches",
   relationships: "Relations",
   organizations: "Organisations",
-  projects: "Projets"
+  projects: "Projets",
+  emails: "Emails"
 } as const;
 
 export type TimelineFilterCategory = keyof typeof TIMELINE_FILTER_LABELS;
@@ -69,5 +74,6 @@ export const TIMELINE_EVENT_CATEGORIES: Record<Exclude<TimelineFilterCategory, "
     "project_reopened",
     "project_archived",
     "project_reactivated"
-  ]
+  ],
+  emails: ["recruitment_email_queued", "recruitment_email_sent", "recruitment_email_error", "recruitment_email_stopped"]
 };
