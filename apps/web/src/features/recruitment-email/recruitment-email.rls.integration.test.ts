@@ -36,8 +36,8 @@ describeIntegration("recruitment email sequence RLS", () => {
     tenantA = await userClient(process.env.PEOPLE_TEST_TENANT_A_EMAIL!, process.env.PEOPLE_TEST_TENANT_A_PASSWORD!);
     tenantB = await userClient(process.env.PEOPLE_TEST_TENANT_B_EMAIL!, process.env.PEOPLE_TEST_TENANT_B_PASSWORD!);
     tenantAId = await tenantId(tenantA); tenantBId = await tenantId(tenantB);
-    const a = await tenantA.from("people").insert({ tenant_id: tenantAId, display_name: `${marker} A`, primary_email: "a@example.fr", status: "to_qualify", priority: "medium" }).select("id").single();
-    const b = await tenantB.from("people").insert({ tenant_id: tenantBId, display_name: `${marker} B`, primary_email: "b@example.fr", status: "to_qualify", priority: "medium" }).select("id").single();
+    const a = await tenantA.from("people").insert({ tenant_id: tenantAId, display_name: `${marker} A`, primary_email: "a@example.fr", status: "to_qualify", priority: "medium", contact_allowed: true, do_not_contact: false }).select("id").single();
+    const b = await tenantB.from("people").insert({ tenant_id: tenantBId, display_name: `${marker} B`, primary_email: "b@example.fr", status: "to_qualify", priority: "medium", contact_allowed: true, do_not_contact: false }).select("id").single();
     if (a.error) throw a.error; if (b.error) throw b.error;
     personAId = a.data.id as string; personBId = b.data.id as string;
   });
