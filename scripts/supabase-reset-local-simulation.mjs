@@ -400,6 +400,7 @@ from (
   union all select 'public.timeline_events', count(*)::integer from public.timeline_events
   union all select 'public.audit_log', count(*)::integer from public.audit_log
   union all select 'public.action_plan_decisions', count(*)::integer from public.action_plan_decisions
+  union all select 'public.recruitment_email_sequences', count(*)::integer from public.recruitment_email_sequences
 ) counts;
 `);
   return JSON.parse(output);
