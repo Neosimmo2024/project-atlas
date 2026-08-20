@@ -3,6 +3,8 @@ type HeaderEntry = {
   value: string;
 };
 
+const NEOS_IMAGE_ORIGIN = "https://extranet.neos-immo.com";
+
 function supabaseOrigin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!url) return null;
@@ -33,7 +35,7 @@ export function buildContentSecurityPolicy() {
     ["object-src", "'none'"],
     ["script-src", ...scriptSources],
     ["style-src", "'self'", "'unsafe-inline'"],
-    ["img-src", "'self'", "data:", "blob:"],
+    ["img-src", "'self'", "data:", "blob:", NEOS_IMAGE_ORIGIN],
     ["font-src", "'self'", "data:"],
     ["connect-src", ...connectSources],
     ["frame-src", "'none'"]

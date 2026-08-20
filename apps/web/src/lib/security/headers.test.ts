@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { buildContentSecurityPolicy, buildSecurityHeaders } from "@/lib/security/headers";
 
 describe("security headers", () => {
-  it("builds a restrictive CSP including the configured Supabase origin", () => {
+  it("builds a restrictive CSP including the configured Supabase origin and NEOS image origin", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("VERCEL_ENV", "");
@@ -14,6 +14,7 @@ describe("security headers", () => {
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).toContain("object-src 'none'");
     expect(csp).toContain("connect-src 'self' https://example.supabase.co");
+    expect(csp).toContain("img-src 'self' data: blob: https://extranet.neos-immo.com");
     expect(csp).not.toContain("'unsafe-eval'");
   });
 
