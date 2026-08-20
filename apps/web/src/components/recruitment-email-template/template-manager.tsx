@@ -128,9 +128,12 @@ export function RecruitmentEmailTemplateManager({ initialVersions }: { initialVe
           <label>Titre dans l’email<input className="input" value={form.headline} onChange={(event) => update("headline", event.target.value)} required maxLength={200} /></label>
           <label>Message<textarea className="input template-body-field" value={form.bodyText} onChange={(event) => update("bodyText", event.target.value)} required rows={15} /></label>
 
+          <Card>
+            <strong>Signature permanente NEOS</strong>
+            <p className="muted">La signature Renato Ponzio et le logo officiel NEOS sont ajoutés automatiquement à tous les modèles.</p>
+          </Card>
+
           <div className="template-form-grid">
-            <label>Signature<input className="input" value={form.signatureName} onChange={(event) => update("signatureName", event.target.value)} required /></label>
-            <label>Fonction<input className="input" value={form.signatureTitle} onChange={(event) => update("signatureTitle", event.target.value)} /></label>
             <label>Nom de l’expéditeur<input className="input" value={form.senderName} onChange={(event) => update("senderName", event.target.value)} required /></label>
             <label>Email de l’expéditeur<input className="input" type="email" value={form.senderEmail} onChange={(event) => update("senderEmail", event.target.value)} required /></label>
             <label>Email de réponse<input className="input" type="email" value={form.replyTo} onChange={(event) => update("replyTo", event.target.value)} /></label>
@@ -152,7 +155,7 @@ export function RecruitmentEmailTemplateManager({ initialVersions }: { initialVe
             </div>
           </div>
           <div className={`template-preview-frame ${previewDevice}`}>
-            <iframe title="Aperçu du premier email de recrutement" sandbox="" srcDoc={previewHtml.replaceAll("{{ params.PRENOM }}", "Camille")} />
+            <iframe title="Aperçu du premier email de recrutement" sandbox="allow-same-origin" srcDoc={previewHtml.replaceAll("{{ params.PRENOM }}", "Camille")} />
           </div>
         </section>
       </div>

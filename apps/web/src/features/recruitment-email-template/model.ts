@@ -16,6 +16,15 @@ export const recruitmentEmailTemplateSchema = z.object({
 
 export type RecruitmentEmailTemplateInput = z.infer<typeof recruitmentEmailTemplateSchema>;
 
+const NEOS_LOGO_URL = "https://extranet.neos-immo.com/img/logo_neos_complet.png";
+
+const PERMANENT_RECRUITMENT_SIGNATURE_HTML = `<p><img style="border-radius:100%;display:block;" src="https://extranet.neos-immo.com/img/avatar/106b091e93a6bcb57779c422171f7c99.jpg" alt="Renato Ponzio" width="100" height="100" /></p>
+<p style="font-family:Arial,sans-serif;color:#11718b;font-weight:bold;margin:0;font-size:22px;">Renato Ponzio<br />Président<br />Expert Immobilier</p>
+<p style="font-family:Arial,sans-serif;font-weight:bold;margin:0;font-size:20px;">0661558750</p>
+<p><img style="margin:0;display:block;" src="${NEOS_LOGO_URL}" alt="Logo NEOS" width="180" /></p>
+<div style="margin:10px 0;"><a href="https://www.facebook.com/RENATOPONZIO2" rel="noopener"><img src="https://extranet.neos-immo.com/img/signatures/facebook.svg" alt="Facebook" width="30" /></a> <a href="https://www.linkedin.com/in/renatoponzio/" rel="noopener"><img src="https://extranet.neos-immo.com/img/signatures/linkedin.svg" alt="LinkedIn" width="30" /></a> <a href="https://www.instagram.com/renatoponzio/?__d=11" rel="noopener"><img src="https://extranet.neos-immo.com/img/signatures/instagram.svg" alt="Instagram" width="30" /></a> <a href="https://www.google.com/search?q=neos+immo&amp;rlz=1C1CHBF_frFR902FR902&amp;sxsrf=ALiCzsY6o5yMGXCLr9wvbPhz274ErAUhSw%3A1666767009182&amp;ei=odhYY63iCs_IaI6gmJAM&amp;oq=neos&amp;gs_lcp=Cgdnd3Mtd2l6EAEYADIECCMQJzIECCMQJzIECCMQJzIQCC4QgAQQhwIQxwEQrwEQFDIHCAAQsQMQQzIHCAAQsQMQQzIF" rel="noopener"><img src="https://extranet.neos-immo.com/img/signatures/google.svg" alt="Google" width="30" /></a> <a href="https://www.youtube.com/channel/UCx8f0r-sLu0Fuf3kVbKwzeQ" rel="noopener"><img src="https://extranet.neos-immo.com/img/signatures/youtube.svg" alt="YouTube" width="30" /></a></div>
+<p><a style="font-family:Arial,sans-serif;display:block;color:#11718b;font-weight:400;text-decoration:underline;" href="https://neos-immo.com/?sourceSignature=Renato%20Ponzio">Estimez votre bien en ligne</a><br /><br /><a style="font-family:Arial,sans-serif;display:block;color:#11718b;font-weight:400;text-decoration:underline;" href="https://ayvdwroc.gensparkspace.com/">Présentation du réseau</a></p>`;
+
 export const DEFAULT_RECRUITMENT_EMAIL_TEMPLATE: RecruitmentEmailTemplateInput = {
   templateName: "Premier email recrutement NEOS IMMO",
   subject: "{{ params.PRENOM }}, échangeons sur votre projet immobilier",
@@ -68,16 +77,13 @@ export function buildRecruitmentEmailHtml(input: RecruitmentEmailTemplateInput) 
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6f5;padding:24px 12px;">
     <tr><td align="center">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border:1px solid #e1e6e3;border-radius:16px;overflow:hidden;">
-        <tr><td style="padding:30px 34px 22px;text-align:center;border-top:8px solid ${brand};">
-          <div style="font-size:30px;font-weight:800;letter-spacing:.08em;color:${brand};">NEOS <span style="color:#FF6834;">IMMO</span></div>
+        <tr><td style="padding:26px 34px 20px;text-align:center;border-top:8px solid ${brand};">
+          <img src="${NEOS_LOGO_URL}" alt="NEOS Immo" width="180" style="display:block;width:180px;max-width:100%;height:auto;margin:0 auto;border:0;" />
         </td></tr>
         <tr><td style="padding:8px 34px 34px;">
           <h1 style="margin:0 0 26px;color:${brand};font-size:28px;line-height:1.25;text-align:center;">${escapeHtml(input.headline)}</h1>
           <div style="font-size:16px;line-height:1.65;">${paragraphs}</div>
-          <div style="margin-top:26px;padding-top:20px;border-top:1px solid #e1e6e3;">
-            <strong style="display:block;color:${brand};font-size:17px;">${escapeHtml(input.signatureName)}</strong>
-            <span style="display:block;margin-top:4px;color:#667085;font-size:14px;">${escapeHtml(input.signatureTitle)}</span>
-          </div>
+          <div style="margin-top:26px;padding-top:20px;border-top:1px solid #e1e6e3;">${PERMANENT_RECRUITMENT_SIGNATURE_HTML}</div>
         </td></tr>
       </table>
     </td></tr>
