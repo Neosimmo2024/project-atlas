@@ -12,21 +12,71 @@ export async function prepareBrevoContact(_payload: BrevoContactPayload) {
   return { prepared: true, sent: false, reason: "Brevo automations are intentionally out of scope for this ticket." };
 }
 
-function brevoConfiguration() {
+function brevoApiKey() {
   const apiKey = process.env.BREVO_API_KEY?.trim();
+  return apiKey || null;
+}
+
+function brevoConfiguration(templateOverride?: number | null) {
+  const apiKey = brevoApiKey();
+  const override = Number(templateOverride);
   const templateId = Number(process.env.BREVO_INITIAL_RECRUITMENT_TEMPLATE_ID);
-  if (!apiKey || !Number.isInteger(templateId) || templateId <= 0) {
+  const selectedTemplateId = Number.isInteger(override) && override > 0 ? override : templateId;
+  if (!apiKey || !Number.isInteger(selectedTemplateId) || selectedTemplateId <= 0) {
     return null;
   }
-  return { apiKey, templateId };
+  return { apiKey, templateId: selectedTemplateId };
+}
+
+export type BrevoTemplatePayload = {
+  templateName: string;
+  subject: string;
+  senderName: string;
+  senderEmail: string;
+  replyTo?: string | null;
+  htmlContent: string;
+};
+
+export async function createBrevoRecruitmentTemplate(payload: BrevoTemplatePayload) {
+  const apiKey = brevoApiKey();
+  if (!apiKey) return { success: false as const, error: "Configuration Brevo incomplète." };
+
+  try {
+    const response = await fetch("https://api.brevo.com/v3/smtp/templates", {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "api-key": apiKey,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        templateName: payload.templateName,
+        subject: payload.subject,
+        sender: { name: payload.senderName, email: payload.senderEmail },
+        replyTo: payload.replyTo || undefined,
+        htmlContent: payload.htmlContent,
+        isActive: true,
+        tag: "avenor-initial-recruitment"
+      }),
+      cache: "no-store"
+    });
+    const body = await response.json().catch(() => ({})) as { id?: number; message?: string; code?: string };
+    if (!response.ok || !Number.isInteger(body.id) || Number(body.id) <= 0) {
+      return { success: false as const, error: body.message || body.code || `Brevo HTTP ${response.status}` };
+    }
+    return { success: true as const, templateId: Number(body.id) };
+  } catch {
+    return { success: false as const, error: "Brevo est temporairement indisponible." };
+  }
 }
 
 export async function sendInitialRecruitmentEmail(input: {
   sequenceId: string;
   email: string;
   displayName: string;
+  templateId?: number | null;
 }): Promise<BrevoSendResult> {
-  const configuration = brevoConfiguration();
+  const configuration = brevoConfiguration(input.templateId);
   if (!configuration) return { success: false, error: "Configuration Brevo incomplète." };
 
   try {

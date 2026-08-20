@@ -6,6 +6,7 @@ export type Priority = "low" | "medium" | "high";
 export type QualificationState = "draft" | "completed";
 export type QualificationConclusion = "continue" | "deepen" | "not_retained";
 export type RecruitmentEmailSequenceStatus = "pending" | "sent" | "error" | "stopped";
+export type RecruitmentEmailTemplateStatus = "draft" | "synced" | "active" | "error";
 export type TaskStatus = "todo" | "in_progress" | "waiting" | "completed" | "cancelled";
 export type TaskPriority = "low" | "normal" | "high" | "critical";
 export type TaskSourceType = "manual" | "person" | "organization" | "relationship" | "interaction" | "project";
@@ -157,6 +158,34 @@ export type RecruitmentEmailSequence = TenantScoped & {
   created_at: string;
   updated_at: string;
 };
+
+export type RecruitmentEmailTemplateVersion = TenantScoped & {
+  id: string;
+  template_key: "initial_recruitment";
+  version_number: number;
+  template_name: string;
+  subject: string;
+  preview_text: string;
+  headline: string;
+  body_text: string;
+  signature_name: string;
+  signature_title: string;
+  sender_name: string;
+  sender_email: string;
+  reply_to: string | null;
+  brand_color: string;
+  html_content: string;
+  status: RecruitmentEmailTemplateStatus;
+  brevo_template_id: number | null;
+  last_sync_error: string | null;
+  created_by: string;
+  activated_by: string | null;
+  activated_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type RecruitmentEmailTemplateVersionSummary = Omit<RecruitmentEmailTemplateVersion, "html_content">;
 
 export type Organization = TenantScoped & {
   id: string;

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Person, RecruitmentEmailSequence, TenantContext } from "@/types/domain";
 
-const mocks = vi.hoisted(() => ({ context: vi.fn(), person: vi.fn(), get: vi.fn(), claim: vi.fn(), complete: vi.fn(), stop: vi.fn(), send: vi.fn() }));
+const mocks = vi.hoisted(() => ({ context: vi.fn(), person: vi.fn(), get: vi.fn(), claim: vi.fn(), complete: vi.fn(), stop: vi.fn(), activeTemplate: vi.fn(), send: vi.fn() }));
 vi.mock("@/repositories/tenant-context", () => ({ getTenantContext: mocks.context }));
 vi.mock("@/repositories/people", () => ({ getPersonDetail: mocks.person }));
 vi.mock("@/repositories/recruitment-email-sequences", () => ({
@@ -10,6 +10,7 @@ vi.mock("@/repositories/recruitment-email-sequences", () => ({
   completeRecruitmentEmailSequence: mocks.complete,
   stopRecruitmentEmailSequence: mocks.stop
 }));
+vi.mock("@/repositories/recruitment-email-template-versions", () => ({ getActiveRecruitmentEmailTemplate: mocks.activeTemplate }));
 vi.mock("@/services/brevo", () => ({ sendInitialRecruitmentEmail: mocks.send }));
 
 const context: TenantContext = { tenantId: "tenant-a", tenant: { id: "tenant-a", name: "A" }, userId: "user-a", role: "recruiter" };
@@ -23,6 +24,7 @@ describe("recruitment email API", () => {
     mocks.context.mockResolvedValue(context);
     mocks.person.mockResolvedValue({ person, organizations: [], relationships: [] });
     mocks.claim.mockResolvedValue(sequence);
+    mocks.activeTemplate.mockResolvedValue({ brevo_template_id: 88 });
   });
 
   it("sends once and stores the Brevo message id", async () => {
@@ -31,7 +33,7 @@ describe("recruitment email API", () => {
     mocks.complete.mockResolvedValue({ ...sequence, status: "sent", provider_message_id: "brevo-1" });
     const response = await POST(new Request("http://localhost", { method: "POST" }), route);
     expect(response.status).toBe(200);
-    expect(mocks.send).toHaveBeenCalledWith(expect.objectContaining({ sequenceId: "sequence-a", email: "alice@example.fr" }));
+    expect(mocks.send).toHaveBeenCalledWith(expect.objectContaining({ sequenceId: "sequence-a", email: "alice@example.fr", templateId: 88 }));
     expect(mocks.complete).toHaveBeenCalledWith(context, "sequence-a", { success: true, providerMessageId: "brevo-1" });
   });
 

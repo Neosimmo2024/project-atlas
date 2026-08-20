@@ -113,11 +113,12 @@ jobs:
           0016_tenant_member_listing.sql
           0017_talent_qualifications.sql
           0018_recruitment_initial_email_sequence.sql
+          0019_recruitment_email_template_management.sql
           EOF
           sed -i 's/^          //' "$expected_migrations"
           find supabase/migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort > "$actual_migrations"
           if ! diff -u "$expected_migrations" "$actual_migrations"; then
-            echo "Refusing reset: migration set is not exactly 0001 through 0018."
+            echo "Refusing reset: migration set is not exactly 0001 through 0019."
             exit 1
           fi
 
@@ -222,6 +223,7 @@ jobs:
             ('public.timeline_events', 9),
             ('public.audit_log', 29),
             ('public.recruitment_email_sequences', 0),
+            ('public.recruitment_email_template_versions', 0),
             ('public.action_plan_decisions', 0);
 
           create temp table atlas_reset_observed_counts (
@@ -244,6 +246,7 @@ jobs:
           union all select 'public.timeline_events', count(*)::integer from public.timeline_events
           union all select 'public.audit_log', count(*)::integer from public.audit_log
           union all select 'public.recruitment_email_sequences', count(*)::integer from public.recruitment_email_sequences
+          union all select 'public.recruitment_email_template_versions', count(*)::integer from public.recruitment_email_template_versions
           union all select 'public.action_plan_decisions', count(*)::integer from public.action_plan_decisions;
 
           select 'pre_reset_count ' || o.table_name || '=' || o.observed_count
@@ -311,7 +314,7 @@ jobs:
           do $$
           declare
             expected_versions text[] := array[
-              '0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011','0012','0013','0014','0015','0016','0017','0018'
+              '0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011','0012','0013','0014','0015','0016','0017','0018','0019'
             ];
             missing_version_count integer;
             missing_table_count integer;
@@ -326,7 +329,7 @@ jobs:
               where sm.version like version_prefix || '%'
             );
             if missing_version_count > 0 then
-              raise exception 'Expected migration history 0001 through 0018 is incomplete.';
+              raise exception 'Expected migration history 0001 through 0019 is incomplete.';
             end if;
 
             select count(*)
@@ -347,7 +350,8 @@ jobs:
               'public.projects',
               'public.recruitment_pipeline_events',
               'public.csv_import_runs',
-              'public.recruitment_email_sequences'
+              'public.recruitment_email_sequences',
+              'public.recruitment_email_template_versions'
             ]) as table_name
             where to_regclass(table_name) is null;
             if missing_table_count > 0 then
@@ -370,7 +374,8 @@ jobs:
               'projects',
               'recruitment_pipeline_events',
               'csv_import_runs',
-              'recruitment_email_sequences'
+              'recruitment_email_sequences',
+              'recruitment_email_template_versions'
             ]) as table_name
             where not exists (
               select 1
@@ -394,6 +399,11 @@ jobs:
                or has_table_privilege('authenticated', 'public.recruitment_email_sequences', 'update')
                or has_table_privilege('authenticated', 'public.recruitment_email_sequences', 'delete') then
               raise exception 'authenticated role must not write recruitment email sequences directly.';
+            end if;
+            if has_table_privilege('authenticated', 'public.recruitment_email_template_versions', 'insert')
+               or has_table_privilege('authenticated', 'public.recruitment_email_template_versions', 'update')
+               or has_table_privilege('authenticated', 'public.recruitment_email_template_versions', 'delete') then
+              raise exception 'authenticated role must not write recruitment email template versions directly.';
             end if;
             if not has_function_privilege('authenticated', 'public.transition_recruitment_pipeline(uuid, uuid, text, text, timestamp with time zone, boolean, text, timestamp with time zone, timestamp with time zone, text, text, boolean, timestamp with time zone, boolean, jsonb)', 'execute') then
               raise exception 'authenticated role cannot execute transition_recruitment_pipeline.';

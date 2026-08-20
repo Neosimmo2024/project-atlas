@@ -68,4 +68,39 @@ describeIntegration("recruitment email sequence RLS", () => {
     });
     expect(insert.error).not.toBeNull();
   });
+
+  it("versions and activates the tenant Brevo template through guarded RPCs only", async () => {
+    const created = await tenantA.rpc("create_recruitment_email_template_version", {
+      p_tenant_id: tenantAId,
+      p_template_name: `${marker} template`,
+      p_subject: "Bonjour {{ params.PRENOM }}",
+      p_preview_text: "Aperçu",
+      p_headline: "Une autre vision de l’immobilier",
+      p_body_text: "Bonjour {{ params.PRENOM }}, ceci est un contenu de test suffisamment long.",
+      p_signature_name: "Renato Ponzio",
+      p_signature_title: "Président de NEOS IMMO",
+      p_sender_name: "NEOS IMMO",
+      p_sender_email: "contact@neos-immo.com",
+      p_reply_to: "contact@neos-immo.com",
+      p_brand_color: "#0B3D3B",
+      p_html_content: "<html><body><p>Bonjour {{ params.PRENOM }}, contenu de test sécurisé.</p></body></html>"
+    });
+    expect(created.error).toBeNull();
+    expect(created.data.tenant_id).toBe(tenantAId);
+    expect(created.data.status).toBe("draft");
+
+    const crossTenantRead = await tenantB.from("recruitment_email_template_versions").select("id").eq("id", created.data.id);
+    expect(crossTenantRead.error).toBeNull();
+    expect(crossTenantRead.data).toHaveLength(0);
+
+    const directUpdate = await tenantA.from("recruitment_email_template_versions").update({ status: "active" }).eq("id", created.data.id);
+    expect(directUpdate.error).not.toBeNull();
+
+    const activated = await tenantA.rpc("activate_recruitment_email_template_version", {
+      p_version_id: created.data.id,
+      p_brevo_template_id: 501
+    });
+    expect(activated.error).toBeNull();
+    expect(activated.data).toMatchObject({ status: "active", brevo_template_id: 501 });
+  });
 });

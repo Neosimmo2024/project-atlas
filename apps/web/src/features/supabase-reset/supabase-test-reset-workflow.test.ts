@@ -95,7 +95,7 @@ describe("Supabase test reset workflow", () => {
     }
   });
 
-  it("requires exactly canonical migrations 0001 through 0018", () => {
+  it("requires exactly canonical migrations 0001 through 0019", () => {
     const migrations = readdirSync(resolve(root, "supabase/migrations")).filter((name) => name.endsWith(".sql")).sort();
     expect(migrations).toEqual([
       "0001_core.sql",
@@ -115,9 +115,10 @@ describe("Supabase test reset workflow", () => {
       "0015_tenant_user_administration.sql",
       "0016_tenant_member_listing.sql",
       "0017_talent_qualifications.sql",
-      "0018_recruitment_initial_email_sequence.sql"
+      "0018_recruitment_initial_email_sequence.sql",
+      "0019_recruitment_email_template_management.sql"
     ]);
-    expect(workflow).toContain("Refusing reset: migration set is not exactly 0001 through 0018.");
+    expect(workflow).toContain("Refusing reset: migration set is not exactly 0001 through 0019.");
   });
 
   it("verifies the CSV import execution schema and RPC privileges after reset", () => {
@@ -150,6 +151,7 @@ describe("Supabase test reset workflow", () => {
       ["public.timeline_events", 9],
       ["public.audit_log", 29],
       ["public.recruitment_email_sequences", 0],
+      ["public.recruitment_email_template_versions", 0],
       ["public.action_plan_decisions", 0],
       ["storage.buckets", 0],
       ["storage.objects", 0]

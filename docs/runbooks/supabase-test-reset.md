@@ -218,6 +218,7 @@ data or personal data.
 | `public.timeline_events` | 9 |
 | `public.audit_log` | 29 |
 | `public.recruitment_email_sequences` | 0 |
+| `public.recruitment_email_template_versions` | 0 |
 | `public.action_plan_decisions` | 0 |
 
 If any count differs from the exact authorized snapshot, whether lower or

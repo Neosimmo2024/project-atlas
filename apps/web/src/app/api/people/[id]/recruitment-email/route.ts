@@ -7,6 +7,7 @@ import {
   getRecruitmentEmailSequence,
   stopRecruitmentEmailSequence
 } from "@/repositories/recruitment-email-sequences";
+import { getActiveRecruitmentEmailTemplate } from "@/repositories/recruitment-email-template-versions";
 import { getTenantContext } from "@/repositories/tenant-context";
 import { sendInitialRecruitmentEmail } from "@/services/brevo";
 
@@ -40,10 +41,12 @@ export async function POST(_request: Request, route: RouteContext) {
     if (sequence.status === "sent") return NextResponse.json({ data: sequence, duplicatePrevented: true });
     if (sequence.status === "stopped") return NextResponse.json({ error: "La séquence a été arrêtée." }, { status: 409 });
 
+    const activeTemplate = await getActiveRecruitmentEmailTemplate(context);
     const result = await sendInitialRecruitmentEmail({
       sequenceId: sequence.id,
       email: sequence.email,
-      displayName: detail.person.display_name
+      displayName: detail.person.display_name,
+      templateId: activeTemplate?.brevo_template_id ?? null
     });
     const completed = await completeRecruitmentEmailSequence(context, sequence.id, result.success
       ? { success: true, providerMessageId: result.messageId }
