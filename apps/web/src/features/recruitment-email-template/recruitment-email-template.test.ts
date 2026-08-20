@@ -7,9 +7,9 @@ import {
 } from "@/features/recruitment-email-template/model";
 
 describe("recruitment email template model", () => {
-  it("builds responsive branded HTML with official NEOS logo, permanent signature and Brevo first-name variable", () => {
+  it("builds responsive branded HTML with the approved NEOS logo, permanent signature and Brevo first-name variable", () => {
     const html = buildRecruitmentEmailHtml(DEFAULT_RECRUITMENT_EMAIL_TEMPLATE);
-    expect(html).toContain("https://extranet.neos-immo.com/img/logo_neos_complet.png");
+    expect(html).toContain("https://raw.githubusercontent.com/Neosimmo2024/project-atlas/f1ce2c00eae740eb54c18741a183132d318d9d18/apps/web/public/neos-email-logo.png");
     expect(html).toContain("Renato Ponzio");
     expect(html).toContain("Expert Immobilier");
     expect(html).toContain("{{ params.PRENOM }}");

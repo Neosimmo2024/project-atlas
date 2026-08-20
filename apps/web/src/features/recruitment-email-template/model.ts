@@ -16,7 +16,7 @@ export const recruitmentEmailTemplateSchema = z.object({
 
 export type RecruitmentEmailTemplateInput = z.infer<typeof recruitmentEmailTemplateSchema>;
 
-const NEOS_LOGO_URL = "https://extranet.neos-immo.com/img/logo_neos_complet.png";
+const NEOS_LOGO_URL = "https://raw.githubusercontent.com/Neosimmo2024/project-atlas/f1ce2c00eae740eb54c18741a183132d318d9d18/apps/web/public/neos-email-logo.png";
 
 const PERMANENT_RECRUITMENT_SIGNATURE_HTML = `<p><img style="border-radius:100%;display:block;" src="https://extranet.neos-immo.com/img/avatar/106b091e93a6bcb57779c422171f7c99.jpg" alt="Renato Ponzio" width="100" height="100" /></p>
 <p style="font-family:Arial,sans-serif;color:#11718b;font-weight:bold;margin:0;font-size:22px;">Renato Ponzio<br />Président<br />Expert Immobilier</p>
@@ -78,7 +78,7 @@ export function buildRecruitmentEmailHtml(input: RecruitmentEmailTemplateInput) 
     <tr><td align="center">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border:1px solid #e1e6e3;border-radius:16px;overflow:hidden;">
         <tr><td style="padding:26px 34px 20px;text-align:center;border-top:8px solid ${brand};">
-          <img src="${NEOS_LOGO_URL}" alt="NEOS Immo" width="180" style="display:block;width:180px;max-width:100%;height:auto;margin:0 auto;border:0;" />
+          <img src="${NEOS_LOGO_URL}" alt="NEOS" width="180" style="display:block;width:180px;max-width:100%;height:auto;margin:0 auto;border:0;" />
         </td></tr>
         <tr><td style="padding:8px 34px 34px;">
           <h1 style="margin:0 0 26px;color:${brand};font-size:28px;line-height:1.25;text-align:center;">${escapeHtml(input.headline)}</h1>

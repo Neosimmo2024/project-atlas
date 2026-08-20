@@ -4,6 +4,7 @@ type HeaderEntry = {
 };
 
 const NEOS_IMAGE_ORIGIN = "https://extranet.neos-immo.com";
+const GITHUB_IMAGE_ORIGIN = "https://raw.githubusercontent.com";
 
 function supabaseOrigin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -35,7 +36,7 @@ export function buildContentSecurityPolicy() {
     ["object-src", "'none'"],
     ["script-src", ...scriptSources],
     ["style-src", "'self'", "'unsafe-inline'"],
-    ["img-src", "'self'", "data:", "blob:", NEOS_IMAGE_ORIGIN],
+    ["img-src", "'self'", "data:", "blob:", NEOS_IMAGE_ORIGIN, GITHUB_IMAGE_ORIGIN],
     ["font-src", "'self'", "data:"],
     ["connect-src", ...connectSources],
     ["frame-src", "'none'"]
