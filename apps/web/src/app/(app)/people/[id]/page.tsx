@@ -4,6 +4,7 @@ import { DeletePersonButton } from "@/components/people/delete-person-button";
 import { SafeBackLink } from "@/components/navigation/safe-back-link";
 import { PersonForm } from "@/components/people/person-form";
 import { TalentQualificationForm } from "@/components/people/talent-qualification-form";
+import { RecruitmentEmailSequenceCard } from "@/components/people/recruitment-email-sequence-card";
 import { ContextProjects } from "@/components/projects/context-projects";
 import { TaskCard } from "@/components/tasks/task-card";
 import { TimelineFilters, normalizeTimelineCategory } from "@/components/timeline/timeline-filters";
@@ -15,6 +16,7 @@ import { listContextProjects } from "@/repositories/projects";
 import { listPersonTasks } from "@/repositories/tasks";
 import { getTenantContext } from "@/repositories/tenant-context";
 import { getTalentQualification } from "@/repositories/talent-qualifications";
+import { getRecruitmentEmailSequence } from "@/repositories/recruitment-email-sequences";
 import { QUALIFICATION_CONCLUSION_LABELS, QUALIFICATION_STATE_LABELS } from "@/features/talent-qualification/options";
 import { listTimelineEvents } from "@/repositories/timeline-events";
 
@@ -45,11 +47,12 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
   const { person, organizations, relationships } = detail;
   const timelineCategory = normalizeTimelineCategory(valueOf(query, "timelineCategory"));
   const timelinePage = Number(valueOf(query, "timelinePage") || 1);
-  const [chronology, tasks, projects, qualification] = await Promise.all([
+  const [chronology, tasks, projects, qualification, recruitmentEmailSequence] = await Promise.all([
     listTimelineEvents(context, { personId: person.id, category: timelineCategory, page: timelinePage, pageSize: 10 }),
     listPersonTasks(context, person.id),
     listContextProjects(context, { personId: person.id }),
-    getTalentQualification(context, person.id)
+    getTalentQualification(context, person.id),
+    getRecruitmentEmailSequence(context, person.id)
   ]);
 
   return (
@@ -101,6 +104,14 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
         </div> : <p className="muted">Aucune qualification commencée.</p>}
         <TalentQualificationForm personId={person.id} qualification={qualification} canEdit={context.role !== "reader"} />
       </section>
+
+      <RecruitmentEmailSequenceCard
+        personId={person.id}
+        email={person.primary_email}
+        canContact={person.contact_allowed && !person.do_not_contact}
+        canEdit={context.role !== "reader"}
+        sequence={recruitmentEmailSequence}
+      />
 
       <section className="card stack">
         <h2>Commentaires</h2>
