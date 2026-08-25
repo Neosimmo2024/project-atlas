@@ -23,6 +23,8 @@ const statusLabels = {
 } as const;
 
 const versionDateFormatter = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" });
+const PUBLIC_EMAIL_LOGO_URL = "https://raw.githubusercontent.com/Neosimmo2024/project-atlas/f1ce2c00eae740eb54c18741a183132d318d9d18/apps/web/public/neos-email-logo.png";
+const PREVIEW_EMAIL_LOGO_URL = "/neos-email-logo.png";
 
 function statusTone(status: RecruitmentEmailTemplateVersionSummary["status"]): "success" | "warning" | "neutral" | "info" {
   if (status === "active") return "success";
@@ -40,7 +42,10 @@ export function RecruitmentEmailTemplateManager({ initialVersions }: { initialVe
   const [saving, setSaving] = useState(false);
   const [activatingId, setActivatingId] = useState<string | null>(null);
   const [message, setMessage] = useState<Message>(null);
-  const previewHtml = useMemo(() => buildRecruitmentEmailHtml(form), [form]);
+  const previewHtml = useMemo(
+    () => buildRecruitmentEmailHtml(form).replaceAll(PUBLIC_EMAIL_LOGO_URL, PREVIEW_EMAIL_LOGO_URL),
+    [form]
+  );
 
   function update<K extends keyof RecruitmentEmailTemplateInput>(field: K, value: RecruitmentEmailTemplateInput[K]) {
     setForm((current) => ({ ...current, [field]: value }));
