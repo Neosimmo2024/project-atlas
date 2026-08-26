@@ -1,4 +1,4 @@
-﻿import { spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
@@ -26,7 +26,9 @@ export const EXPECTED_MIGRATIONS = [
   "0016_tenant_member_listing.sql",
   "0017_talent_qualifications.sql",
   "0018_recruitment_initial_email_sequence.sql",
-  "0019_recruitment_email_template_management.sql"
+  "0019_recruitment_email_template_management.sql",
+  "0020_recruitment_sequence_engine.sql",
+  "0021_csv_import_direct_write_hardening.sql"
 ];
 export const EXPECTED_COUNTS = Object.freeze({
   "auth.users": 1,
@@ -359,7 +361,7 @@ function verifyMigrationSet() {
   const actual = migrations.join("\n");
   const expected = EXPECTED_MIGRATIONS.join("\n");
   if (actual !== expected) {
-    throw new Error("Migration set is not exactly 0001 through 0017.");
+    throw new Error("Migration set is not exactly 0001 through 0021.");
   }
 }
 
@@ -578,13 +580,13 @@ declare
 begin
   select count(*)
   into missing_version_count
-  from unnest(array['0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011','0012','0013','0014','0015','0016','0017']) as version_prefix
+  from unnest(array['0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011','0012','0013','0014','0015','0016','0017','0018','0019','0020','0021']) as version_prefix
   where not exists (
     select 1 from supabase_migrations.schema_migrations sm
     where sm.version like version_prefix || '%'
   );
   if missing_version_count > 0 then
-    raise exception 'Expected migration history 0001 through 0017 is incomplete.';
+    raise exception 'Expected migration history 0001 through 0021 is incomplete.';
   end if;
 
   select count(*)
@@ -604,7 +606,10 @@ begin
     'public.action_plan_decisions',
     'public.projects',
     'public.recruitment_pipeline_events',
-    'public.csv_import_runs'
+    'public.csv_import_runs',
+    'public.recruitment_email_sequences',
+    'public.recruitment_email_template_versions',
+    'public.recruitment_email_sequence_steps'
   ]) as table_name
   where to_regclass(table_name) is null;
   if missing_table_count > 0 then
@@ -626,7 +631,10 @@ begin
     'action_plan_decisions',
     'projects',
     'recruitment_pipeline_events',
-    'csv_import_runs'
+    'csv_import_runs',
+    'recruitment_email_sequences',
+    'recruitment_email_template_versions',
+    'recruitment_email_sequence_steps'
   ]) as table_name
   where not exists (
     select 1
