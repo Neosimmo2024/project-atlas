@@ -11,6 +11,7 @@ const navItems: Array<{ href: string; label: string; adminOnly?: boolean }> = [
   { href: "/dashboard", label: "Tableau de bord" },
   { href: "/action-plan", label: "Plan d’action" },
   { href: "/admin/team", label: "Administration de l’équipe", adminOnly: true },
+  { href: "/admin/recruitment-email-template", label: "Modèle du premier email", adminOnly: true },
   { href: "/people", label: "Personnes" },
   { href: "/organizations", label: "Organisations" },
   { href: "/relationships", label: "Relations" },

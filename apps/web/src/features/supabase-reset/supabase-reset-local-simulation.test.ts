@@ -52,6 +52,15 @@ describe("Supabase reset local simulation guards", () => {
     expect(() => simulation.assertExactSnapshotCounts(exactCounts())).not.toThrow();
   });
 
+  it("counts every table in the authorized snapshot query", () => {
+    for (const tableName of Object.keys(simulation.EXPECTED_COUNTS)) {
+      const escapedTableName = tableName.replaceAll(".", "\\.");
+      expect(source).toMatch(
+        new RegExp(`select '${escapedTableName}'(?: as table_name)?, count\\(\\*\\)::integer(?: as observed_count)? from ${escapedTableName}`)
+      );
+    }
+  });
+
   it("refuses a lower count", () => {
     const counts = exactCounts();
     counts["public.tasks"] = simulation.EXPECTED_COUNTS["public.tasks"] - 1;
