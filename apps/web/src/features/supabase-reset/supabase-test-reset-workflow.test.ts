@@ -95,7 +95,7 @@ describe("Supabase test reset workflow", () => {
     }
   });
 
-  it("requires exactly canonical migrations 0001 through 0019", () => {
+  it("tracks canonical repository migrations through 0021 while keeping the remote reset lock at validated 0019", () => {
     const migrations = readdirSync(resolve(root, "supabase/migrations")).filter((name) => name.endsWith(".sql")).sort();
     expect(migrations).toEqual([
       "0001_core.sql",
@@ -116,9 +116,12 @@ describe("Supabase test reset workflow", () => {
       "0016_tenant_member_listing.sql",
       "0017_talent_qualifications.sql",
       "0018_recruitment_initial_email_sequence.sql",
-      "0019_recruitment_email_template_management.sql"
+      "0019_recruitment_email_template_management.sql",
+      "0020_recruitment_sequence_engine.sql",
+      "0021_csv_import_direct_write_hardening.sql"
     ]);
     expect(workflow).toContain("Refusing reset: migration set is not exactly 0001 through 0019.");
+    expect(workflow).not.toContain("Refusing reset: migration set is not exactly 0001 through 0021.");
   });
 
   it("verifies the CSV import execution schema and RPC privileges after reset", () => {
