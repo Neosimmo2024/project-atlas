@@ -1,0 +1,79 @@
+{
+  "name": "Atlas Recruitment Email Follow-ups — Lot 9B",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "atlas-recruitment-followups-schedule",
+      "name": "Every 15 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ATLAS_N8N_RECRUITMENT_ENDPOINT }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.ATLAS_N8N_RECRUITMENT_SECRET }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "{}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "atlas-recruitment-followups-http",
+      "name": "Run Atlas follow-up worker",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 300]
+    }
+  ],
+  "connections": {
+    "Every 15 minutes": {
+      "main": [
+        [
+          {
+            "node": "Run Atlas follow-up worker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": true
+  },
+  "versionId": "atlas-recruitment-followups-lot-9b-v1",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "atlasLot": "9B"
+  },
+  "tags": []
+}
