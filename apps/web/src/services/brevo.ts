@@ -28,6 +28,51 @@ function brevoConfiguration(templateOverride?: number | null) {
   return { apiKey, templateId: selectedTemplateId };
 }
 
+function brevoFollowUpConfiguration(stepIndex: 1 | 2) {
+  const apiKey = brevoApiKey();
+  const rawTemplateId = stepIndex === 1
+    ? process.env.BREVO_RECRUITMENT_FOLLOW_UP_1_TEMPLATE_ID
+    : process.env.BREVO_RECRUITMENT_FOLLOW_UP_2_TEMPLATE_ID;
+  const templateId = Number(rawTemplateId);
+  if (!apiKey || !Number.isInteger(templateId) || templateId <= 0) {
+    return null;
+  }
+  return { apiKey, templateId };
+}
+
+async function sendBrevoTemplateEmail(input: {
+  apiKey: string;
+  templateId: number;
+  idempotencyKey: string;
+  email: string;
+  displayName: string;
+}): Promise<BrevoSendResult> {
+  try {
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "api-key": input.apiKey,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        templateId: input.templateId,
+        to: [{ email: input.email, name: input.displayName }],
+        params: { PRENOM: input.displayName.split(" ")[0] || input.displayName },
+        headers: { "Idempotency-Key": input.idempotencyKey }
+      }),
+      cache: "no-store"
+    });
+    const body = await response.json().catch(() => ({})) as { messageId?: string; message?: string; code?: string };
+    if (!response.ok || !body.messageId) {
+      return { success: false, error: body.message || body.code || `Brevo HTTP ${response.status}` };
+    }
+    return { success: true, messageId: body.messageId };
+  } catch {
+    return { success: false, error: "Brevo est temporairement indisponible." };
+  }
+}
+
 export type BrevoTemplatePayload = {
   templateName: string;
   subject: string;
@@ -79,28 +124,29 @@ export async function sendInitialRecruitmentEmail(input: {
   const configuration = brevoConfiguration(input.templateId);
   if (!configuration) return { success: false, error: "Configuration Brevo incomplète." };
 
-  try {
-    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
-      method: "POST",
-      headers: {
-        accept: "application/json",
-        "api-key": configuration.apiKey,
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({
-        templateId: configuration.templateId,
-        to: [{ email: input.email, name: input.displayName }],
-        params: { PRENOM: input.displayName.split(" ")[0] || input.displayName },
-        headers: { "Idempotency-Key": input.sequenceId }
-      }),
-      cache: "no-store"
-    });
-    const body = await response.json().catch(() => ({})) as { messageId?: string; message?: string; code?: string };
-    if (!response.ok || !body.messageId) {
-      return { success: false, error: body.message || body.code || `Brevo HTTP ${response.status}` };
-    }
-    return { success: true, messageId: body.messageId };
-  } catch {
-    return { success: false, error: "Brevo est temporairement indisponible." };
+  return sendBrevoTemplateEmail({
+    ...configuration,
+    idempotencyKey: input.sequenceId,
+    email: input.email,
+    displayName: input.displayName
+  });
+}
+
+export async function sendRecruitmentFollowUpEmail(input: {
+  stepId: string;
+  stepIndex: 1 | 2;
+  email: string;
+  displayName: string;
+}): Promise<BrevoSendResult> {
+  const configuration = brevoFollowUpConfiguration(input.stepIndex);
+  if (!configuration) {
+    return { success: false, error: `Configuration Brevo relance ${input.stepIndex} incomplète.` };
   }
+
+  return sendBrevoTemplateEmail({
+    ...configuration,
+    idempotencyKey: input.stepId,
+    email: input.email,
+    displayName: input.displayName
+  });
 }
