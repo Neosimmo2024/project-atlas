@@ -7,7 +7,7 @@ import {
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  if (!isAuthorizedRecruitmentOrchestrator(request)) {
+  if (!(await isAuthorizedRecruitmentOrchestrator(request))) {
     return NextResponse.json({ error: "Unauthorized orchestration request." }, { status: 401 });
   }
 
