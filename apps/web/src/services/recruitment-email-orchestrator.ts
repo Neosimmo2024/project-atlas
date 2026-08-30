@@ -1,4 +1,3 @@
-import { timingSafeEqual } from "node:crypto";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 import { sendRecruitmentFollowUpEmail } from "@/services/brevo";
 
@@ -38,21 +37,17 @@ export type RecruitmentOrchestrationSummary = {
   errors: number;
 };
 
-function orchestrationSecret() {
-  return process.env.ATLAS_RECRUITMENT_CRON_SECRET?.trim() || null;
-}
-
-export function isAuthorizedRecruitmentOrchestrator(request: Request) {
-  const expected = orchestrationSecret();
-  if (!expected) return false;
+export async function isAuthorizedRecruitmentOrchestrator(request: Request) {
   const authorization = request.headers.get("authorization")?.trim() ?? "";
   const prefix = "Bearer ";
   if (!authorization.startsWith(prefix)) return false;
   const provided = authorization.slice(prefix.length).trim();
-  if (!provided) return false;
-  const expectedBuffer = Buffer.from(expected);
-  const providedBuffer = Buffer.from(provided);
-  return expectedBuffer.length === providedBuffer.length && timingSafeEqual(expectedBuffer, providedBuffer);
+  if (provided.length < 32) return false;
+
+  const supabase = createSupabaseServiceRoleClient();
+  const { data, error } = await supabase.rpc("verify_recruitment_cron_secret", { p_secret: provided });
+  if (error) return false;
+  return data === true;
 }
 
 function scheduledAt(initialSentAt: string, days: number) {
