@@ -47,7 +47,9 @@ describe("lot 9B native recruitment orchestration", () => {
     expect(cron).toContain("create extension if not exists pg_net");
     expect(cron).toContain("'*/15 * * * *'");
     expect(cron).toContain("REPLACE_WITH_AUTHORIZED_ATLAS_HOST");
-    expect(cron).toContain("REPLACE_WITH_SERVER_SECRET");
+    expect(cron).toContain("vault.decrypted_secrets");
+    expect(cron).toContain("atlas_recruitment_cron_secret");
+    expect(cron).not.toContain("REPLACE_WITH_SERVER_SECRET");
     expect(cron).toContain("NOT a migration");
   });
 
