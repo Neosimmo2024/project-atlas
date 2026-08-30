@@ -39,7 +39,7 @@ export type RecruitmentOrchestrationSummary = {
 };
 
 function orchestrationSecret() {
-  return process.env.ATLAS_N8N_RECRUITMENT_SECRET?.trim() || null;
+  return process.env.ATLAS_RECRUITMENT_CRON_SECRET?.trim() || null;
 }
 
 export function isAuthorizedRecruitmentOrchestrator(request: Request) {
@@ -162,7 +162,7 @@ async function scheduleStep(sequence: SequenceRow, stepIndex: 1 | 2, dueAt: stri
       step_index: stepIndex,
       scheduled_at: dueAt,
       policy: stepIndex === 1 ? "J+3" : "J+7",
-      source: "lot_9b_orchestrator"
+      source: "lot_9b_native_orchestrator"
     },
     idempotencyKey: `recruitment_email_scheduled:${sequence.id}:${stepIndex}`
   });
@@ -199,7 +199,7 @@ async function prepareFollowUps(limit = 100) {
         eventType: "recruitment_email_stopped",
         title: "Séquence email de recrutement arrêtée",
         description: "contact_not_allowed",
-        metadata: { sequence_id: sequence.id, reason: "contact_not_allowed", source: "lot_9b_orchestrator" },
+        metadata: { sequence_id: sequence.id, reason: "contact_not_allowed", source: "lot_9b_native_orchestrator" },
         idempotencyKey: `recruitment_email_stopped:${sequence.id}`
       });
       stopped += 1;
@@ -243,7 +243,7 @@ async function processDueSteps(limit = 25) {
         p_step_id: step.id,
         p_success: false,
         p_provider_message_id: null,
-        p_error: "Étape de relance invalide pour le worker n8n."
+        p_error: "Étape de relance invalide pour le worker Atlas."
       });
       if (completeError) throw completeError;
       errors += 1;
