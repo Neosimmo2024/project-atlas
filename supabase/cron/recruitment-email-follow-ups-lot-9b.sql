@@ -1,4 +1,5 @@
 -- Lot 9B — Native Atlas/Supabase orchestration recipe.
+-- QA redeploy marker: refresh Preview after Deployment Protection change.
 -- This file is intentionally NOT a migration and is NOT applied automatically.
 -- It must only be executed on an explicitly authorized environment after replacing
 -- the Atlas endpoint placeholder. The bearer secret must already exist in Supabase Vault
