@@ -16,6 +16,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ data: summary });
   } catch (error) {
     console.error("Recruitment email orchestration failed", error);
-    return NextResponse.json({ error: "Recruitment email orchestration failed." }, { status: 500 });
+    const detail = error instanceof Error ? error.message : "Unknown orchestration error";
+    return NextResponse.json({ error: "Recruitment email orchestration failed.", detail }, { status: 500 });
   }
 }
