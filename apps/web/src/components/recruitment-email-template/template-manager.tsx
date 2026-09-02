@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,6 @@ import { Card } from "@/components/ui/card";
 import {
   buildRecruitmentEmailHtml,
   DEFAULT_RECRUITMENT_EMAIL_TEMPLATE,
-  NEOS_LOGO_URL,
   templateInputFromVersion,
   type RecruitmentEmailTemplateInput
 } from "@/features/recruitment-email-template/model";
@@ -38,39 +37,11 @@ export function RecruitmentEmailTemplateManager({ initialVersions }: { initialVe
     initialVersions[0] ? templateInputFromVersion(initialVersions[0]) : DEFAULT_RECRUITMENT_EMAIL_TEMPLATE
   );
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
-  const [previewLogoDataUri, setPreviewLogoDataUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [activatingId, setActivatingId] = useState<string | null>(null);
   const [message, setMessage] = useState<Message>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/public/neos-email-logo", { cache: "force-cache" })
-      .then((response) => {
-        if (!response.ok) throw new Error("Logo unavailable");
-        return response.blob();
-      })
-      .then((blob) => new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Invalid logo data"));
-        reader.onerror = () => reject(reader.error ?? new Error("Logo read failed"));
-        reader.readAsDataURL(blob);
-      }))
-      .then((dataUri) => {
-        if (!cancelled) setPreviewLogoDataUri(dataUri);
-      })
-      .catch(() => {
-        if (!cancelled) setPreviewLogoDataUri(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const previewHtml = useMemo(() => {
-    const html = buildRecruitmentEmailHtml(form);
-    return previewLogoDataUri ? html.replaceAll(NEOS_LOGO_URL, previewLogoDataUri) : html;
-  }, [form, previewLogoDataUri]);
+  const previewHtml = useMemo(() => buildRecruitmentEmailHtml(form), [form]);
 
   function update<K extends keyof RecruitmentEmailTemplateInput>(field: K, value: RecruitmentEmailTemplateInput[K]) {
     setForm((current) => ({ ...current, [field]: value }));
