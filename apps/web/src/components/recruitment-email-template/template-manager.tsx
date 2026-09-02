@@ -31,6 +31,15 @@ function statusTone(status: RecruitmentEmailTemplateVersionSummary["status"]): "
   return "neutral";
 }
 
+function previewFragment(html: string) {
+  return html
+    .replace(/<!doctype html>/i, "")
+    .replace(/<html[^>]*>|<\/html>/gi, "")
+    .replace(/<head>[\s\S]*?<\/head>/i, "")
+    .replace(/<body[^>]*>/i, '<div style="margin:0;background:#f4f6f5;color:#1f2933;font-family:Arial,Helvetica,sans-serif;">')
+    .replace(/<\/body>/i, "</div>");
+}
+
 export function RecruitmentEmailTemplateManager({ initialVersions }: { initialVersions: RecruitmentEmailTemplateVersionSummary[] }) {
   const [versions, setVersions] = useState(initialVersions);
   const [form, setForm] = useState<RecruitmentEmailTemplateInput>(() =>
@@ -41,7 +50,10 @@ export function RecruitmentEmailTemplateManager({ initialVersions }: { initialVe
   const [activatingId, setActivatingId] = useState<string | null>(null);
   const [message, setMessage] = useState<Message>(null);
 
-  const previewHtml = useMemo(() => buildRecruitmentEmailHtml(form), [form]);
+  const previewHtml = useMemo(
+    () => previewFragment(buildRecruitmentEmailHtml(form).replaceAll("{{ params.PRENOM }}", "Camille")),
+    [form]
+  );
 
   function update<K extends keyof RecruitmentEmailTemplateInput>(field: K, value: RecruitmentEmailTemplateInput[K]) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -156,7 +168,7 @@ export function RecruitmentEmailTemplateManager({ initialVersions }: { initialVe
             </div>
           </div>
           <div className={`template-preview-frame ${previewDevice}`}>
-            <iframe title="Aperçu du premier email de recrutement" sandbox="allow-same-origin" srcDoc={previewHtml.replaceAll("{{ params.PRENOM }}", "Camille")} />
+            <div style={{ height: "100%", overflow: "auto" }} dangerouslySetInnerHTML={{ __html: previewHtml }} />
           </div>
         </section>
       </div>
