@@ -1,5 +1,4 @@
 -- Lot 9B — Native Atlas/Supabase orchestration recipe.
--- QA redeploy marker: refresh Preview after BREVO_API_KEY scope update.
 -- This file is intentionally NOT a migration and is NOT applied automatically.
 -- It must only be executed on an explicitly authorized environment after replacing
 -- the Atlas endpoint placeholder. The bearer secret must already exist in Supabase Vault
@@ -9,6 +8,13 @@
 create extension if not exists supabase_vault with schema vault;
 create extension if not exists pg_cron with schema extensions;
 create extension if not exists pg_net with schema extensions;
+
+-- The native server-side worker reads and mutates these tables through the service-role client.
+-- Keep authenticated/anon direct-write restrictions unchanged; only service_role gets the
+-- minimum data privileges required by the orchestrator.
+grant select, insert, update on table public.recruitment_email_sequences to service_role;
+grant select, insert, update on table public.recruitment_email_sequence_steps to service_role;
+grant select, insert, update on table public.recruitment_email_sequence_attempts to service_role;
 
 create or replace function public.verify_recruitment_cron_secret(p_secret text)
 returns boolean
