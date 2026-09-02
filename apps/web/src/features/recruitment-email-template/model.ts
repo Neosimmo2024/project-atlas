@@ -16,7 +16,7 @@ export const recruitmentEmailTemplateSchema = z.object({
 
 export type RecruitmentEmailTemplateInput = z.infer<typeof recruitmentEmailTemplateSchema>;
 
-export const NEOS_LOGO_URL = "https://project-atlas-qa-beta-1-git-agent-recruitment-8b7999-neos-immo.vercel.app/neos-email-logo.jpg";
+export const NEOS_LOGO_URL = "https://project-atlas-qa-beta-1-git-agent-recruitment-8b7999-neos-immo.vercel.app/api/public/neos-email-logo";
 
 const PERMANENT_RECRUITMENT_SIGNATURE_HTML = `<p><img style="border-radius:100%;display:block;" src="https://extranet.neos-immo.com/img/avatar/106b091e93a6bcb57779c422171f7c99.jpg" alt="Renato Ponzio" width="100" height="100" /></p>
 <p style="font-family:Arial,sans-serif;color:#11718b;font-weight:bold;margin:0;font-size:22px;">Renato Ponzio<br />Président<br />Expert Immobilier</p>
