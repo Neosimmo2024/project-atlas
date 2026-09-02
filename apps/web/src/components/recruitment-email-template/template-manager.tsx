@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,10 +8,10 @@ import { Card } from "@/components/ui/card";
 import {
   buildRecruitmentEmailHtml,
   DEFAULT_RECRUITMENT_EMAIL_TEMPLATE,
+  NEOS_LOGO_URL,
   templateInputFromVersion,
   type RecruitmentEmailTemplateInput
 } from "@/features/recruitment-email-template/model";
-import { PREVIEW_EMAIL_LOGO_DATA_URI } from "@/features/recruitment-email-template/preview-logo";
 import type { RecruitmentEmailTemplateVersionSummary } from "@/types/domain";
 
 type Message = { type: "success" | "error"; text: string } | null;
@@ -24,7 +24,6 @@ const statusLabels = {
 } as const;
 
 const versionDateFormatter = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" });
-const PUBLIC_EMAIL_LOGO_URL = "https://raw.githubusercontent.com/Neosimmo2024/project-atlas/f1ce2c00eae740eb54c18741a183132d318d9d18/apps/web/public/neos-email-logo.png";
 
 function statusTone(status: RecruitmentEmailTemplateVersionSummary["status"]): "success" | "warning" | "neutral" | "info" {
   if (status === "active") return "success";
@@ -39,13 +38,39 @@ export function RecruitmentEmailTemplateManager({ initialVersions }: { initialVe
     initialVersions[0] ? templateInputFromVersion(initialVersions[0]) : DEFAULT_RECRUITMENT_EMAIL_TEMPLATE
   );
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
+  const [previewLogoDataUri, setPreviewLogoDataUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [activatingId, setActivatingId] = useState<string | null>(null);
   const [message, setMessage] = useState<Message>(null);
-  const previewHtml = useMemo(
-    () => buildRecruitmentEmailHtml(form).replaceAll(PUBLIC_EMAIL_LOGO_URL, PREVIEW_EMAIL_LOGO_DATA_URI),
-    [form]
-  );
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/public/neos-email-logo", { cache: "force-cache" })
+      .then((response) => {
+        if (!response.ok) throw new Error("Logo unavailable");
+        return response.blob();
+      })
+      .then((blob) => new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Invalid logo data"));
+        reader.onerror = () => reject(reader.error ?? new Error("Logo read failed"));
+        reader.readAsDataURL(blob);
+      }))
+      .then((dataUri) => {
+        if (!cancelled) setPreviewLogoDataUri(dataUri);
+      })
+      .catch(() => {
+        if (!cancelled) setPreviewLogoDataUri(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const previewHtml = useMemo(() => {
+    const html = buildRecruitmentEmailHtml(form);
+    return previewLogoDataUri ? html.replaceAll(NEOS_LOGO_URL, previewLogoDataUri) : html;
+  }, [form, previewLogoDataUri]);
 
   function update<K extends keyof RecruitmentEmailTemplateInput>(field: K, value: RecruitmentEmailTemplateInput[K]) {
     setForm((current) => ({ ...current, [field]: value }));
