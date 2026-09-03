@@ -9,7 +9,7 @@ import {
 describe("recruitment email template model", () => {
   it("builds responsive branded HTML with the approved NEOS logo, permanent signature and Brevo first-name variable", () => {
     const html = buildRecruitmentEmailHtml(DEFAULT_RECRUITMENT_EMAIL_TEMPLATE);
-    expect(html).toContain("https://raw.githubusercontent.com/Neosimmo2024/project-atlas/f1ce2c00eae740eb54c18741a183132d318d9d18/apps/web/public/neos-email-logo.png");
+    expect(html).toContain("https://project-atlas-qa-beta-1-git-agent-recruitment-8b7999-neos-immo.vercel.app/api/public/neos-email-logo");
     expect(html).toContain("Renato Ponzio");
     expect(html).toContain("Expert Immobilier");
     expect(html).toContain("{{ params.PRENOM }}");

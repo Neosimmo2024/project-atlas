@@ -11,7 +11,6 @@ import {
   templateInputFromVersion,
   type RecruitmentEmailTemplateInput
 } from "@/features/recruitment-email-template/model";
-import { PREVIEW_EMAIL_LOGO_DATA_URI } from "@/features/recruitment-email-template/preview-logo";
 import type { RecruitmentEmailTemplateVersionSummary } from "@/types/domain";
 
 type Message = { type: "success" | "error"; text: string } | null;
@@ -24,13 +23,21 @@ const statusLabels = {
 } as const;
 
 const versionDateFormatter = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" });
-const PUBLIC_EMAIL_LOGO_URL = "https://raw.githubusercontent.com/Neosimmo2024/project-atlas/f1ce2c00eae740eb54c18741a183132d318d9d18/apps/web/public/neos-email-logo.png";
 
 function statusTone(status: RecruitmentEmailTemplateVersionSummary["status"]): "success" | "warning" | "neutral" | "info" {
   if (status === "active") return "success";
   if (status === "error") return "warning";
   if (status === "synced") return "info";
   return "neutral";
+}
+
+function previewFragment(html: string) {
+  return html
+    .replace(/<!doctype html>/i, "")
+    .replace(/<html[^>]*>|<\/html>/gi, "")
+    .replace(/<head>[\s\S]*?<\/head>/i, "")
+    .replace(/<body[^>]*>/i, '<div style="margin:0;background:#f4f6f5;color:#1f2933;font-family:Arial,Helvetica,sans-serif;">')
+    .replace(/<\/body>/i, "</div>");
 }
 
 export function RecruitmentEmailTemplateManager({ initialVersions }: { initialVersions: RecruitmentEmailTemplateVersionSummary[] }) {
@@ -42,8 +49,9 @@ export function RecruitmentEmailTemplateManager({ initialVersions }: { initialVe
   const [saving, setSaving] = useState(false);
   const [activatingId, setActivatingId] = useState<string | null>(null);
   const [message, setMessage] = useState<Message>(null);
+
   const previewHtml = useMemo(
-    () => buildRecruitmentEmailHtml(form).replaceAll(PUBLIC_EMAIL_LOGO_URL, PREVIEW_EMAIL_LOGO_DATA_URI),
+    () => previewFragment(buildRecruitmentEmailHtml(form).replaceAll("{{ params.PRENOM }}", "Camille")),
     [form]
   );
 
@@ -160,7 +168,7 @@ export function RecruitmentEmailTemplateManager({ initialVersions }: { initialVe
             </div>
           </div>
           <div className={`template-preview-frame ${previewDevice}`}>
-            <iframe title="Aperçu du premier email de recrutement" sandbox="allow-same-origin" srcDoc={previewHtml.replaceAll("{{ params.PRENOM }}", "Camille")} />
+            <div style={{ height: "100%", overflow: "auto" }} dangerouslySetInnerHTML={{ __html: previewHtml }} />
           </div>
         </section>
       </div>
