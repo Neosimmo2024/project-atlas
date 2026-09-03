@@ -40,7 +40,7 @@ const card: PipelineCardModel = {
   rejectionRecontactable: null,
   signatureScheduled: false,
   recruitmentSequenceLabel: null,
-  recruitmentSequenceTone: null,
+  recruitmentSequenceTone: "neutral",
   status: "active",
   href: "/relationships/relationship-a"
 };
