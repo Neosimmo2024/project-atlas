@@ -34,6 +34,14 @@ type PipelineRelationshipRow = Relationship & {
   people?: PipelinePerson | null;
   organizations?: PipelineOrganization | null;
 };
+type PipelineRecruitmentSequence = {
+  person_id: string;
+  status: "pending" | "sent" | "error" | "stopped";
+  lifecycle_status: "idle" | "scheduled" | "running" | "completed" | "stopped" | "error";
+  current_step: number;
+  next_action_at: string | null;
+  stop_reason: string | null;
+};
 
 const emptyUuid = "00000000-0000-4000-8000-000000000000";
 
@@ -137,9 +145,21 @@ export async function listRecruitmentPipeline(context: TenantContext, filters: P
     .map((row) => row.pipeline_stage as string)
     .filter((stage) => !RECRUITMENT_PIPELINE_STAGES.includes(stage as RelationshipPipelineStage));
 
+  const personIds = Array.from(new Set(rows.map((row) => row.person_id).filter((id): id is string => Boolean(id))));
+  const sequenceByPerson = new Map<string, PipelineRecruitmentSequence>();
+  if (personIds.length > 0) {
+    const { data: sequences, error: sequenceError } = await supabase
+      .from("recruitment_email_sequences")
+      .select("person_id,status,lifecycle_status,current_step,next_action_at,stop_reason")
+      .eq("tenant_id", context.tenantId)
+      .in("person_id", personIds);
+    if (sequenceError) throw sequenceError;
+    for (const sequence of (sequences ?? []) as PipelineRecruitmentSequence[]) sequenceByPerson.set(sequence.person_id, sequence);
+  }
+
   const allCards = rows
     .filter((row) => RECRUITMENT_PIPELINE_STAGES.includes(row.pipeline_stage))
-    .map((row) => mapPipelineCard(row, ownerNames));
+    .map((row) => mapPipelineCard(row, ownerNames, row.person_id ? sequenceByPerson.get(row.person_id) ?? null : null));
   const paged = filters.query ? paginateSearchResults(allCards, filters.page, filters.pageSize) : { rows: allCards, total: count ?? allCards.length, pageCount: Math.max(1, Math.ceil((count ?? allCards.length) / filters.pageSize)) };
   const cards = paged.rows;
   const total = paged.total;
@@ -147,7 +167,8 @@ export async function listRecruitmentPipeline(context: TenantContext, filters: P
   return { cards, owners, total, page: filters.page, pageSize: filters.pageSize, pageCount: paged.pageCount, invalidStages };
 }
 
-function mapPipelineCard(row: PipelineRelationshipRow, ownerNames: Map<string, string>): PipelineCardModel {
+function mapPipelineCard(row: PipelineRelationshipRow, ownerNames: Map<string, string>, sequence: PipelineRecruitmentSequence | null): PipelineCardModel {
+  const sequenceSummary = recruitmentSequenceSummary(sequence);
   return {
     id: row.id,
     personName: row.people?.display_name ?? "Personne inconnue",
@@ -162,8 +183,30 @@ function mapPipelineCard(row: PipelineRelationshipRow, ownerNames: Map<string, s
     rejectionRecontactable: readRecontactable(row.metadata),
     signatureScheduled: row.pipeline_stage === "signature" && isSignatureScheduled(row.metadata),
     status: row.status,
-    href: `/relationships/${row.id}`
+    href: `/relationships/${row.id}`,
+    recruitmentSequenceLabel: sequenceSummary.label,
+    recruitmentSequenceTone: sequenceSummary.tone
   };
+}
+
+function recruitmentSequenceSummary(sequence: PipelineRecruitmentSequence | null): { label: string | null; tone: "neutral" | "info" | "warning" | "danger" } {
+  if (!sequence) return { label: null, tone: "neutral" };
+  if (sequence.lifecycle_status === "stopped") {
+    const reason = sequence.stop_reason === "contact_not_allowed" || sequence.stop_reason === "do_not_contact" ? "Ne pas contacter" : "Arrêtée";
+    return { label: `Séquence arrêtée · ${reason}`, tone: "danger" };
+  }
+  if (sequence.lifecycle_status === "error" || sequence.status === "error") return { label: "Séquence email en erreur", tone: "danger" };
+  if (sequence.lifecycle_status === "completed") return { label: "Séquence email terminée", tone: "neutral" };
+  if (sequence.next_action_at) {
+    const step = sequence.current_step === 1 ? "Relance J+3" : sequence.current_step === 2 ? "Relance J+7" : "Prochaine relance";
+    return { label: `${step} prévue le ${formatSequenceDate(sequence.next_action_at)}`, tone: "info" };
+  }
+  if (sequence.status === "sent") return { label: "Email initial envoyé", tone: "info" };
+  return { label: "Séquence email en cours", tone: "warning" };
+}
+
+function formatSequenceDate(value: string) {
+  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Paris" }).format(new Date(value));
 }
 
 function readRecontactable(metadata: Record<string, unknown>) {

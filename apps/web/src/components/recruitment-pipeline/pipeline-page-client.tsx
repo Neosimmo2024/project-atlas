@@ -211,6 +211,12 @@ function PipelineCard({ card, role, loading, openDialog }: { card: PipelineCardM
             <Badge>{formatPipelineDate(card.lastInteractionAt)}</Badge>
           </div>
         ) : null}
+        {card.recruitmentSequenceLabel ? (
+          <div className="pipeline-meta-row">
+            <span className="pipeline-meta-label">Séquence email</span>
+            <Badge tone={card.recruitmentSequenceTone}>{card.recruitmentSequenceLabel}</Badge>
+          </div>
+        ) : null}
         <div className="tag-list pipeline-card-tags">
           {card.signatureScheduled ? <Badge tone="info">Signature programmée</Badge> : null}
           {card.rejectionRecontactable === true ? <Badge tone="info">Refus recontactable</Badge> : null}
@@ -233,7 +239,7 @@ function PipelineList({ cards, owners, role, openDialog, loadingId }: { cards: P
     <>
     <div className="data-table pipeline-table">
       <div className="table-head">
-        <span>Personne</span><span>Organisation</span><span>Phase</span><span>Responsable</span><span>Prochaine action</span><span>Dernière activité</span><span>Contact</span><span>Actions</span>
+        <span>Personne</span><span>Organisation</span><span>Phase</span><span>Responsable</span><span>Prochaine action</span><span>Dernière activité</span><span>Séquence email</span><span>Contact</span><span>Actions</span>
       </div>
       {cards.map((card) => (
         <div className="table-row" key={card.id}>
@@ -243,6 +249,7 @@ function PipelineList({ cards, owners, role, openDialog, loadingId }: { cards: P
           <span>{card.ownerName}</span>
           <span>{formatPipelineDate(card.nextActionAt)}</span>
           <span>{formatPipelineDate(card.lastInteractionAt)}</span>
+          <span>{card.recruitmentSequenceLabel ?? "-"}</span>
           <span>{card.doNotContact ? "Ne plus contacter" : "Autorisé"}</span>
           <span className="actions">
             <Button type="button" variant="subtle" disabled={loadingId === card.id || !canManagePipeline.has(role)} onClick={() => openDialog({ type: "stage", card })}>Phase</Button>
@@ -282,6 +289,12 @@ function PipelineListCards({ cards, owners, role, openDialog, loadingId }: { car
               <span className="pipeline-meta-label">Dernière activité</span>
               <Badge>{formatPipelineDate(card.lastInteractionAt)}</Badge>
             </div>
+            {card.recruitmentSequenceLabel ? (
+              <div className="pipeline-meta-row">
+                <span className="pipeline-meta-label">Séquence email</span>
+                <Badge tone={card.recruitmentSequenceTone}>{card.recruitmentSequenceLabel}</Badge>
+              </div>
+            ) : null}
           </div>
           <div className="actions pipeline-card-actions">
             <Link className="button subtle-button" href={card.href}>Ouvrir</Link>

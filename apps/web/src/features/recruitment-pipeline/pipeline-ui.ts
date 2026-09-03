@@ -36,6 +36,8 @@ export type PipelineCardModel = {
   signatureScheduled: boolean;
   status: string;
   href: string;
+  recruitmentSequenceLabel: string | null;
+  recruitmentSequenceTone: "neutral" | "info" | "warning" | "danger";
 };
 
 export const PIPELINE_STAGE_LABELS: Record<RelationshipPipelineStage, string> = {
