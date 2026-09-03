@@ -11,6 +11,7 @@ class QueryMock {
 
   select(...args: unknown[]) { this.calls.push({ method: "select", args }); return this; }
   eq(...args: unknown[]) { this.calls.push({ method: "eq", args }); return this; }
+  in(...args: unknown[]) { this.calls.push({ method: "in", args }); return Promise.resolve(this.result); }
   is(...args: unknown[]) { this.calls.push({ method: "is", args }); return this; }
   or(...args: unknown[]) { this.calls.push({ method: "or", args }); return this; }
   not(...args: unknown[]) { this.calls.push({ method: "not", args }); return this; }
