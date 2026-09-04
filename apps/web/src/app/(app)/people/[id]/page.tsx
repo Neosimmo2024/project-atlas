@@ -35,6 +35,11 @@ function valueOf(params: Record<string, string | string[] | undefined>, key: str
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
 
+function countLabel(count: number, singular: string, plural: string) {
+  if (count === 0) return `Aucun ${singular}`;
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
 export default async function PersonDetailPage({ params, searchParams }: PersonDetailPageProps) {
   const { id } = await params;
   const query = await searchParams;
@@ -48,12 +53,13 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
   const timelineCategory = normalizeTimelineCategory(valueOf(query, "timelineCategory"));
   const timelinePage = Number(valueOf(query, "timelinePage") || 1);
   const [chronology, tasks, projects, qualification, recruitmentEmailSequence] = await Promise.all([
-    listTimelineEvents(context, { personId: person.id, category: timelineCategory, page: timelinePage, pageSize: 10 }),
+    listTimelineEvents(context, { personId: person.id, category: timelineCategory, page: timelinePage, pageSize: 3 }),
     listPersonTasks(context, person.id),
     listContextProjects(context, { personId: person.id }),
     getTalentQualification(context, person.id),
     getRecruitmentEmailSequence(context, person.id)
   ]);
+  const visibleTasks = tasks.tasks.slice(0, 2);
 
   return (
     <div className="page stack">
@@ -92,19 +98,6 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
         </section>
       </div>
 
-      <section className="card stack qualification-summary">
-        <div className="page-header">
-          <div><p className="muted">Qualification structurée</p><h2>{QUALIFICATION_STATE_LABELS[qualification?.state ?? "none"]}</h2></div>
-          {qualification?.conclusion ? <span className="status-pill">{QUALIFICATION_CONCLUSION_LABELS[qualification.conclusion]}</span> : null}
-        </div>
-        {qualification ? <div className="qualification-meta">
-          <span>Dernière modification : {formatDate(qualification.updated_at)}</span>
-          <span>Par : {qualification.updated_by_label}</span>
-          {qualification.completed_at ? <span>Terminée le : {formatDate(qualification.completed_at)} par {qualification.completed_by_label}</span> : null}
-        </div> : <p className="muted">Aucune qualification commencée.</p>}
-        <TalentQualificationForm personId={person.id} qualification={qualification} canEdit={context.role !== "reader"} />
-      </section>
-
       <RecruitmentEmailSequenceCard
         personId={person.id}
         email={person.primary_email}
@@ -113,54 +106,73 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
         sequence={recruitmentEmailSequence}
       />
 
-      <section className="card stack">
-        <h2>Commentaires</h2>
+      <details className="card stack qualification-summary">
+        <summary>
+          <strong>Qualification structurée — {QUALIFICATION_STATE_LABELS[qualification?.state ?? "none"]}</strong>
+          {qualification?.conclusion ? ` — ${QUALIFICATION_CONCLUSION_LABELS[qualification.conclusion]}` : ""}
+        </summary>
+        {qualification ? <div className="qualification-meta">
+          <span>Dernière modification : {formatDate(qualification.updated_at)}</span>
+          <span>Par : {qualification.updated_by_label}</span>
+          {qualification.completed_at ? <span>Terminée le : {formatDate(qualification.completed_at)} par {qualification.completed_by_label}</span> : null}
+        </div> : <p className="muted">Aucune qualification commencée.</p>}
+        <TalentQualificationForm personId={person.id} qualification={qualification} canEdit={context.role !== "reader"} />
+      </details>
+
+      <details className="card stack">
+        <summary><strong>Commentaires</strong> — {person.comments ? "Renseigné" : "Aucun"}</summary>
         <p>{person.comments ?? "Aucun commentaire."}</p>
-      </section>
+      </details>
 
-      <section className="card stack">
-        <h2>Organisations liées</h2>
+      <details className="card stack">
+        <summary><strong>Organisations liées</strong> — {countLabel(organizations.length, "organisation", "organisations")}</summary>
         {organizations.length === 0 ? <p className="muted">Aucune organisation liée.</p> : organizations.map((organization) => <p key={organization.id}>{organization.name}</p>)}
-      </section>
+      </details>
 
-      <section className="card stack">
-        <h2>Relations de recrutement liées</h2>
+      <details className="card stack">
+        <summary><strong>Relations de recrutement liées</strong> — {countLabel(relationships.length, "relation", "relations")}</summary>
         {relationships.length === 0 ? <p className="muted">Aucune relation liée.</p> : relationships.map((relationship) => (
           <p key={relationship.id}>{relationship.relationship_type} - {relationship.pipeline_stage} - {relationship.status}</p>
         ))}
-      </section>
+      </details>
 
-      <ContextProjects result={projects} newHref={`/projects/new?personId=${person.id}`} allHref={`/projects?personId=${person.id}`} />
+      <details className="card stack">
+        <summary><strong>Projets liés</strong> — ouvrir pour consulter</summary>
+        <ContextProjects result={projects} newHref={`/projects/new?personId=${person.id}`} allHref={`/projects?personId=${person.id}`} />
+      </details>
 
-      <section className="card stack">
+      <details className="card stack">
+        <summary><strong>Chronologie</strong> — 3 derniers événements</summary>
         <div className="page-header">
           <h2>Chronologie</h2>
           <TimelineFilters category={timelineCategory} hiddenFields={{}} />
         </div>
         {valueOf(query, "interactionDeleted") === "1" ? <p className="success">Échange supprimé.</p> : null}
         <TimelineList result={chronology} basePath={`/people/${person.id}`} category={timelineCategory} />
-      </section>
+      </details>
 
-      <section className="card stack">
+      <details className="card stack">
+        <summary><strong>Tâches liées</strong> — {visibleTasks.length === 0 ? "Aucune" : `${visibleTasks.length} prochaine${visibleTasks.length > 1 ? "s" : ""}`}</summary>
         <div className="page-header">
           <h2>Tâches liées</h2>
           <Link className="button subtle-button" href={`/tasks/new?sourceType=person&sourceId=${person.id}&personId=${person.id}`}>Nouvelle tâche</Link>
         </div>
         {valueOf(query, "taskDeleted") === "1" ? <p className="success">Tâche supprimée.</p> : null}
-        {tasks.tasks.length === 0 ? <p className="muted">Aucune tâche liée.</p> : tasks.tasks.map((task) => <TaskCard key={task.id} task={task} />)}
-      </section>
+        {visibleTasks.length === 0 ? <p className="muted">Aucune tâche liée.</p> : visibleTasks.map((task) => <TaskCard key={task.id} task={task} />)}
+        {tasks.tasks.length > visibleTasks.length ? <Link className="button subtle-button" href={`/tasks?personId=${person.id}`}>Voir toutes les tâches</Link> : null}
+      </details>
 
-      <section className="card stack">
-        <h2>Modifier</h2>
+      <details className="card stack">
+        <summary><strong>Modifier la fiche</strong></summary>
         <PersonForm mode="edit" person={person} />
-      </section>
+      </details>
 
       {canDeletePeople(context.role) ? (
-        <section className="card stack danger-zone">
-          <h2>Suppression</h2>
+        <details className="card stack danger-zone">
+          <summary><strong>Suppression</strong></summary>
           <p>Réservée aux rôles owner et admin.</p>
           <DeletePersonButton personId={person.id} />
-        </section>
+        </details>
       ) : null}
     </div>
   );
