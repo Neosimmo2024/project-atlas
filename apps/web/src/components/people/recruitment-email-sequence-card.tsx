@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import type { RecruitmentEmailSequenceStep, RecruitmentEmailSequenceWithSteps } from "@/repositories/recruitment-email-sequences";
@@ -51,7 +51,7 @@ function stopReasonLabel(reason: string | null) {
   if (!reason) return null;
   if (reason === "contact_not_allowed") return "Contact non autorisé";
   if (reason === "do_not_contact") return "Ne pas contacter";
-  if (reason === "manual_stop") return "Arrêt manuel";
+  if (reason === "manual" || reason === "manual_stop") return "Arrêt manuel";
   if (reason === "legacy_stop") return "Séquence précédemment arrêtée";
   return reason.replaceAll("_", " ");
 }
@@ -61,17 +61,36 @@ export function RecruitmentEmailSequenceCard({ personId, email, canContact, canE
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
+  const [displayedSequence, setDisplayedSequence] = useState(sequence);
+
+  useEffect(() => {
+    setDisplayedSequence(sequence);
+  }, [sequence]);
+
+  async function refreshSequence() {
+    const response = await fetch(`/api/people/${personId}/recruitment-email`, { method: "GET", cache: "no-store" });
+    if (response.ok) {
+      const result = await response.json();
+      setDisplayedSequence(result.data ?? null);
+    }
+    router.refresh();
+  }
 
   async function request(method: "POST" | "DELETE") {
     setLoading(true); setMessage(null); setIsError(false);
     try {
       const response = await fetch(`/api/people/${personId}/recruitment-email`, { method });
       const result = await response.json();
-      if (!response.ok) { setMessage(result.error ?? "Action impossible."); setIsError(true); router.refresh(); return; }
+      if (!response.ok) {
+        setMessage(result.error ?? "Action impossible.");
+        setIsError(true);
+        await refreshSequence();
+        return;
+      }
       setMessage(method === "POST"
         ? result.duplicatePrevented ? "Email déjà envoyé : aucun nouvel envoi effectué." : "Premier email envoyé."
         : "Séquence arrêtée.");
-      router.refresh();
+      await refreshSequence();
     } catch {
       setMessage("Le service est temporairement indisponible."); setIsError(true);
     } finally {
@@ -79,12 +98,12 @@ export function RecruitmentEmailSequenceCard({ personId, email, canContact, canE
     }
   }
 
-  const lifecycle = sequence?.lifecycle_status ?? null;
-  const canStart = canEdit && Boolean(email) && canContact && (!sequence || sequence.status === "error");
-  const canStop = canEdit && Boolean(sequence) && lifecycle !== "stopped" && lifecycle !== "completed";
-  const sentSteps = sequence?.steps.filter((step) => step.status === "sent").sort((a, b) => b.step_index - a.step_index) ?? [];
+  const lifecycle = displayedSequence?.lifecycle_status ?? null;
+  const canStart = canEdit && Boolean(email) && canContact && (!displayedSequence || displayedSequence.status === "error");
+  const canStop = canEdit && Boolean(displayedSequence) && lifecycle !== "stopped" && lifecycle !== "completed";
+  const sentSteps = displayedSequence?.steps.filter((step) => step.status === "sent").sort((a, b) => b.step_index - a.step_index) ?? [];
   const lastSent = sentSteps[0] ?? null;
-  const stopReason = stopReasonLabel(sequence?.stop_reason ?? null);
+  const stopReason = stopReasonLabel(displayedSequence?.stop_reason ?? null);
 
   return (
     <section className="card stack recruitment-email-card">
@@ -94,33 +113,33 @@ export function RecruitmentEmailSequenceCard({ personId, email, canContact, canE
       </div>
 
       <div className="grid">
-        <p><strong>Adresse utilisée</strong><br />{sequence?.email ?? email ?? "Aucune adresse email principale"}</p>
-        <p><strong>Dernier email envoyé</strong><br />{lastSent?.sent_at ? `${stepLabels[lastSent.step_index]} · ${formatDate(lastSent.sent_at)}` : sequence?.sent_at ? `Email initial · ${formatDate(sequence.sent_at)}` : "Aucun"}</p>
-        <p><strong>Prochaine action</strong><br />{sequence?.next_action_at ? `${sequence.current_step === 1 ? "Relance J+3" : sequence.current_step === 2 ? "Relance J+7" : "Action programmée"} · ${formatDate(sequence.next_action_at)}` : "Aucune action programmée"}</p>
+        <p><strong>Adresse utilisée</strong><br />{displayedSequence?.email ?? email ?? "Aucune adresse email principale"}</p>
+        <p><strong>Dernier email envoyé</strong><br />{lastSent?.sent_at ? `${stepLabels[lastSent.step_index]} · ${formatDate(lastSent.sent_at)}` : displayedSequence?.sent_at ? `Email initial · ${formatDate(displayedSequence.sent_at)}` : "Aucun"}</p>
+        <p><strong>Prochaine action</strong><br />{displayedSequence?.next_action_at ? `${displayedSequence.current_step === 1 ? "Relance J+3" : displayedSequence.current_step === 2 ? "Relance J+7" : "Action programmée"} · ${formatDate(displayedSequence.next_action_at)}` : "Aucune action programmée"}</p>
       </div>
 
       {stopReason ? <p className="warning"><strong>Raison de l’arrêt :</strong> {stopReason}</p> : null}
-      {sequence?.last_error ? <p className="error">Dernière erreur : {sequence.last_error}</p> : null}
+      {displayedSequence?.last_error ? <p className="error">Dernière erreur : {displayedSequence.last_error}</p> : null}
 
       <div className="stack" aria-label="Étapes de la séquence email">
         {stepLabels.map((label, index) => {
-          const step = stepFor(sequence, index);
+          const step = stepFor(displayedSequence, index);
           const date = step?.sent_at ?? step?.scheduled_at ?? null;
           return (
             <div className="pipeline-meta-row" key={label}>
               <span className="pipeline-meta-label"><strong>{index + 1}. {label}</strong>{date ? ` · ${formatDate(date)}` : ""}</span>
-              <span className="status-pill">{stepStatus(step, sequence, index)}</span>
+              <span className="status-pill">{stepStatus(step, displayedSequence, index)}</span>
             </div>
           );
         })}
       </div>
 
-      {sequence?.provider_message_id ? <p className="muted">Identifiant Brevo initial : {sequence.provider_message_id}</p> : null}
+      {displayedSequence?.provider_message_id ? <p className="muted">Identifiant Brevo initial : {displayedSequence.provider_message_id}</p> : null}
       {!email ? <p className="error">Ajoute une adresse email principale avant de démarrer la séquence.</p> : null}
       {email && !canContact ? <p className="error">Le contact n’est pas autorisé pour cette personne. La séquence ne peut pas être démarrée ou poursuivie.</p> : null}
       {message ? <p aria-live="polite" className={isError ? "error" : "success"}>{message}</p> : null}
       {canEdit ? <div className="actions">
-        {canStart ? <Button type="button" disabled={loading} onClick={() => request("POST")}>{sequence?.status === "error" ? "Réessayer l’envoi" : "Démarrer la séquence"}</Button> : null}
+        {canStart ? <Button type="button" disabled={loading} onClick={() => request("POST")}>{displayedSequence?.status === "error" ? "Réessayer l’envoi" : "Démarrer la séquence"}</Button> : null}
         {canStop ? <Button type="button" variant="subtle" disabled={loading} onClick={() => request("DELETE")}>Arrêter la séquence</Button> : null}
       </div> : <p className="muted">Votre rôle permet la consultation, mais pas la modification.</p>}
     </section>
