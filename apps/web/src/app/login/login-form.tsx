@@ -50,9 +50,19 @@ export function LoginForm() {
   }
 
   return (
-    <form className="form" onSubmit={onSubmit}>
+    <form className="form" onSubmit={onSubmit} autoComplete="on">
       <label htmlFor="login-email">Email</label>
-      <Input id="login-email" name="email" type="email" required autoComplete="email" />
+      <Input
+        id="login-email"
+        name="email"
+        type="email"
+        required
+        autoComplete="username"
+        inputMode="email"
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
+      />
       <div className="field">
         <div className="field-label-row">
           <label htmlFor="login-password">Mot de passe</label>
