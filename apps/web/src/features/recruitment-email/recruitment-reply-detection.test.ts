@@ -53,3 +53,29 @@ describe("lot 9D candidate reply detection", () => {
     expect(pipeline).toContain("Réponse reçue · séquence arrêtée");
   });
 });
+
+describe("lot 9E candidate reply follow-up", () => {
+  it("creates one high-priority follow-up task linked to the candidate reply", () => {
+    expect(inbound).toContain("ensureCandidateReplyFollowUpTask");
+    expect(inbound).toContain('title: "Traiter la réponse du candidat"');
+    expect(inbound).toContain('priority: "high"');
+    expect(inbound).toContain('reason: "candidate_reply"');
+    expect(inbound).toContain('source: "recruitment_candidate_reply"');
+    expect(inbound).toContain("inbound_message_id");
+    expect(inbound).toContain('.contains("metadata", metadataKey)');
+  });
+
+  it("links the task to the active recruiting relationship so it appears in the action plan", () => {
+    expect(inbound).toContain('relationship_type", "recruiting"');
+    expect(inbound).toContain('status", "active"');
+    expect(inbound).toContain("organization_id: relationship?.organization_id ?? null");
+    expect(inbound).toContain("relationship_id: relationship?.id ?? null");
+    expect(inbound).toContain("assigned_to: relationship?.owner_user_id ?? null");
+  });
+
+  it("stores suggested next actions and exposes the created task in the reply timeline metadata", () => {
+    expect(inbound).toContain('suggested_actions: ["call", "reply_email", "schedule_meeting", "qualify"]');
+    expect(inbound).toContain("follow_up_task_id");
+    expect(inbound).toContain("une tâche de suivi est créée");
+  });
+});
