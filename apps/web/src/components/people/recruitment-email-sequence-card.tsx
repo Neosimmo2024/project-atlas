@@ -68,6 +68,39 @@ export function RecruitmentEmailSequenceCard({ personId, email, canContact, canE
     setDisplayedSequence(sequence);
   }, [sequence]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchLatestSequence() {
+      try {
+        const response = await fetch(`/api/people/${personId}/recruitment-email`, { method: "GET", cache: "no-store" });
+        if (!response.ok || cancelled) return;
+        const result = await response.json();
+        if (!cancelled) setDisplayedSequence(result.data ?? null);
+      } catch {
+        // Keep the last known state; the next poll will retry silently.
+      }
+    }
+
+    void fetchLatestSequence();
+
+    const lifecycle = displayedSequence?.lifecycle_status ?? null;
+    if (lifecycle === "stopped" || lifecycle === "completed") {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const intervalId = window.setInterval(() => {
+      void fetchLatestSequence();
+    }, 10_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [personId, displayedSequence?.lifecycle_status]);
+
   async function refreshSequence() {
     const response = await fetch(`/api/people/${personId}/recruitment-email`, { method: "GET", cache: "no-store" });
     if (response.ok) {
