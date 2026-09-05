@@ -386,7 +386,7 @@ describe("password recovery", () => {
     const source = readFileSync(resolve(__dirname, "../../app/login/login-form.tsx"), "utf8");
 
     expect(source).toContain("signInWithPassword");
-    expect(source).toContain('autoComplete="email"');
+    expect(source).toContain('autoComplete="username"');
     expect(source).toContain('autoComplete="current-password"');
   });
 
@@ -435,6 +435,7 @@ describe("password recovery", () => {
     const redirectSource = readFileSync(resolve(__dirname, "../../app/password-recovery-fragment-redirect.tsx"), "utf8");
     const rootSource = readFileSync(resolve(__dirname, "../../app/page.tsx"), "utf8");
 
-    expect(`${redirectSource}\n${rootSource}`).not.toMatch(/console\.(log|info|warn|error)/);
+    expect(`${redirectSource}\
+${rootSource}`).not.toMatch(/console\.(log|info|warn|error)/);
   });
 });
