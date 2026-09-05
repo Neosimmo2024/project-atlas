@@ -192,6 +192,7 @@ function mapPipelineCard(row: PipelineRelationshipRow, ownerNames: Map<string, s
 function recruitmentSequenceSummary(sequence: PipelineRecruitmentSequence | null): { label: string | null; tone: "neutral" | "info" | "warning" | "danger" } {
   if (!sequence) return { label: null, tone: "neutral" };
   if (sequence.lifecycle_status === "stopped") {
+    if (sequence.stop_reason === "candidate_reply") return { label: "Réponse reçue · séquence arrêtée", tone: "info" };
     const reason = sequence.stop_reason === "contact_not_allowed" || sequence.stop_reason === "do_not_contact" ? "Ne pas contacter" : "Arrêtée";
     return { label: `Séquence arrêtée · ${reason}`, tone: "danger" };
   }

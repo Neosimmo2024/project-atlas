@@ -49,6 +49,7 @@ function stepStatus(step: RecruitmentEmailSequenceStep | null, sequence: Recruit
 
 function stopReasonLabel(reason: string | null) {
   if (!reason) return null;
+  if (reason === "candidate_reply") return "Réponse du candidat";
   if (reason === "contact_not_allowed") return "Contact non autorisé";
   if (reason === "do_not_contact") return "Ne pas contacter";
   if (reason === "manual" || reason === "manual_stop") return "Arrêt manuel";

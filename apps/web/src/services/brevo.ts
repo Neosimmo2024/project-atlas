@@ -19,6 +19,24 @@ function brevoApiKey() {
   return apiKey || null;
 }
 
+function recruitmentReplyAddress(sequenceId: string) {
+  const domain = process.env.BREVO_RECRUITMENT_INBOUND_DOMAIN?.trim().toLowerCase();
+  return domain ? `recrutement+${sequenceId}@${domain}` : null;
+}
+
+async function recruitmentReplyAddressForStep(stepId: string) {
+  const domain = process.env.BREVO_RECRUITMENT_INBOUND_DOMAIN?.trim().toLowerCase();
+  if (!domain) return null;
+  const supabase = createSupabaseServiceRoleClient();
+  const { data, error } = await supabase
+    .from("recruitment_email_sequence_steps")
+    .select("sequence_id")
+    .eq("id", stepId)
+    .maybeSingle();
+  if (error || !data?.sequence_id) return null;
+  return `recrutement+${data.sequence_id as string}@${domain}`;
+}
+
 function brevoConfiguration(templateOverride?: number | null) {
   const apiKey = brevoApiKey();
   const override = Number(templateOverride);
@@ -45,6 +63,7 @@ async function sendBrevoTemplateEmail(input: {
   idempotencyKey: string;
   email: string;
   displayName: string;
+  replyTo?: string | null;
 }): Promise<BrevoSendResult> {
   try {
     const response = await fetch("https://api.brevo.com/v3/smtp/email", {
@@ -53,6 +72,7 @@ async function sendBrevoTemplateEmail(input: {
       body: JSON.stringify({
         templateId: input.templateId,
         to: [{ email: input.email, name: input.displayName }],
+        replyTo: input.replyTo ? { email: input.replyTo, name: "NEOS IMMO" } : undefined,
         params: { PRENOM: input.displayName.split(" ")[0] || input.displayName },
         headers: { "Idempotency-Key": input.idempotencyKey }
       }),
@@ -112,7 +132,13 @@ export async function sendInitialRecruitmentEmail(input: {
 }): Promise<BrevoSendResult> {
   const configuration = brevoConfiguration(input.templateId);
   if (!configuration) return { success: false, error: "Configuration Brevo incomplète." };
-  return sendBrevoTemplateEmail({ ...configuration, idempotencyKey: input.sequenceId, email: input.email, displayName: input.displayName });
+  return sendBrevoTemplateEmail({
+    ...configuration,
+    idempotencyKey: input.sequenceId,
+    email: input.email,
+    displayName: input.displayName,
+    replyTo: recruitmentReplyAddress(input.sequenceId)
+  });
 }
 
 export async function sendRecruitmentFollowUpEmail(input: {
@@ -123,5 +149,11 @@ export async function sendRecruitmentFollowUpEmail(input: {
 }): Promise<BrevoSendResult> {
   const configuration = await brevoFollowUpConfiguration(input.stepIndex);
   if (!configuration) return { success: false, error: `Configuration Brevo relance ${input.stepIndex} incomplète.` };
-  return sendBrevoTemplateEmail({ ...configuration, idempotencyKey: input.stepId, email: input.email, displayName: input.displayName });
+  return sendBrevoTemplateEmail({
+    ...configuration,
+    idempotencyKey: input.stepId,
+    email: input.email,
+    displayName: input.displayName,
+    replyTo: await recruitmentReplyAddressForStep(input.stepId)
+  });
 }
