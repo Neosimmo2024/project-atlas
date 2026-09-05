@@ -27,6 +27,8 @@ function card(overrides: Partial<PipelineCardModel> = {}): PipelineCardModel {
     doNotContact: false,
     rejectionRecontactable: null,
     signatureScheduled: false,
+    recruitmentSequenceLabel: null,
+    recruitmentSequenceTone: "neutral",
     status: "active",
     href: "/relationships/relationship-a",
     ...overrides

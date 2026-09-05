@@ -1,6 +1,36 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { RecruitmentEmailSequence, TenantContext } from "@/types/domain";
 
+export type RecruitmentEmailLifecycleStatus = "idle" | "scheduled" | "running" | "completed" | "stopped" | "error";
+export type RecruitmentEmailSequenceStepStatus = "scheduled" | "processing" | "sent" | "error" | "cancelled";
+export type RecruitmentEmailSequenceStep = {
+  id: string;
+  tenant_id: string;
+  sequence_id: string;
+  person_id: string;
+  step_index: number;
+  step_key: "initial" | "follow_up_1" | "follow_up_2";
+  status: RecruitmentEmailSequenceStepStatus;
+  scheduled_at: string;
+  claimed_at: string | null;
+  provider_message_id: string | null;
+  sent_at: string | null;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type RecruitmentEmailSequenceWithSteps = RecruitmentEmailSequence & {
+  lifecycle_status: RecruitmentEmailLifecycleStatus;
+  current_step: number;
+  next_action_at: string | null;
+  attempt_count: number;
+  last_attempt_at: string | null;
+  completed_at: string | null;
+  stop_reason: string | null;
+  steps: RecruitmentEmailSequenceStep[];
+};
+
 export async function getRecruitmentEmailSequence(context: TenantContext, personId: string) {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
@@ -10,7 +40,18 @@ export async function getRecruitmentEmailSequence(context: TenantContext, person
     .eq("person_id", personId)
     .maybeSingle();
   if (error) throw error;
-  return (data as RecruitmentEmailSequence | null) ?? null;
+  if (!data) return null;
+
+  const sequence = data as RecruitmentEmailSequenceWithSteps;
+  const { data: steps, error: stepsError } = await supabase
+    .from("recruitment_email_sequence_steps")
+    .select("id,tenant_id,sequence_id,person_id,step_index,step_key,status,scheduled_at,claimed_at,provider_message_id,sent_at,last_error,created_at,updated_at")
+    .eq("tenant_id", context.tenantId)
+    .eq("sequence_id", sequence.id)
+    .order("step_index", { ascending: true });
+  if (stepsError) throw stepsError;
+
+  return { ...sequence, steps: (steps ?? []) as RecruitmentEmailSequenceStep[] } satisfies RecruitmentEmailSequenceWithSteps;
 }
 
 export async function claimRecruitmentEmailSequence(context: TenantContext, personId: string) {
