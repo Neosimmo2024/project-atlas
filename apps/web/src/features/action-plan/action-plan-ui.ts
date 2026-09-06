@@ -25,9 +25,18 @@ export function isNewActionPlanTask(item: ActionPlanItem, now = new Date()) {
   if (item.sourceType !== "task") return false;
   const createdAt = new Date(item.createdAt);
   if (Number.isNaN(createdAt.getTime())) return false;
-  const ageMs = now.getTime() - createdAt.getTime();
-  if (ageMs < 0) return false;
-  return ageMs <= ACTION_PLAN_NEW_TASK_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  const cutoff = new Date(now.getTime() - ACTION_PLAN_NEW_TASK_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+  return createdAt >= cutoff && createdAt <= now;
+}
+
+export function sortActionPlanItemsNewestFirst(items: ActionPlanItem[]) {
+  return [...items].sort((a, b) => {
+    const aTime = new Date(a.createdAt).getTime();
+    const bTime = new Date(b.createdAt).getTime();
+    const safeA = Number.isNaN(aTime) ? 0 : aTime;
+    const safeB = Number.isNaN(bTime) ? 0 : bTime;
+    return safeB - safeA;
+  });
 }
 
 export function actionPlanReasonLabel(reason: ActionPlanReason) {
