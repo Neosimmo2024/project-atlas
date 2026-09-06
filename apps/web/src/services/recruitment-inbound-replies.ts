@@ -27,6 +27,12 @@ type SequenceRow = {
   provider_message_id: string | null;
 };
 
+type RecruitingRelationshipRow = {
+  id: string;
+  organization_id: string;
+  owner_user_id: string | null;
+};
+
 export type InboundReplySummary = {
   processed: number;
   stopped: number;
@@ -129,12 +135,82 @@ function replyExcerpt(value: string | null | undefined) {
   return normalized ? normalized.slice(0, 4000) : null;
 }
 
+async function findRecruitingRelationship(sequence: SequenceRow): Promise<RecruitingRelationshipRow | null> {
+  const supabase = createSupabaseServiceRoleClient();
+  const { data, error } = await supabase
+    .from("relationships")
+    .select("id,organization_id,owner_user_id")
+    .eq("tenant_id", sequence.tenant_id)
+    .eq("person_id", sequence.person_id)
+    .eq("relationship_type", "recruiting")
+    .eq("status", "active")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data as RecruitingRelationshipRow | null;
+}
+
+async function ensureCandidateReplyFollowUpTask(sequence: SequenceRow, item: BrevoInboundEmail) {
+  const messageId = item.MessageId!.trim();
+  const supabase = createSupabaseServiceRoleClient();
+  const metadataKey = { source: "recruitment_candidate_reply", inbound_message_id: messageId };
+
+  const { data: existing, error: existingError } = await supabase
+    .from("tasks")
+    .select("id")
+    .eq("tenant_id", sequence.tenant_id)
+    .eq("person_id", sequence.person_id)
+    .is("deleted_at", null)
+    .contains("metadata", metadataKey)
+    .limit(1)
+    .maybeSingle();
+  if (existingError) throw existingError;
+  if (existing) return existing.id as string;
+
+  const relationship = await findRecruitingRelationship(sequence);
+  const excerpt = replyExcerpt(item.ExtractedMarkdownMessage);
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("tasks")
+    .insert({
+      tenant_id: sequence.tenant_id,
+      title: "Traiter la réponse du candidat",
+      description: excerpt ? `Réponse reçue : ${excerpt}` : "Réponse candidat reçue : contacter le candidat, répondre par email, planifier un rendez-vous ou poursuivre la qualification.",
+      status: "todo",
+      priority: "high",
+      due_at: now,
+      completed_at: null,
+      assigned_to: relationship?.owner_user_id ?? null,
+      created_by: null,
+      person_id: sequence.person_id,
+      organization_id: relationship?.organization_id ?? null,
+      relationship_id: relationship?.id ?? null,
+      interaction_id: null,
+      source_type: "person",
+      source_id: sequence.person_id,
+      reason: "candidate_reply",
+      metadata: {
+        ...metadataKey,
+        sequence_id: sequence.id,
+        subject: item.Subject ?? null,
+        sent_at: item.SentAtDate ?? null,
+        suggested_actions: ["call", "reply_email", "schedule_meeting", "qualify"]
+      }
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+  return data.id as string;
+}
+
 async function insertReplyEvent(input: {
   sequence: SequenceRow;
   item: BrevoInboundEmail;
   title: string;
   description: string;
   reason: "candidate_reply" | "sender_mismatch";
+  followUpTaskId?: string | null;
 }) {
   const messageId = input.item.MessageId!.trim();
   const supabase = createSupabaseServiceRoleClient();
@@ -157,6 +233,7 @@ async function insertReplyEvent(input: {
       subject: input.item.Subject ?? null,
       sent_at: input.item.SentAtDate ?? null,
       reply_excerpt: replyExcerpt(input.item.ExtractedMarkdownMessage),
+      follow_up_task_id: input.followUpTaskId ?? null,
       source: "brevo_inbound_parsing"
     },
     visibility: "tenant",
@@ -222,12 +299,14 @@ export async function processBrevoInboundReplies(payload: BrevoInboundPayload): 
     }
 
     const stopped = await stopSequenceForCandidateReply(sequence);
+    const followUpTaskId = await ensureCandidateReplyFollowUpTask(sequence, item);
     await insertReplyEvent({
       sequence,
       item,
       title: stopped ? "Réponse candidat reçue — séquence arrêtée" : "Réponse candidat reçue",
-      description: stopped ? "Réponse du candidat : les relances futures sont annulées." : "Réponse reçue après la fin ou l’arrêt de la séquence.",
-      reason: "candidate_reply"
+      description: stopped ? "Réponse du candidat : les relances futures sont annulées et une tâche de suivi est créée." : "Réponse reçue après la fin ou l’arrêt de la séquence ; une tâche de suivi est créée.",
+      reason: "candidate_reply",
+      followUpTaskId
     });
     summary.processed += 1;
     if (stopped) summary.stopped += 1;
