@@ -6,7 +6,8 @@ import {
   actionPlanItemLinkLabel,
   actionPlanReasonLabel,
   formatActionPlanDate,
-  isNewActionPlanTask
+  isNewActionPlanTask,
+  sortActionPlanItemsNewestFirst
 } from "./action-plan-ui";
 import type { ActionPlanItem, ActionPlanReason } from "@/types/domain";
 
@@ -50,6 +51,15 @@ describe("action plan UI helpers", () => {
     expect(isNewActionPlanTask(item({ createdAt: "2026-09-06T08:00:00Z" }), now)).toBe(true);
     expect(isNewActionPlanTask(item({ createdAt: "2026-08-29T08:00:00Z" }), now)).toBe(false);
     expect(isNewActionPlanTask(item({ sourceType: "relationship_recommendation", createdAt: "2026-09-06T08:00:00Z" }), now)).toBe(false);
+  });
+
+  it("sorts action plan cards from newest to oldest", () => {
+    const sorted = sortActionPlanItemsNewestFirst([
+      item({ id: "old", createdAt: "2026-08-01T08:00:00Z" }),
+      item({ id: "new", createdAt: "2026-09-05T08:00:00Z" }),
+      item({ id: "middle", createdAt: "2026-08-20T08:00:00Z" })
+    ]);
+    expect(sorted.map((entry) => entry.id)).toEqual(["new", "middle", "old"]);
   });
 
   it("translates deterministic reasons without exposing technical codes", () => {
