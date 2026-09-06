@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -9,10 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 type FieldError = { field: string; message: string };
+type OrganizationOption = { id: string; name: string };
 
 type PersonFormProps = {
   mode: "create" | "edit";
   person?: Person;
+  organizationOptions?: OrganizationOption[];
 };
 
 function valueOrEmpty(value: string | number | boolean | null | undefined) {
@@ -39,16 +41,19 @@ function formToPayload(form: HTMLFormElement, confirmDuplicate = false) {
     talent_score: String(data.get("talent_score") ?? ""),
     contact_allowed: data.get("contact_allowed") === "on",
     do_not_contact: data.get("do_not_contact") === "on",
+    create_recruiting_relationship: data.get("create_recruiting_relationship") === "on",
+    recruiting_organization_id: String(data.get("recruiting_organization_id") ?? ""),
     confirmDuplicate
   };
 }
 
-export function PersonForm({ mode, person }: PersonFormProps) {
+export function PersonForm({ mode, person, organizationOptions = [] }: PersonFormProps) {
   const router = useRouter();
   const [fieldErrors, setFieldErrors] = useState<FieldError[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<DuplicateMatch[]>([]);
   const [loading, setLoading] = useState(false);
+  const [addToRecruitmentPipeline, setAddToRecruitmentPipeline] = useState(mode === "create" && organizationOptions.length > 0);
   const endpoint = mode === "create" ? "/api/people" : `/api/people/${person?.id}`;
   const errorsByField = fieldErrors.reduce<Record<string, string>>((acc, item) => {
     acc[item.field] = item.message;
@@ -85,7 +90,11 @@ export function PersonForm({ mode, person }: PersonFormProps) {
       return;
     }
 
-    router.push(`/people/${result.data.id}`);
+    if (mode === "create" && result.recruitingRelationship) {
+      router.push(`/pipeline?query=${encodeURIComponent(result.data.display_name)}`);
+    } else {
+      router.push(`/people/${result.data.id}`);
+    }
     router.refresh();
   }
 
@@ -115,6 +124,42 @@ export function PersonForm({ mode, person }: PersonFormProps) {
             ))}
           </ul>
           <Button type="button" onClick={submitDespiteDuplicates} disabled={loading}>Continuer sans fusionner</Button>
+        </div>
+      ) : null}
+
+      {mode === "create" ? (
+        <div className="card stack">
+          <div>
+            <strong>Recrutement</strong>
+            <p className="muted">Ajoutez directement cette personne au Pipeline en phase Détection.</p>
+          </div>
+          <label className="check-row">
+            <input
+              name="create_recruiting_relationship"
+              type="checkbox"
+              checked={addToRecruitmentPipeline}
+              onChange={(event) => setAddToRecruitmentPipeline(event.currentTarget.checked)}
+              disabled={organizationOptions.length === 0}
+            />
+            Candidat recrutement — ajouter automatiquement au Pipeline
+          </label>
+          <label>
+            Organisation de recrutement
+            <select
+              className="input"
+              name="recruiting_organization_id"
+              required={addToRecruitmentPipeline}
+              disabled={!addToRecruitmentPipeline}
+              defaultValue=""
+            >
+              <option value="">Sélectionner une organisation</option>
+              {organizationOptions.map((organization) => (
+                <option key={organization.id} value={organization.id}>{organization.name}</option>
+              ))}
+            </select>
+            <FieldError name="recruiting_organization_id" />
+          </label>
+          {organizationOptions.length === 0 ? <span className="muted">Aucune organisation disponible : la personne sera créée sans relation de recrutement.</span> : null}
         </div>
       ) : null}
 
