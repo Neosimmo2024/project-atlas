@@ -7,11 +7,14 @@ import { Badge, Button, Card, EmptyState, ErrorState, LoadingState } from "@/com
 import {
   ACTION_PLAN_CATEGORY_DESCRIPTIONS,
   ACTION_PLAN_CATEGORY_LABELS,
+  ACTION_PLAN_NEW_TASK_WINDOW_DAYS,
   ACTION_PLAN_SOURCE_LABELS,
   actionPlanItemHref,
   actionPlanItemLinkLabel,
   actionPlanReasonLabel,
-  formatActionPlanDate
+  formatActionPlanDate,
+  isNewActionPlanTask,
+  sortActionPlanItemsNewestFirst
 } from "@/features/action-plan/action-plan-ui";
 import type { ActionPlanCategory, ActionPlanItem } from "@/types/domain";
 import type { ActionPlanOrganizationOption } from "@/repositories/action-plan";
@@ -76,12 +79,18 @@ export function ActionPlanPageClient({ organizations, initialOrganizationId = ""
     router.replace(href, { scroll: false });
   }
 
+  const newTasks = useMemo(() => {
+    return sortActionPlanItemsNewestFirst(items.filter((item) => isNewActionPlanTask(item)));
+  }, [items]);
+
+  const newTaskIds = useMemo(() => new Set(newTasks.map((item) => item.id)), [newTasks]);
+
   const groupedItems = useMemo(() => {
     return CATEGORY_ORDER.map((category) => ({
       category,
-      items: items.filter((item) => item.category === category)
+      items: sortActionPlanItemsNewestFirst(items.filter((item) => item.category === category && !newTaskIds.has(item.id)))
     }));
-  }, [items]);
+  }, [items, newTaskIds]);
 
   if (organizations.length === 0) {
     return (
@@ -147,6 +156,23 @@ export function ActionPlanPageClient({ organizations, initialOrganizationId = ""
 
       {!loading && !error && items.length > 0 ? (
         <div className="action-plan-results">
+          <section className="action-plan-category" aria-labelledby="action-plan-new-tasks">
+            <div className="action-plan-category-heading">
+              <div>
+                <h2 id="action-plan-new-tasks">Nouvelles tâches</h2>
+                <p>Tâches créées au cours des {ACTION_PLAN_NEW_TASK_WINDOW_DAYS} derniers jours, les plus récentes en premier.</p>
+              </div>
+              <Badge tone={newTasks.length > 0 ? "info" : "neutral"}>{newTasks.length} tâche(s)</Badge>
+            </div>
+            {newTasks.length === 0 ? (
+              <p className="muted action-plan-empty-category">Aucune nouvelle tâche.</p>
+            ) : (
+              <div className="action-plan-card-list">
+                {newTasks.map((item) => <ActionPlanCard key={item.id} item={item} />)}
+              </div>
+            )}
+          </section>
+
           {groupedItems.map(({ category, items: categoryItems }) => (
             <section key={category} className="action-plan-category" aria-labelledby={`action-plan-${category}`}>
               <div className="action-plan-category-heading">

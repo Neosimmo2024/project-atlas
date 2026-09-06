@@ -32,7 +32,10 @@ test("Projects pages exercise Foundation UI primitives", async ({ page }) => {
   await page.goto(`${baseUrl}/projects`);
   const firstProject = page.locator("a.project-card").first();
   if (await firstProject.count() === 0) test.skip(true, "No project data available to verify detail tabs and confirmations.");
-  await firstProject.click();
+  const firstProjectHref = await firstProject.getAttribute("href");
+  expect(firstProjectHref).toMatch(/^\/projects\//);
+  await page.goto(new URL(firstProjectHref!, baseUrl).toString());
+  await expect(page).toHaveURL(/\/projects\/[0-9a-f-]+/);
   const projectTabs = page.getByRole("navigation", { name: "Onglets Projet" });
   await expect(projectTabs).toBeVisible();
   await expect(projectTabs.getByRole("link", { name: "Vue d’ensemble" })).toBeVisible();
