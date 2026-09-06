@@ -13,7 +13,8 @@ import {
   actionPlanItemLinkLabel,
   actionPlanReasonLabel,
   formatActionPlanDate,
-  isNewActionPlanTask
+  isNewActionPlanTask,
+  sortActionPlanItemsNewestFirst
 } from "@/features/action-plan/action-plan-ui";
 import type { ActionPlanCategory, ActionPlanItem } from "@/types/domain";
 import type { ActionPlanOrganizationOption } from "@/repositories/action-plan";
@@ -79,9 +80,7 @@ export function ActionPlanPageClient({ organizations, initialOrganizationId = ""
   }
 
   const newTasks = useMemo(() => {
-    return items
-      .filter((item) => isNewActionPlanTask(item))
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return sortActionPlanItemsNewestFirst(items.filter((item) => isNewActionPlanTask(item)));
   }, [items]);
 
   const newTaskIds = useMemo(() => new Set(newTasks.map((item) => item.id)), [newTasks]);
@@ -89,7 +88,7 @@ export function ActionPlanPageClient({ organizations, initialOrganizationId = ""
   const groupedItems = useMemo(() => {
     return CATEGORY_ORDER.map((category) => ({
       category,
-      items: items.filter((item) => item.category === category && !newTaskIds.has(item.id))
+      items: sortActionPlanItemsNewestFirst(items.filter((item) => item.category === category && !newTaskIds.has(item.id)))
     }));
   }, [items, newTaskIds]);
 
