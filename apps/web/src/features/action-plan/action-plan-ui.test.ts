@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   ACTION_PLAN_CATEGORY_LABELS,
+  ACTION_PLAN_NEW_TASK_WINDOW_DAYS,
   actionPlanItemHref,
   actionPlanItemLinkLabel,
   actionPlanReasonLabel,
-  formatActionPlanDate
+  formatActionPlanDate,
+  isNewActionPlanTask
 } from "./action-plan-ui";
 import type { ActionPlanItem, ActionPlanReason } from "@/types/domain";
 
@@ -40,6 +42,14 @@ describe("action plan UI helpers", () => {
       opportunity: "Opportunité",
       to_schedule: "À planifier"
     });
+  });
+
+  it("identifies only recently created tasks for the new-tasks block", () => {
+    const now = new Date("2026-09-06T10:00:00Z");
+    expect(ACTION_PLAN_NEW_TASK_WINDOW_DAYS).toBe(7);
+    expect(isNewActionPlanTask(item({ createdAt: "2026-09-06T08:00:00Z" }), now)).toBe(true);
+    expect(isNewActionPlanTask(item({ createdAt: "2026-08-29T08:00:00Z" }), now)).toBe(false);
+    expect(isNewActionPlanTask(item({ sourceType: "relationship_recommendation", createdAt: "2026-09-06T08:00:00Z" }), now)).toBe(false);
   });
 
   it("translates deterministic reasons without exposing technical codes", () => {

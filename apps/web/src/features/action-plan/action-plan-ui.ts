@@ -19,6 +19,17 @@ export const ACTION_PLAN_SOURCE_LABELS: Record<ActionPlanSourceType, string> = {
   relationship_recommendation: "Relation"
 };
 
+export const ACTION_PLAN_NEW_TASK_WINDOW_DAYS = 7;
+
+export function isNewActionPlanTask(item: ActionPlanItem, now = new Date()) {
+  if (item.sourceType !== "task") return false;
+  const createdAt = new Date(item.createdAt);
+  if (Number.isNaN(createdAt.getTime())) return false;
+  const ageMs = now.getTime() - createdAt.getTime();
+  if (ageMs < 0) return false;
+  return ageMs <= ACTION_PLAN_NEW_TASK_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+}
+
 export function actionPlanReasonLabel(reason: ActionPlanReason) {
   switch (reason.code) {
     case "TASK_OVERDUE_GT_24H":
