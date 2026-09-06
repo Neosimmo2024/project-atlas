@@ -42,6 +42,15 @@ type PipelineRecruitmentSequence = {
   next_action_at: string | null;
   stop_reason: string | null;
 };
+type PipelineTaskRow = {
+  person_id: string | null;
+  relationship_id: string | null;
+  status: string;
+  due_at: string | null;
+  reason: string | null;
+  metadata: Record<string, unknown> | null;
+  updated_at: string;
+};
 
 const emptyUuid = "00000000-0000-4000-8000-000000000000";
 
@@ -147,19 +156,40 @@ export async function listRecruitmentPipeline(context: TenantContext, filters: P
 
   const personIds = Array.from(new Set(rows.map((row) => row.person_id).filter((id): id is string => Boolean(id))));
   const sequenceByPerson = new Map<string, PipelineRecruitmentSequence>();
+  const tasksByPerson = new Map<string, PipelineTaskRow[]>();
   if (personIds.length > 0) {
-    const { data: sequences, error: sequenceError } = await supabase
-      .from("recruitment_email_sequences")
-      .select("person_id,status,lifecycle_status,current_step,next_action_at,stop_reason")
-      .eq("tenant_id", context.tenantId)
-      .in("person_id", personIds);
+    const [{ data: sequences, error: sequenceError }, { data: tasks, error: taskError }] = await Promise.all([
+      supabase
+        .from("recruitment_email_sequences")
+        .select("person_id,status,lifecycle_status,current_step,next_action_at,stop_reason")
+        .eq("tenant_id", context.tenantId)
+        .in("person_id", personIds),
+      supabase
+        .from("tasks")
+        .select("person_id,relationship_id,status,due_at,reason,metadata,updated_at")
+        .eq("tenant_id", context.tenantId)
+        .is("deleted_at", null)
+        .in("person_id", personIds)
+    ]);
     if (sequenceError) throw sequenceError;
+    if (taskError) throw taskError;
     for (const sequence of (sequences ?? []) as PipelineRecruitmentSequence[]) sequenceByPerson.set(sequence.person_id, sequence);
+    for (const task of (tasks ?? []) as PipelineTaskRow[]) {
+      if (!task.person_id || task.status === "completed" || task.status === "cancelled") continue;
+      tasksByPerson.set(task.person_id, [...(tasksByPerson.get(task.person_id) ?? []), task]);
+    }
   }
 
+  const now = new Date();
   const allCards = rows
     .filter((row) => RECRUITMENT_PIPELINE_STAGES.includes(row.pipeline_stage))
-    .map((row) => mapPipelineCard(row, ownerNames, row.person_id ? sequenceByPerson.get(row.person_id) ?? null : null));
+    .map((row) => mapPipelineCard(
+      row,
+      ownerNames,
+      row.person_id ? sequenceByPerson.get(row.person_id) ?? null : null,
+      row.person_id ? tasksByPerson.get(row.person_id) ?? [] : [],
+      now
+    ));
   const paged = filters.query ? paginateSearchResults(allCards, filters.page, filters.pageSize) : { rows: allCards, total: count ?? allCards.length, pageCount: Math.max(1, Math.ceil((count ?? allCards.length) / filters.pageSize)) };
   const cards = paged.rows;
   const total = paged.total;
@@ -167,8 +197,27 @@ export async function listRecruitmentPipeline(context: TenantContext, filters: P
   return { cards, owners, total, page: filters.page, pageSize: filters.pageSize, pageCount: paged.pageCount, invalidStages };
 }
 
-function mapPipelineCard(row: PipelineRelationshipRow, ownerNames: Map<string, string>, sequence: PipelineRecruitmentSequence | null): PipelineCardModel {
-  const sequenceSummary = recruitmentSequenceSummary(sequence);
+function mapPipelineCard(
+  row: PipelineRelationshipRow,
+  ownerNames: Map<string, string>,
+  sequence: PipelineRecruitmentSequence | null,
+  personTasks: PipelineTaskRow[],
+  now: Date
+): PipelineCardModel {
+  const taskSummary = summarizeOperationalTasks(personTasks, row.id, now);
+  const sequenceSummary = recruitmentSequenceSummary(sequence, now);
+  const sequenceActionDue = isDueNow(sequence?.next_action_at ?? null, now);
+  const relationshipActionDue = isDueNow(row.next_action_at, now);
+  const operationalPriority = taskSummary.hasCandidateReplyTask
+    ? 400
+    : taskSummary.hasOverdueTask
+      ? 300
+      : sequenceActionDue
+        ? 200
+        : relationshipActionDue
+          ? 100
+          : 0;
+
   return {
     id: row.id,
     personName: row.people?.display_name ?? "Personne inconnue",
@@ -176,9 +225,10 @@ function mapPipelineCard(row: PipelineRelationshipRow, ownerNames: Map<string, s
     stage: row.pipeline_stage,
     ownerUserId: row.owner_user_id,
     ownerName: ownerLabel(row.owner_user_id, ownerNames),
-    nextActionAt: row.next_action_at,
+    nextActionAt: earliestDate([row.next_action_at, taskSummary.earliestDueAt, sequence?.next_action_at ?? null]),
     lastInteractionAt: row.last_interaction_at,
     updatedAt: row.updated_at,
+    operationalPriority,
     doNotContact: Boolean(row.people?.do_not_contact || row.organizations?.do_not_contact),
     rejectionRecontactable: readRecontactable(row.metadata),
     signatureScheduled: row.pipeline_stage === "signature" && isSignatureScheduled(row.metadata),
@@ -189,7 +239,7 @@ function mapPipelineCard(row: PipelineRelationshipRow, ownerNames: Map<string, s
   };
 }
 
-function recruitmentSequenceSummary(sequence: PipelineRecruitmentSequence | null): { label: string | null; tone: "neutral" | "info" | "warning" | "danger" } {
+function recruitmentSequenceSummary(sequence: PipelineRecruitmentSequence | null, now = new Date()): { label: string | null; tone: "neutral" | "info" | "warning" | "danger" } {
   if (!sequence) return { label: null, tone: "neutral" };
   if (sequence.lifecycle_status === "stopped") {
     if (sequence.stop_reason === "candidate_reply") return { label: "Réponse reçue · séquence arrêtée", tone: "info" };
@@ -200,10 +250,37 @@ function recruitmentSequenceSummary(sequence: PipelineRecruitmentSequence | null
   if (sequence.lifecycle_status === "completed") return { label: "Séquence email terminée", tone: "neutral" };
   if (sequence.next_action_at) {
     const step = sequence.current_step === 1 ? "Relance J+3" : sequence.current_step === 2 ? "Relance J+7" : "Prochaine relance";
+    if (isDueNow(sequence.next_action_at, now)) return { label: `Relance à faire · ${step} · ${formatSequenceDate(sequence.next_action_at)}`, tone: "danger" };
     return { label: `${step} prévue le ${formatSequenceDate(sequence.next_action_at)}`, tone: "info" };
   }
   if (sequence.status === "sent") return { label: "Email initial envoyé", tone: "info" };
   return { label: "Séquence email en cours", tone: "warning" };
+}
+
+function summarizeOperationalTasks(tasks: PipelineTaskRow[], relationshipId: string, now: Date) {
+  const relevant = tasks.filter((task) => !task.relationship_id || task.relationship_id === relationshipId);
+  const hasCandidateReplyTask = relevant.some((task) => task.reason === "candidate_reply" || task.metadata?.source === "recruitment_candidate_reply");
+  const dueDates = relevant.map((task) => task.due_at).filter((value): value is string => Boolean(value));
+  return {
+    hasCandidateReplyTask,
+    hasOverdueTask: dueDates.some((value) => isDueNow(value, now)),
+    earliestDueAt: earliestDate(dueDates)
+  };
+}
+
+function isDueNow(value: string | null, now: Date) {
+  if (!value) return false;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) && time <= now.getTime();
+}
+
+function earliestDate(values: Array<string | null>) {
+  const valid = values
+    .filter((value): value is string => Boolean(value))
+    .map((value) => ({ value, time: new Date(value).getTime() }))
+    .filter((entry) => Number.isFinite(entry.time))
+    .sort((a, b) => a.time - b.time);
+  return valid[0]?.value ?? null;
 }
 
 function formatSequenceDate(value: string) {

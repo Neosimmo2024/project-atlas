@@ -9,7 +9,8 @@ import {
   normalizePipelineStage,
   normalizePipelineView,
   ownerLabel,
-  PIPELINE_STAGE_LABELS
+  PIPELINE_STAGE_LABELS,
+  sortPipelineCardsForAction
 } from "./pipeline-ui";
 import { RECRUITMENT_PIPELINE_STAGES } from "./options";
 
@@ -24,6 +25,7 @@ function card(overrides: Partial<PipelineCardModel> = {}): PipelineCardModel {
     nextActionAt: null,
     lastInteractionAt: null,
     updatedAt: "2026-07-19T08:00:00Z",
+    operationalPriority: 0,
     doNotContact: false,
     rejectionRecontactable: null,
     signatureScheduled: false,
@@ -67,6 +69,26 @@ describe("pipeline UI helpers", () => {
     expect(groups).toHaveLength(13);
     expect(groups.find((group) => group.stage === "qualification")?.cards).toHaveLength(1);
     expect(groups.find((group) => group.stage === "signature")?.cards[0].id).toBe("relationship-b");
+  });
+
+  it("prioritizes candidates requiring operational action inside each pipeline stage", () => {
+    const sorted = sortPipelineCardsForAction([
+      card({ id: "normal", operationalPriority: 0, updatedAt: "2026-09-06T10:00:00Z" }),
+      card({ id: "follow-up", operationalPriority: 200, updatedAt: "2026-09-05T10:00:00Z" }),
+      card({ id: "reply", operationalPriority: 400, updatedAt: "2026-09-04T10:00:00Z" }),
+      card({ id: "overdue", operationalPriority: 300, updatedAt: "2026-09-03T10:00:00Z" })
+    ]);
+
+    expect(sorted.map((item) => item.id)).toEqual(["reply", "overdue", "follow-up", "normal"]);
+  });
+
+  it("uses the most recently updated card as the tie-breaker", () => {
+    const sorted = sortPipelineCardsForAction([
+      card({ id: "old", operationalPriority: 100, updatedAt: "2026-09-01T10:00:00Z" }),
+      card({ id: "new", operationalPriority: 100, updatedAt: "2026-09-06T10:00:00Z" })
+    ]);
+
+    expect(sorted.map((item) => item.id)).toEqual(["new", "old"]);
   });
 
   it("normalizes public view and stage parameters", () => {
