@@ -36,6 +36,7 @@ const card: PipelineCardModel = {
   nextActionAt: null,
   lastInteractionAt: null,
   updatedAt: "2026-07-19T08:00:00Z",
+  operationalPriority: 0,
   doNotContact: false,
   rejectionRecontactable: null,
   signatureScheduled: false,

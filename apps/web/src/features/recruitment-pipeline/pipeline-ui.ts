@@ -31,6 +31,7 @@ export type PipelineCardModel = {
   nextActionAt: string | null;
   lastInteractionAt: string | null;
   updatedAt: string;
+  operationalPriority: number;
   doNotContact: boolean;
   rejectionRecontactable: boolean | null;
   signatureScheduled: boolean;
@@ -68,8 +69,16 @@ export function groupPipelineCards(cards: PipelineCardModel[]) {
   return RECRUITMENT_PIPELINE_STAGES.map((stage) => ({
     stage,
     label: PIPELINE_STAGE_LABELS[stage],
-    cards: cards.filter((card) => card.stage === stage)
+    cards: sortPipelineCardsForAction(cards.filter((card) => card.stage === stage))
   }));
+}
+
+export function sortPipelineCardsForAction(cards: PipelineCardModel[]) {
+  return [...cards].sort((a, b) => {
+    if (a.operationalPriority !== b.operationalPriority) return b.operationalPriority - a.operationalPriority;
+    const updatedDiff = safeTime(b.updatedAt) - safeTime(a.updatedAt);
+    return updatedDiff || a.id.localeCompare(b.id);
+  });
 }
 
 export function isOverdue(value: string | null, now = new Date()) {
@@ -98,6 +107,11 @@ export function isSignatureScheduled(metadata: Record<string, unknown>) {
   const signature = (pipeline as Record<string, unknown>).signature;
   if (!signature || typeof signature !== "object") return false;
   return (signature as Record<string, unknown>).scheduled === true;
+}
+
+function safeTime(value: string) {
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : 0;
 }
 
 function startOfDay(date: Date) {
