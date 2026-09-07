@@ -65,6 +65,20 @@ describe("visible UI copy", () => {
     expect(interactionForm).not.toContain("{relationship.relationship_type} - {relationship.pipeline_stage}");
   });
 
+  it("keeps the relationship detail compact and aligned with Pipeline wording", () => {
+    const relationshipDetail = source("src/app/(app)/relationships/[id]/page.tsx");
+    const relationshipOptions = source("src/features/relationships/options.ts");
+
+    expect(relationshipOptions).toContain('conversation: "Conversation engagée"');
+    expect(relationshipOptions).toContain('appointment: "Rendez-vous obtenu"');
+    expect(relationshipOptions).toContain('presentation: "Présentation réalisée"');
+    expect(relationshipDetail).toContain("pageSize: 3");
+    expect(relationshipDetail).toContain("const visibleTasks = tasks.tasks.slice(0, 2);");
+    expect(relationshipDetail).toContain("<summary><strong>Chronologie</strong>");
+    expect(relationshipDetail).toContain("<summary><strong>Tâches liées</strong>");
+    expect(relationshipDetail).toContain("<summary><strong>Modifier la relation</strong></summary>");
+  });
+
   it("keeps the new interaction back link scoped to the originating project when present", () => {
     const newInteractionPage = source("src/app/(app)/interactions/new/page.tsx");
 
