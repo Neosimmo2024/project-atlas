@@ -10,6 +10,7 @@ import { TaskCard } from "@/components/tasks/task-card";
 import { TimelineFilters, normalizeTimelineCategory } from "@/components/timeline/timeline-filters";
 import { TimelineList } from "@/components/timeline/timeline-list";
 import { PERSON_STATUS_LABELS, PRIORITY_LABELS } from "@/features/people/options";
+import { safePersonReturnTo } from "@/features/people/person-detail-return";
 import { canDeletePeople } from "@/features/people/search";
 import { getPersonDetail } from "@/repositories/people";
 import { listContextProjects } from "@/repositories/projects";
@@ -50,6 +51,7 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
   if (!detail) notFound();
 
   const { person, organizations, relationships } = detail;
+  const returnTo = safePersonReturnTo(valueOf(query, "returnTo"));
   const timelineCategory = normalizeTimelineCategory(valueOf(query, "timelineCategory"));
   const timelinePage = Number(valueOf(query, "timelinePage") || 1);
   const [chronology, tasks, projects, qualification, recruitmentEmailSequence] = await Promise.all([
@@ -68,7 +70,7 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
           <p className="muted">Personnes</p>
           <h1>{person.display_name}</h1>
         </div>
-        <SafeBackLink fallbackHref="/people" />
+        <SafeBackLink fallbackHref={returnTo} useHistory={returnTo === "/people"} />
       </header>
 
       <div className="grid">
