@@ -39,6 +39,17 @@ function countLabel(count: number, singular: string, plural: string) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
+function safeRelationshipReturnTo(value: string) {
+  if (!value) return "/relationships";
+  try {
+    const parsed = new URL(value, "http://atlas.local");
+    if (parsed.origin !== "http://atlas.local" || parsed.pathname !== "/pipeline") return "/relationships";
+    return `${parsed.pathname}${parsed.search}`;
+  } catch {
+    return "/relationships";
+  }
+}
+
 export default async function RelationshipDetailPage({ params, searchParams }: RelationshipDetailPageProps) {
   const { id } = await params;
   const query = await searchParams;
@@ -49,6 +60,10 @@ export default async function RelationshipDetailPage({ params, searchParams }: R
   if (!detail) notFound();
 
   const { relationship, person, organization } = detail;
+  const returnTo = safeRelationshipReturnTo(valueOf(query, "returnTo"));
+  const relationshipReturnPath = returnTo === "/relationships"
+    ? `/relationships/${relationship.id}`
+    : `/relationships/${relationship.id}?returnTo=${encodeURIComponent(returnTo)}`;
   const timelineCategory = normalizeTimelineCategory(valueOf(query, "timelineCategory"));
   const timelinePage = Number(valueOf(query, "timelinePage") || 1);
   const [peopleOptions, organizationOptions, chronology, tasks, projects] = await Promise.all([
@@ -68,7 +83,7 @@ export default async function RelationshipDetailPage({ params, searchParams }: R
           <p className="muted">Relations</p>
           <h1>{person?.display_name ?? "Relation"} - {organization?.name ?? "Organisation"}</h1>
         </div>
-        <SafeBackLink fallbackHref="/relationships" />
+        <SafeBackLink fallbackHref={returnTo} useHistory={false} />
       </header>
       {valueOf(query, "relationshipCreated") === "1" ? <p className="success" aria-live="polite">Relation créée avec succès.</p> : null}
       {valueOf(query, "relationshipSaved") === "1" ? <p className="success" aria-live="polite">Relation enregistrée avec succès.</p> : null}
@@ -76,7 +91,7 @@ export default async function RelationshipDetailPage({ params, searchParams }: R
       <div className="grid">
         <section className="card stack">
           <h2>Identité</h2>
-          <p><strong>Personne</strong><br />{person ? <Link href={`/people/${person.id}?returnTo=${encodeURIComponent(`/relationships/${relationship.id}`)}`}>{person.display_name}</Link> : "-"}</p>
+          <p><strong>Personne</strong><br />{person ? <Link href={`/people/${person.id}?returnTo=${encodeURIComponent(relationshipReturnPath)}`}>{person.display_name}</Link> : "-"}</p>
           <p><strong>Organisation</strong><br />{organization ? <Link href={`/organizations/${organization.id}`}>{organization.name}</Link> : "-"}</p>
           <p><strong>Type</strong><br />{RELATIONSHIP_TYPE_LABELS[relationship.relationship_type]}</p>
           <p><strong>Statut</strong><br />{RELATIONSHIP_STATUS_LABELS[relationship.status]}</p>
