@@ -36,15 +36,15 @@ describe("safe back link source", () => {
     expect(source).not.toContain("SafeBackLink");
   });
 
-  it("keeps task detail return stable when opened from the Action Plan", () => {
+  it("keeps task detail return stable from the Action Plan and contextual detail pages", () => {
     const source = readFileSync(join(process.cwd(), "src/app/(app)/tasks/[id]/page.tsx"), "utf8");
     const helper = readFileSync(join(process.cwd(), "src/features/tasks/task-detail-return.ts"), "utf8");
 
     expect(source).toContain("safeTaskReturnTo(valueOf(query, \"returnTo\"))");
-    expect(helper).toContain('parsed.pathname !== "/action-plan"');
+    expect(helper).toContain('parsed.pathname === "/action-plan"');
     expect(helper).toContain("organizationId");
+    expect(helper).toContain("DETAIL_RETURN_PATH");
     expect(helper).toContain('return "/tasks";');
     expect(source).toContain('fallbackHref={returnTo} useHistory={returnTo === "/tasks"}');
   });
 });
-
