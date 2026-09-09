@@ -82,7 +82,7 @@ describe("visible UI copy", () => {
   it("keeps the new interaction back link scoped to the originating project when present", () => {
     const newInteractionPage = source("src/app/(app)/interactions/new/page.tsx");
 
-    expect(newInteractionPage).toContain('const returnHref = defaults.project_id ? `/projects/${defaults.project_id}?tab=interactions` : "/interactions";');
+    expect(newInteractionPage).toContain('const returnHref = requestedReturnTo || (defaults.project_id ? `/projects/${defaults.project_id}?tab=interactions` : "/interactions");');
     expect(newInteractionPage).toContain('href={returnHref}');
     expect(newInteractionPage).not.toContain('href="/interactions">Retour</Link>');
   });
