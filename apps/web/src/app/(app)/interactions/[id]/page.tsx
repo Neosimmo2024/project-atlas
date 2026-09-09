@@ -63,7 +63,7 @@ export default async function InteractionDetailPage({ params, searchParams }: In
           <p className="muted">Échanges</p>
           <h1>{interaction.title}</h1>
         </div>
-        <SafeBackLink fallbackHref={returnTo} />
+        <SafeBackLink fallbackHref={returnTo} useHistory={returnTo === "/interactions"} />
       </header>
 
       <div className="grid">
@@ -112,7 +112,7 @@ export default async function InteractionDetailPage({ params, searchParams }: In
 
       <section className="card stack">
         <h2>Modifier</h2>
-        <InteractionForm mode="edit" interaction={interaction} types={types} peopleOptions={peopleOptions} organizationOptions={organizationOptions} relationshipOptions={relationshipOptions} />
+        <InteractionForm mode="edit" interaction={interaction} types={types} peopleOptions={peopleOptions} organizationOptions={organizationOptions} relationshipOptions={relationshipOptions} returnTo={returnTo === "/interactions" ? undefined : returnTo} />
       </section>
 
       {canDeleteInteractions(context.role) ? (

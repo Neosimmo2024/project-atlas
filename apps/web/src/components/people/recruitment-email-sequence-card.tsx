@@ -168,7 +168,6 @@ export function RecruitmentEmailSequenceCard({ personId, email, canContact, canE
         })}
       </div>
 
-      {displayedSequence?.provider_message_id ? <p className="muted">Identifiant Brevo initial : {displayedSequence.provider_message_id}</p> : null}
       {!email ? <p className="error">Ajoute une adresse email principale avant de démarrer la séquence.</p> : null}
       {email && !canContact ? <p className="error">Le contact n’est pas autorisé pour cette personne. La séquence ne peut pas être démarrée ou poursuivie.</p> : null}
       {message ? <p aria-live="polite" className={isError ? "error" : "success"}>{message}</p> : null}

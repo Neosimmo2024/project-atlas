@@ -27,7 +27,9 @@ export async function PUT(request: Request, route: RouteContext) {
     }
     const { action, ...input } = parsed.data;
     const { id } = await route.params;
-    const qualification = await saveTalentQualification(context, id, input, action === "finalize");
+    const existing = await getTalentQualification(context, id);
+    const keepCompleted = existing?.state === "completed";
+    const qualification = await saveTalentQualification(context, id, input, action === "finalize" || keepCompleted);
     return NextResponse.json({ data: qualification });
   } catch (error) {
     return apiErrorResponse(error);

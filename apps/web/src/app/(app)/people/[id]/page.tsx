@@ -10,6 +10,7 @@ import { TaskCard } from "@/components/tasks/task-card";
 import { TimelineFilters, normalizeTimelineCategory } from "@/components/timeline/timeline-filters";
 import { TimelineList } from "@/components/timeline/timeline-list";
 import { PERSON_STATUS_LABELS, PRIORITY_LABELS } from "@/features/people/options";
+import { safePersonReturnTo } from "@/features/people/person-detail-return";
 import { canDeletePeople } from "@/features/people/search";
 import { getPersonDetail } from "@/repositories/people";
 import { listContextProjects } from "@/repositories/projects";
@@ -50,6 +51,10 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
   if (!detail) notFound();
 
   const { person, organizations, relationships } = detail;
+  const returnTo = safePersonReturnTo(valueOf(query, "returnTo"));
+  const personReturnPath = returnTo === "/people"
+    ? `/people/${person.id}`
+    : `/people/${person.id}?returnTo=${encodeURIComponent(returnTo)}`;
   const timelineCategory = normalizeTimelineCategory(valueOf(query, "timelineCategory"));
   const timelinePage = Number(valueOf(query, "timelinePage") || 1);
   const [chronology, tasks, projects, qualification, recruitmentEmailSequence] = await Promise.all([
@@ -68,7 +73,7 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
           <p className="muted">Personnes</p>
           <h1>{person.display_name}</h1>
         </div>
-        <SafeBackLink fallbackHref="/people" />
+        <SafeBackLink fallbackHref={returnTo} useHistory={returnTo === "/people"} />
       </header>
 
       <div className="grid">
@@ -145,7 +150,10 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
         <summary><strong>Chronologie</strong> — 3 derniers événements</summary>
         <div className="page-header">
           <h2>Chronologie</h2>
-          <TimelineFilters category={timelineCategory} hiddenFields={{}} />
+          <div className="actions">
+            <TimelineFilters category={timelineCategory} hiddenFields={{}} />
+            <Link className="button subtle-button" href={`/interactions/new?personId=${person.id}&returnTo=${encodeURIComponent(personReturnPath)}`}>Nouvel échange</Link>
+          </div>
         </div>
         {valueOf(query, "interactionDeleted") === "1" ? <p className="success">Échange supprimé.</p> : null}
         <TimelineList result={chronology} basePath={`/people/${person.id}`} category={timelineCategory} />
@@ -155,7 +163,7 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
         <summary><strong>Tâches liées</strong> — {visibleTasks.length === 0 ? "Aucune" : `${visibleTasks.length} prochaine${visibleTasks.length > 1 ? "s" : ""}`}</summary>
         <div className="page-header">
           <h2>Tâches liées</h2>
-          <Link className="button subtle-button" href={`/tasks/new?sourceType=person&sourceId=${person.id}&personId=${person.id}`}>Nouvelle tâche</Link>
+          <Link className="button subtle-button" href={`/tasks/new?sourceType=person&sourceId=${person.id}&personId=${person.id}&returnTo=${encodeURIComponent(personReturnPath)}`}>Nouvelle tâche</Link>
         </div>
         {valueOf(query, "taskDeleted") === "1" ? <p className="success">Tâche supprimée.</p> : null}
         {visibleTasks.length === 0 ? <p className="muted">Aucune tâche liée.</p> : visibleTasks.map((task) => <TaskCard key={task.id} task={task} />)}
