@@ -14,5 +14,6 @@ describe("interaction creation from a person", () => {
     expect(newPage).toContain("returnTo={requestedReturnTo}");
     expect(form).toContain("returnTo=\${encodeURIComponent(returnTo)}");
     expect(detailPage).toContain('useHistory={returnTo === "/interactions"}');
+    expect(detailPage).toContain('returnTo={returnTo === "/interactions" ? undefined : returnTo}');
   });
 });
