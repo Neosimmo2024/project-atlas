@@ -150,7 +150,10 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
         <summary><strong>Chronologie</strong> — 3 derniers événements</summary>
         <div className="page-header">
           <h2>Chronologie</h2>
-          <TimelineFilters category={timelineCategory} hiddenFields={{}} />
+          <div className="actions">
+            <TimelineFilters category={timelineCategory} hiddenFields={{}} />
+            <Link className="button subtle-button" href={`/interactions/new?personId=${person.id}&returnTo=${encodeURIComponent(personReturnPath)}`}>Nouvel échange</Link>
+          </div>
         </div>
         {valueOf(query, "interactionDeleted") === "1" ? <p className="success">Échange supprimé.</p> : null}
         <TimelineList result={chronology} basePath={`/people/${person.id}`} category={timelineCategory} />
