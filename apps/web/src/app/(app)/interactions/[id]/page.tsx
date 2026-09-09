@@ -63,7 +63,7 @@ export default async function InteractionDetailPage({ params, searchParams }: In
           <p className="muted">Échanges</p>
           <h1>{interaction.title}</h1>
         </div>
-        <SafeBackLink fallbackHref={returnTo} />
+        <SafeBackLink fallbackHref={returnTo} useHistory={returnTo === "/interactions"} />
       </header>
 
       <div className="grid">
