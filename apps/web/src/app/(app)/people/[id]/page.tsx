@@ -52,6 +52,9 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
 
   const { person, organizations, relationships } = detail;
   const returnTo = safePersonReturnTo(valueOf(query, "returnTo"));
+  const personReturnPath = returnTo === "/people"
+    ? `/people/${person.id}`
+    : `/people/${person.id}?returnTo=${encodeURIComponent(returnTo)}`;
   const timelineCategory = normalizeTimelineCategory(valueOf(query, "timelineCategory"));
   const timelinePage = Number(valueOf(query, "timelinePage") || 1);
   const [chronology, tasks, projects, qualification, recruitmentEmailSequence] = await Promise.all([
@@ -157,7 +160,7 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
         <summary><strong>Tâches liées</strong> — {visibleTasks.length === 0 ? "Aucune" : `${visibleTasks.length} prochaine${visibleTasks.length > 1 ? "s" : ""}`}</summary>
         <div className="page-header">
           <h2>Tâches liées</h2>
-          <Link className="button subtle-button" href={`/tasks/new?sourceType=person&sourceId=${person.id}&personId=${person.id}`}>Nouvelle tâche</Link>
+          <Link className="button subtle-button" href={`/tasks/new?sourceType=person&sourceId=${person.id}&personId=${person.id}&returnTo=${encodeURIComponent(personReturnPath)}`}>Nouvelle tâche</Link>
         </div>
         {valueOf(query, "taskDeleted") === "1" ? <p className="success">Tâche supprimée.</p> : null}
         {visibleTasks.length === 0 ? <p className="muted">Aucune tâche liée.</p> : visibleTasks.map((task) => <TaskCard key={task.id} task={task} />)}

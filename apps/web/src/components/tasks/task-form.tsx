@@ -15,6 +15,7 @@ type FieldError = { field: string; message: string };
 type TaskFormProps = {
   mode: "create" | "edit";
   task?: Task;
+  returnTo?: string;
   defaults?: Partial<Pick<Task, "person_id" | "organization_id" | "relationship_id" | "interaction_id" | "project_id" | "source_type" | "source_id" | "due_at" | "priority">>;
   peopleOptions: Pick<Person, "id" | "display_name">[];
   organizationOptions: Pick<Organization, "id" | "name">[];
@@ -72,7 +73,7 @@ function sourceTypeValue(task: Task | undefined, defaults: TaskFormProps["defaul
   return defaults?.source_id ? defaults.source_type ?? "" : "";
 }
 
-export function TaskForm({ mode, task, defaults, peopleOptions, organizationOptions, relationshipOptions, interactionOptions, projectOptions = [] }: TaskFormProps) {
+export function TaskForm({ mode, task, returnTo, defaults, peopleOptions, organizationOptions, relationshipOptions, interactionOptions, projectOptions = [] }: TaskFormProps) {
   const router = useRouter();
   const [personId, setPersonId] = useState(defaultValue(task, defaults, "person_id") as string);
   const [organizationId, setOrganizationId] = useState(defaultValue(task, defaults, "organization_id") as string);
@@ -141,7 +142,8 @@ export function TaskForm({ mode, task, defaults, peopleOptions, organizationOpti
         return;
       }
 
-      router.push(`/tasks/${result.data.id}`);
+      const taskHref = `/tasks/${result.data.id}`;
+      router.push(returnTo ? `${taskHref}?returnTo=${encodeURIComponent(returnTo)}` : taskHref);
       router.refresh();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Erreur réseau pendant l'enregistrement de la tâche.");
