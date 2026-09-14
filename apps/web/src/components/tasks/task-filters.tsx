@@ -6,11 +6,13 @@ type TaskFiltersProps = {
   status: string;
   priority: string;
   due: string;
+  personId?: string;
 };
 
-export function TaskFilters({ query, status, priority, due }: TaskFiltersProps) {
+export function TaskFilters({ query, status, priority, due, personId }: TaskFiltersProps) {
   return (
     <form className="filters task-filters" action="/tasks">
+      {personId ? <input type="hidden" name="personId" value={personId} /> : null}
       <label>Recherche<InputLike name="query" defaultValue={query} placeholder="Titre, description, raison" /></label>
       <label>
         Statut
