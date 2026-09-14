@@ -160,14 +160,14 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
       </details>
 
       <details className="card stack">
-        <summary><strong>Tâches liées</strong> — {visibleTasks.length === 0 ? "Aucune" : `${visibleTasks.length} prochaine${visibleTasks.length > 1 ? "s" : ""}`}</summary>
+        <summary><strong>Tâches liées</strong> — {tasks.total === 0 ? "Aucune tâche" : `${tasks.total} tâche${tasks.total > 1 ? "s" : ""}`}</summary>
         <div className="page-header">
           <h2>Tâches liées</h2>
           <Link className="button subtle-button" href={`/tasks/new?sourceType=person&sourceId=${person.id}&personId=${person.id}&returnTo=${encodeURIComponent(personReturnPath)}`}>Nouvelle tâche</Link>
         </div>
         {valueOf(query, "taskDeleted") === "1" ? <p className="success">Tâche supprimée.</p> : null}
         {visibleTasks.length === 0 ? <p className="muted">Aucune tâche liée.</p> : visibleTasks.map((task) => <TaskCard key={task.id} task={task} />)}
-        {tasks.tasks.length > visibleTasks.length ? <Link className="button subtle-button" href={`/tasks?personId=${person.id}`}>Voir toutes les tâches</Link> : null}
+        {tasks.total > visibleTasks.length ? <Link className="button subtle-button" href={`/tasks?personId=${person.id}`}>Voir toutes les tâches</Link> : null}
       </details>
 
       <details className="card stack">
