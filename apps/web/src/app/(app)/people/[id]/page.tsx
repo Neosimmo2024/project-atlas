@@ -137,7 +137,11 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
       <details className="card stack">
         <summary><strong>Relations de recrutement liées</strong> — {countLabel(relationships.length, "relation", "relations")}</summary>
         {relationships.length === 0 ? <p className="muted">Aucune relation liée.</p> : relationships.map((relationship) => (
-          <p key={relationship.id}>{relationship.relationship_type} - {relationship.pipeline_stage} - {relationship.status}</p>
+          <p key={relationship.id}>
+            <Link href={`/relationships/${relationship.id}?returnTo=${encodeURIComponent(personReturnPath)}`}>
+              {relationship.relationship_type} - {relationship.pipeline_stage} - {relationship.status}
+            </Link>
+          </p>
         ))}
       </details>
 
