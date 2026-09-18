@@ -43,7 +43,9 @@ function safeRelationshipReturnTo(value: string) {
   if (!value) return "/relationships";
   try {
     const parsed = new URL(value, "http://atlas.local");
-    if (parsed.origin !== "http://atlas.local" || parsed.pathname !== "/pipeline") return "/relationships";
+    const isPipelineReturn = parsed.pathname === "/pipeline";
+    const isPersonReturn = /^\/people\/[^/]+$/.test(parsed.pathname);
+    if (parsed.origin !== "http://atlas.local" || (!isPipelineReturn && !isPersonReturn)) return "/relationships";
     return `${parsed.pathname}${parsed.search}`;
   } catch {
     return "/relationships";

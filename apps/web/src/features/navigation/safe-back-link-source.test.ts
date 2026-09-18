@@ -36,6 +36,13 @@ describe("safe back link source", () => {
     expect(source).not.toContain("SafeBackLink");
   });
 
+  it("keeps relationship detail return stable from a Person detail page", () => {
+    const source = readFileSync(join(process.cwd(), "src/app/(app)/relationships/[id]/page.tsx"), "utf8");
+
+    expect(source).toContain('const isPersonReturn = /^\\/people\\/[^/]+$/.test(parsed.pathname);');
+    expect(source).toContain('fallbackHref={returnTo} useHistory={false}');
+  });
+
   it("keeps task detail return stable from the Action Plan and contextual detail pages", () => {
     const source = readFileSync(join(process.cwd(), "src/app/(app)/tasks/[id]/page.tsx"), "utf8");
     const helper = readFileSync(join(process.cwd(), "src/features/tasks/task-detail-return.ts"), "utf8");
