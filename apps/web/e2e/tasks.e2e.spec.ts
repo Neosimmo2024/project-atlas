@@ -38,6 +38,16 @@ test.describe("Tasks authenticated flow", () => {
     await page.getByLabel("Description").fill("Created from Tasks E2E");
     await page.getByRole("button", { name: "Enregistrer" }).click();
     await expect(page).toHaveURL(/\/tasks\/[^/]+$/);
+    await expect(page).toHaveURL(/returnTo=%2Fpeople%2F/);
+    await page.getByRole("link", { name: "Retour" }).click();
+    await expect(page).toHaveURL(personUrl);
+
+    await page.getByText("Tâches liées").click();
+    await expect(page.getByRole("heading", { name: marker })).toBeVisible();
+    await page.getByRole("heading", { name: marker }).click();
+    await expect(page).toHaveURL(/\/tasks\/[^/?]+\?returnTo=%2Fpeople%2F/);
+    await page.getByRole("link", { name: "Retour" }).click();
+    await expect(page).toHaveURL(personUrl);
 
     await page.goto(`/tasks?query=${encodeURIComponent(marker)}`);
     await expect(page.getByText(marker)).toBeVisible();
