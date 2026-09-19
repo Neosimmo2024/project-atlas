@@ -24,13 +24,21 @@ test.describe("Interactions authenticated flow", () => {
     await page.getByLabel("Nom d'affichage").fill(personName);
     await page.getByRole("button", { name: "Enregistrer" }).click();
     await expect(page).toHaveURL(/\/people\/[^/]+$/);
+    const personUrl = page.url();
 
-    await page.goto("/interactions/new");
+    await page.goto(personUrl);
+    await page.getByText("Chronologie").click();
+    await page.getByRole("link", { name: "Nouvel échange" }).click();
     await page.getByLabel("Personne").selectOption({ label: personName });
     await page.getByLabel("Titre").fill(marker);
     await page.getByLabel("Résumé").fill("Created from Interactions E2E");
     await page.getByRole("button", { name: "Enregistrer" }).click();
     await expect(page).toHaveURL(/\/interactions\/[^/]+$/);
+    await expect(page).toHaveURL(/returnTo=%2Fpeople%2F/);
+    await page.getByRole("link", { name: "Retour" }).click();
+    await expect(page).toHaveURL(personUrl);
+    await page.getByText("Chronologie").click();
+    await expect(page.getByText(marker)).toBeVisible();
 
     await page.goto(`/interactions?query=${encodeURIComponent(marker)}`);
     await expect(page.getByText(marker)).toBeVisible();

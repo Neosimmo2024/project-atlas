@@ -12,6 +12,10 @@ function valueOf(params: Record<string, string | string[] | undefined>, key: str
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
 
+function safeReturnTo(value: string) {
+  return value.startsWith("/people/") ? value : "";
+}
+
 export default async function NewInteractionPage({ searchParams }: NewInteractionPageProps) {
   const params = await searchParams;
   const context = await getTenantContext();
@@ -32,7 +36,8 @@ export default async function NewInteractionPage({ searchParams }: NewInteractio
     project_id: valueOf(params, "projectId") || null,
     interaction_date: new Date().toISOString()
   };
-  const returnHref = defaults.project_id ? `/projects/${defaults.project_id}?tab=interactions` : "/interactions";
+  const requestedReturnTo = safeReturnTo(valueOf(params, "returnTo"));
+  const returnHref = requestedReturnTo || (defaults.project_id ? `/projects/${defaults.project_id}?tab=interactions` : "/interactions");
 
   return (
     <div className="page stack">
@@ -44,7 +49,7 @@ export default async function NewInteractionPage({ searchParams }: NewInteractio
         <Link className="button subtle-button" href={returnHref}>Retour</Link>
       </header>
       <section className="card">
-        <InteractionForm mode="create" types={types} peopleOptions={peopleOptions} organizationOptions={organizationOptions} relationshipOptions={relationshipOptions} projectOptions={projectOptions} defaults={defaults} />
+        <InteractionForm mode="create" types={types} peopleOptions={peopleOptions} organizationOptions={organizationOptions} relationshipOptions={relationshipOptions} projectOptions={projectOptions} defaults={defaults} returnTo={requestedReturnTo} />
       </section>
     </div>
   );

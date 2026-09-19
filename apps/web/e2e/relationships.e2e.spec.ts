@@ -25,6 +25,7 @@ test.describe("Relationships authenticated flow", () => {
     await page.getByLabel("Nom d'affichage").fill(personName);
     await page.getByRole("button", { name: "Enregistrer" }).click();
     await expect(page).toHaveURL(/\/people\/[^/]+$/);
+    const personPath = new URL(page.url()).pathname;
 
     await page.goto("/organizations/new");
     await page.getByLabel("Nom", { exact: true }).fill(organizationName);
@@ -46,6 +47,12 @@ test.describe("Relationships authenticated flow", () => {
     await page.getByLabel("Score").fill("82");
     await page.getByRole("button", { name: "Enregistrer" }).click();
     await expect(page.getByText("82")).toBeVisible();
+    await page.goto(personPath);
+    await page.getByText("Relations de recrutement liées").click();
+    await page.getByRole("link", { name: "recruiting - detection - active" }).click();
+    await expect(page).toHaveURL(/\/relationships\/[^/?]+\?returnTo=%2Fpeople%2F/);
+    await page.getByRole("link", { name: "Retour" }).click();
+    await expect(page).toHaveURL(new RegExp(`${personPath}$`));
 
     await page.goto("/relationships/new");
     await page.getByLabel("Personne").selectOption({ label: personName });
