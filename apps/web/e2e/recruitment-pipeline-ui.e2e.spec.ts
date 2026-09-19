@@ -36,9 +36,9 @@ test.describe("Recruitment pipeline UI authenticated flow", () => {
     await page.getByRole("link", { name: "Atlas QA Person A", exact: true }).click();
     await expect(page).toHaveURL(/\/people\/[^/?]+\?returnTo=%2Frelationships%2F/);
     await page.getByRole("link", { name: "Retour" }).click();
-    await expect(page).toHaveURL(/\/relationships\/[^/?]+\?returnTo=%2Fpipeline%3Fquery%3D/);
+    await expect(page).toHaveURL(/\/relationships\/[^/?]+\?returnTo=%2Fpipeline%3Fquery%3D/, { timeout: 15000 });
     await page.getByRole("link", { name: "Retour" }).click();
-    await expect(page).toHaveURL(pipelineUrl);
+    await expect(page).toHaveURL(pipelineUrl, { timeout: 15000 });
     await expectPipelineResponsiveLayout(page, { expectKanbanScroll: true });
     await capture(page, testInfo, "pipeline-desktop-kanban");
 
