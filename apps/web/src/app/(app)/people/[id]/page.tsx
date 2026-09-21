@@ -147,7 +147,7 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
 
       <details className="card stack">
         <summary><strong>Projets liés</strong> — ouvrir pour consulter</summary>
-        <ContextProjects result={projects} newHref={`/projects/new?personId=${person.id}`} allHref={`/projects?personId=${person.id}`} />
+        <ContextProjects result={projects} newHref={`/projects/new?personId=${person.id}&returnTo=${encodeURIComponent(personReturnPath)}`} allHref={`/projects?personId=${person.id}`} />
       </details>
 
       <details className="card stack">
