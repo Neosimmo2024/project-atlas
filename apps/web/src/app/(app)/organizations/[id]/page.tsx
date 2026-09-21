@@ -159,7 +159,7 @@ export default async function OrganizationDetailPage({ params, searchParams }: O
       <section className="card stack">
         <div className="page-header">
           <h2>Tâches liées</h2>
-          <Link className="button subtle-button" href={`/tasks/new?sourceType=organization&sourceId=${organization.id}&organizationId=${organization.id}`}>Nouvelle tâche</Link>
+          <Link className="button subtle-button" href={`/tasks/new?sourceType=organization&sourceId=${organization.id}&organizationId=${organization.id}&returnTo=${encodeURIComponent(organizationReturnPath)}`}>Nouvelle tâche</Link>
         </div>
         {valueOf(query, "taskDeleted") === "1" ? <p className="success">Tâche supprimée.</p> : null}
         {tasks.tasks.length === 0 ? <p className="muted">Aucune tâche liée.</p> : tasks.tasks.map((task) => <TaskCard key={task.id} task={task} />)}
