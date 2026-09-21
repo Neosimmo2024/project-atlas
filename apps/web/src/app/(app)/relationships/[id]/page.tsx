@@ -139,7 +139,10 @@ export default async function RelationshipDetailPage({ params, searchParams }: R
         <summary><strong>Chronologie</strong> — {countLabel(chronology.total, "événement", "événements")}</summary>
         <div className="page-header">
           <h2>Chronologie</h2>
-          <TimelineFilters category={timelineCategory} hiddenFields={{}} />
+          <div className="actions">
+            <TimelineFilters category={timelineCategory} hiddenFields={{}} />
+            <Link className="button subtle-button" href={`/interactions/new?relationshipId=${relationship.id}&returnTo=${encodeURIComponent(relationshipReturnPath)}`}>Nouvel échange</Link>
+          </div>
         </div>
         <TimelineList result={chronology} basePath={`/relationships/${relationship.id}`} category={timelineCategory} />
       </details>
