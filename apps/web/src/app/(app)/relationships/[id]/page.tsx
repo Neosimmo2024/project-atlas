@@ -94,7 +94,7 @@ export default async function RelationshipDetailPage({ params, searchParams }: R
         <section className="card stack">
           <h2>Identité</h2>
           <p><strong>Personne</strong><br />{person ? <Link href={`/people/${person.id}?returnTo=${encodeURIComponent(relationshipReturnPath)}`}>{person.display_name}</Link> : "-"}</p>
-          <p><strong>Organisation</strong><br />{organization ? <Link href={`/organizations/${organization.id}`}>{organization.name}</Link> : "-"}</p>
+          <p><strong>Organisation</strong><br />{organization ? <Link href={`/organizations/${organization.id}?returnTo=${encodeURIComponent(relationshipReturnPath)}`}>{organization.name}</Link> : "-"}</p>
           <p><strong>Type</strong><br />{RELATIONSHIP_TYPE_LABELS[relationship.relationship_type]}</p>
           <p><strong>Statut</strong><br />{RELATIONSHIP_STATUS_LABELS[relationship.status]}</p>
         </section>
