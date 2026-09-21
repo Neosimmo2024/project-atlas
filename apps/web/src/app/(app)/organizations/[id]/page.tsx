@@ -145,7 +145,7 @@ export default async function OrganizationDetailPage({ params, searchParams }: O
         ))}
       </section>
 
-      <ContextProjects result={projects} newHref={`/projects/new?organizationId=${organization.id}`} allHref={`/projects?organizationId=${organization.id}`} />
+      <ContextProjects result={projects} newHref={`/projects/new?organizationId=${organization.id}&returnTo=${encodeURIComponent(organizationReturnPath)}`} allHref={`/projects?organizationId=${organization.id}`} />
 
       <section className="card stack">
         <div className="page-header">
