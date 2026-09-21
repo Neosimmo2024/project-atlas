@@ -114,6 +114,16 @@ test.describe("Relationships authenticated flow", () => {
     await expect(page).toHaveURL((url) => `${url.pathname}${url.search}` === organizationReturnPath);
     await expect(page.getByRole("heading", { name: organizationTaskTitle })).toBeVisible();
 
+    const organizationProjectTitle = `${marker} Organization Project`;
+    await page.getByRole("link", { name: "Nouveau Projet" }).click();
+    await expect(page).toHaveURL((url) => url.pathname === "/projects/new" && url.searchParams.get("returnTo") === organizationReturnPath);
+    await page.getByLabel("Titre").fill(organizationProjectTitle);
+    await page.getByRole("button", { name: "Créer le Projet" }).click();
+    await expect(page).toHaveURL((url) => url.pathname.startsWith("/projects/") && url.searchParams.get("returnTo") === organizationReturnPath);
+    await page.getByRole("link", { name: "Retour" }).click();
+    await expect(page).toHaveURL((url) => `${url.pathname}${url.search}` === organizationReturnPath);
+    await expect(page.getByText(organizationProjectTitle)).toBeVisible();
+
     await page.getByRole("link", { name: personName, exact: true }).click();
     await expect(page).toHaveURL((url) => url.pathname.startsWith("/people/") && url.searchParams.get("returnTo") === organizationReturnPath);
     await page.getByRole("link", { name: "Retour" }).click();
