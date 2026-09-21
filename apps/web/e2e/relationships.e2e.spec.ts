@@ -101,6 +101,11 @@ test.describe("Relationships authenticated flow", () => {
     await page.getByText("Projets liés").click();
     await expect(page.getByText(projectTitle)).toBeVisible();
 
+    await page.getByRole("link", { name: organizationName, exact: true }).click();
+    await expect(page).toHaveURL((url) => url.pathname.startsWith("/organizations/") && url.searchParams.get("returnTo") === relationshipPath);
+    await page.getByRole("link", { name: "Retour" }).click();
+    await expect(page).toHaveURL(new RegExp(relationshipPath + "$"));
+
     await page.goto(personPath);
     await page.getByText("Relations de recrutement liées").click();
     await page.getByRole("link", { name: "recruiting - detection - active" }).click();
