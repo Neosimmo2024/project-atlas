@@ -103,6 +103,11 @@ test.describe("Relationships authenticated flow", () => {
 
     await page.getByRole("link", { name: organizationName, exact: true }).click();
     await expect(page).toHaveURL((url) => url.pathname.startsWith("/organizations/") && url.searchParams.get("returnTo") === relationshipPath);
+    const organizationReturnPath = `${new URL(page.url()).pathname}${new URL(page.url()).search}`;
+    await page.getByRole("link", { name: personName, exact: true }).click();
+    await expect(page).toHaveURL((url) => url.pathname.startsWith("/people/") && url.searchParams.get("returnTo") === organizationReturnPath);
+    await page.getByRole("link", { name: "Retour" }).click();
+    await expect(page).toHaveURL((url) => `${url.pathname}${url.search}` === organizationReturnPath);
     await page.getByRole("link", { name: "Retour" }).click();
     await expect(page).toHaveURL(new RegExp(relationshipPath + "$"));
 
