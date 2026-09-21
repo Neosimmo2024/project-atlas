@@ -33,6 +33,7 @@ function valueOf(params: Record<string, string | string[] | undefined>, key: str
 function safeReturnTo(value: string) {
   if (value.startsWith("/people/")) return value;
   if (value.startsWith("/organizations/")) return value;
+  if (value.startsWith("/relationships/")) return value;
   if (value === "/interactions" || value.startsWith("/interactions?")) return value;
   return "/interactions";
 }
