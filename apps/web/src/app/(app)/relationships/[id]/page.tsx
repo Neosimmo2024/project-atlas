@@ -148,7 +148,7 @@ export default async function RelationshipDetailPage({ params, searchParams }: R
         <summary><strong>Tâches liées</strong> — {countLabel(tasks.total, "tâche", "tâches")}</summary>
         <div className="page-header">
           <h2>Tâches liées</h2>
-          <Link className="button subtle-button" href={`/tasks/new?sourceType=relationship&sourceId=${relationship.id}&relationshipId=${relationship.id}`}>Nouvelle tâche</Link>
+          <Link className="button subtle-button" href={`/tasks/new?sourceType=relationship&sourceId=${relationship.id}&relationshipId=${relationship.id}&returnTo=${encodeURIComponent(relationshipReturnPath)}`}>Nouvelle tâche</Link>
         </div>
         {visibleTasks.length === 0 ? <p className="muted">Aucune tâche liée.</p> : visibleTasks.map((task) => <TaskCard key={task.id} task={task} />)}
         {tasks.tasks.length > visibleTasks.length ? <Link className="button subtle-button" href={`/tasks?relationshipId=${relationship.id}`}>Voir toutes les tâches</Link> : null}
