@@ -13,7 +13,9 @@ function valueOf(params: Record<string, string | string[] | undefined>, key: str
 }
 
 function safeReturnTo(value: string) {
-  return value.startsWith("/people/") ? value : "";
+  if (value.startsWith("/people/")) return value;
+  if (value.startsWith("/relationships/")) return value;
+  return "";
 }
 
 export default async function NewInteractionPage({ searchParams }: NewInteractionPageProps) {
