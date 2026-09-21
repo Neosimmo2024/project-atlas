@@ -49,16 +49,32 @@ test.describe("Relationships authenticated flow", () => {
     await expect(page.getByText("82")).toBeVisible();
     const relationshipPath = new URL(page.url()).pathname;
 
+    const relationshipId = relationshipPath.split("/").pop()!;
+    for (const suffix of ["1", "2", "3"]) {
+      await page.getByText("Tâches liées").click();
+      await page.getByRole("link", { name: "Nouvelle tâche" }).click();
+      await expect(page).toHaveURL(/\/tasks\/new\?.*returnTo=%2Frelationships%2F/);
+      await page.getByLabel("Titre").fill(`${marker} Task ${suffix}`);
+      await page.getByRole("button", { name: "Enregistrer" }).click();
+      await expect(page).toHaveURL(/\/tasks\/[^/?]+\?returnTo=%2Frelationships%2F/);
+      await page.getByRole("link", { name: "Retour" }).click();
+      await expect(page).toHaveURL(new RegExp(relationshipPath + "$"));
+    }
+
     await page.getByText("Tâches liées").click();
-    await page.getByRole("link", { name: "Nouvelle tâche" }).click();
-    await expect(page).toHaveURL(/\/tasks\/new\?.*returnTo=%2Frelationships%2F/);
-    await page.getByLabel("Titre").fill(`${marker} Task`);
-    await page.getByRole("button", { name: "Enregistrer" }).click();
-    await expect(page).toHaveURL(/\/tasks\/[^/?]+\?returnTo=%2Frelationships%2F/);
+    await page.getByRole("link", { name: "Voir toutes les tâches" }).click();
+    await expect(page).toHaveURL((url) => url.pathname === "/tasks" && url.searchParams.get("relationshipId") === relationshipId);
+    await expect(page.getByRole("heading", { name: `${marker} Task 3` })).toBeVisible();
+    await page.getByLabel("Statut").selectOption("todo");
+    await page.getByRole("button", { name: "Filtrer" }).click();
+    await expect(page).toHaveURL((url) => url.pathname === "/tasks" && url.searchParams.get("relationshipId") === relationshipId && url.searchParams.get("status") === "todo");
+    const relationshipTasksUrl = page.url();
+    await page.getByRole("heading", { name: `${marker} Task 3` }).click();
+    await expect(page).toHaveURL(/\/tasks\/[^/?]+\?returnTo=%2Ftasks%3F/);
     await page.getByRole("link", { name: "Retour" }).click();
+    await expect(page).toHaveURL(relationshipTasksUrl);
+    await page.getByRole("link", { name: "Retour à la relation" }).click();
     await expect(page).toHaveURL(new RegExp(relationshipPath + "$"));
-    await page.getByText("Tâches liées").click();
-    await expect(page.getByRole("heading", { name: `${marker} Task` })).toBeVisible();
 
     await page.goto(personPath);
     await page.getByText("Relations de recrutement liées").click();
