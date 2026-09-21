@@ -35,6 +35,7 @@ describe("safe back link source", () => {
     expect(source).toContain('const returnTo = safeReturnTo(valueOf(query, "returnTo"))');
     expect(source).toContain('value.startsWith("/relationships/")');
     expect(source).toContain('value.startsWith("/organizations/")');
+    expect(source).toContain('value.startsWith("/people/")');
     expect(source).toContain('href={returnTo}>Retour</Link>');
     expect(source).not.toContain("SafeBackLink");
   });
@@ -58,6 +59,8 @@ describe("safe back link source", () => {
     expect(organization).toContain("returnTo=${encodeURIComponent(organizationReturnPath)}");
     expect(organization).toContain("organizationId=${organization.id}&returnTo=${encodeURIComponent(organizationReturnPath)}");
     expect(organization).toContain("projects/new?organizationId=${organization.id}&returnTo=${encodeURIComponent(organizationReturnPath)}");
+    const person = readFileSync(join(process.cwd(), "src/app/(app)/people/[id]/page.tsx"), "utf8");
+    expect(person).toContain("projects/new?personId=${person.id}&returnTo=${encodeURIComponent(personReturnPath)}");
     expect(personReturn).toContain("ORGANIZATION_PATH");
   });
 
