@@ -45,6 +45,15 @@ describe("safe back link source", () => {
     expect(source).toContain('fallbackHref={returnTo} useHistory={false}');
   });
 
+  it("keeps Organization detail return stable from a Relationship detail page", () => {
+    const relationship = readFileSync(join(process.cwd(), "src/app/(app)/relationships/[id]/page.tsx"), "utf8");
+    const organization = readFileSync(join(process.cwd(), "src/app/(app)/organizations/[id]/page.tsx"), "utf8");
+
+    expect(relationship).toContain("returnTo=${encodeURIComponent(relationshipReturnPath)}");
+    expect(organization).toContain('safeOrganizationReturnTo(valueOf(query, "returnTo"))');
+    expect(organization).toContain('fallbackHref={returnTo} useHistory={returnTo === "/organizations"}');
+  });
+
   it("keeps task detail return stable from the Action Plan and contextual detail pages", () => {
     const source = readFileSync(join(process.cwd(), "src/app/(app)/tasks/[id]/page.tsx"), "utf8");
     const helper = readFileSync(join(process.cwd(), "src/features/tasks/task-detail-return.ts"), "utf8");
