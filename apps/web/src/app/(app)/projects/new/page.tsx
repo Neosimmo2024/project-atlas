@@ -19,7 +19,7 @@ function valueOf(params: Record<string, string | string[] | undefined>, key: str
 }
 
 function safeReturnTo(value: string) {
-  return value.startsWith("/relationships/") ? value : "";
+  return value.startsWith("/relationships/") || value.startsWith("/organizations/") || value.startsWith("/people/") ? value : "";
 }
 
 export default async function NewProjectPage({ searchParams }: NewProjectPageProps) {
