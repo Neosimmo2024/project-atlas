@@ -54,6 +54,9 @@ export default async function OrganizationDetailPage({ params, searchParams }: O
 
   const { organization, parent, children, people, relationships } = detail;
   const returnTo = safeOrganizationReturnTo(valueOf(query, "returnTo"));
+  const organizationReturnPath = returnTo === "/organizations"
+    ? `/organizations/${organization.id}`
+    : `/organizations/${organization.id}?returnTo=${encodeURIComponent(returnTo)}`;
   const timelineCategory = normalizeTimelineCategory(valueOf(query, "timelineCategory"));
   const timelinePage = Number(valueOf(query, "timelinePage") || 1);
   const [parentOptions, chronology, tasks, projects] = await Promise.all([
@@ -128,7 +131,7 @@ export default async function OrganizationDetailPage({ params, searchParams }: O
         <h2>Personnes liées</h2>
         {people.length === 0 ? <p className="muted">Aucune personne liée.</p> : people.map(({ person, relationship }) => (
           <p key={relationship.id}>
-            <Link href={`/people/${person.id}`}>{person.display_name}</Link>
+            <Link href={`/people/${person.id}?returnTo=${encodeURIComponent(organizationReturnPath)}`}>{person.display_name}</Link>
             {" - "}
             {person.job_title ?? relationship.relationship_type}
           </p>
