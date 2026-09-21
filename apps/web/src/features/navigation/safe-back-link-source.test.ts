@@ -29,10 +29,12 @@ describe("safe back link source", () => {
     }
   });
 
-  it("keeps the Project detail back action stable after in-page filter navigation", () => {
+  it("keeps the Project detail back action stable and preserves a Relationship context", () => {
     const source = readFileSync(join(process.cwd(), "src/app/(app)/projects/[id]/page.tsx"), "utf8");
 
-    expect(source).toContain('href="/projects">Retour</Link>');
+    expect(source).toContain('const returnTo = safeReturnTo(valueOf(query, "returnTo"))');
+    expect(source).toContain('value.startsWith("/relationships/")');
+    expect(source).toContain('href={returnTo}>Retour</Link>');
     expect(source).not.toContain("SafeBackLink");
   });
 
