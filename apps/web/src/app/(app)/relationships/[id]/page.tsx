@@ -132,7 +132,7 @@ export default async function RelationshipDetailPage({ params, searchParams }: R
 
       <details className="card stack">
         <summary><strong>Projets liés</strong> — {countLabel(projects.projects.length, "projet", "projets")}</summary>
-        <ContextProjects result={projects} newHref={`/projects/new?relationshipId=${relationship.id}`} allHref={`/projects?relationshipId=${relationship.id}`} />
+        <ContextProjects result={projects} newHref={`/projects/new?relationshipId=${relationship.id}&returnTo=${encodeURIComponent(relationshipReturnPath)}`} allHref={`/projects?relationshipId=${relationship.id}`} />
       </details>
 
       <details className="card stack" open={timelineExpanded}>
