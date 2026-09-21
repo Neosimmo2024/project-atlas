@@ -30,6 +30,19 @@ function valueOf(params: Record<string, string | string[] | undefined>, key: str
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
 
+function safeOrganizationReturnTo(value: string) {
+  if (!value) return "/organizations";
+
+  try {
+    const parsed = new URL(value, "http://atlas.local");
+    const isRelationshipReturn = /^\/relationships\/[^/]+$/.test(parsed.pathname);
+    if (parsed.origin !== "http://atlas.local" || !isRelationshipReturn) return "/organizations";
+    return `${parsed.pathname}${parsed.search}`;
+  } catch {
+    return "/organizations";
+  }
+}
+
 export default async function OrganizationDetailPage({ params, searchParams }: OrganizationDetailPageProps) {
   const { id } = await params;
   const query = await searchParams;
@@ -40,6 +53,7 @@ export default async function OrganizationDetailPage({ params, searchParams }: O
   if (!detail) notFound();
 
   const { organization, parent, children, people, relationships } = detail;
+  const returnTo = safeOrganizationReturnTo(valueOf(query, "returnTo"));
   const timelineCategory = normalizeTimelineCategory(valueOf(query, "timelineCategory"));
   const timelinePage = Number(valueOf(query, "timelinePage") || 1);
   const [parentOptions, chronology, tasks, projects] = await Promise.all([
@@ -58,7 +72,7 @@ export default async function OrganizationDetailPage({ params, searchParams }: O
           <p className="muted">Organisations</p>
           <h1>{organization.name}</h1>
         </div>
-        <SafeBackLink fallbackHref="/organizations" />
+        <SafeBackLink fallbackHref={returnTo} useHistory={returnTo === "/organizations"} />
       </header>
 
       <div className="grid">
