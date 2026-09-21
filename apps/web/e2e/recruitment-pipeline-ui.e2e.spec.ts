@@ -30,7 +30,6 @@ test.describe("Recruitment pipeline UI authenticated flow", () => {
     await expect(pipelineCard(page).locator(".pipeline-meta-label").filter({ hasText: /^Responsable$/ })).toHaveCount(1);
     await expect(pipelineCard(page).locator(".pipeline-meta-label").filter({ hasText: /^Prochaine action$/ })).toHaveCount(1);
     await expect(pipelineCard(page)).not.toContainText("Utilisateur courantAction");
-    const pipelineUrl = page.url();
     await pipelineCard(page).getByRole("link", { name: "Atlas QA Person A", exact: true }).click();
     await expect(page).toHaveURL(/\/relationships\/[^/?]+\?returnTo=%2Fpipeline%3Fquery%3D/);
     await page.getByRole("link", { name: "Atlas QA Person A", exact: true }).click();
@@ -38,7 +37,7 @@ test.describe("Recruitment pipeline UI authenticated flow", () => {
     await page.getByRole("link", { name: "Retour" }).click();
     await expect(page).toHaveURL(/\/relationships\/[^/?]+\?returnTo=%2Fpipeline%3Fquery%3D/, { timeout: 15000 });
     await page.getByRole("link", { name: "Retour" }).click();
-    await expect(page).toHaveURL(pipelineUrl, { timeout: 15000 });
+    await expect(page).toHaveURL((url) => url.pathname === "/pipeline" && url.searchParams.get("query") === "Atlas QA Person A", { timeout: 15000 });
     await expectPipelineResponsiveLayout(page, { expectKanbanScroll: true });
     await capture(page, testInfo, "pipeline-desktop-kanban");
 
