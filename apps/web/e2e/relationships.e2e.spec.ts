@@ -89,6 +89,18 @@ test.describe("Relationships authenticated flow", () => {
     await page.getByText("Chronologie").click();
     await expect(page.getByText(interactionTitle)).toBeVisible();
 
+    const projectTitle = `${marker} Project`;
+    await page.getByText("Projets liés").click();
+    await page.getByRole("link", { name: "Nouveau Projet" }).click();
+    await expect(page).toHaveURL((url) => url.pathname === "/projects/new" && url.searchParams.get("relationshipId") === relationshipId);
+    await page.getByLabel("Titre").fill(projectTitle);
+    await page.getByRole("button", { name: "Créer le Projet" }).click();
+    await expect(page).toHaveURL(/\/projects\/[^/?]+\?projectSaved=1&returnTo=%2Frelationships%2F/);
+    await page.getByRole("link", { name: "Retour" }).click();
+    await expect(page).toHaveURL(new RegExp(relationshipPath + "$"));
+    await page.getByText("Projets liés").click();
+    await expect(page.getByText(projectTitle)).toBeVisible();
+
     await page.goto(personPath);
     await page.getByText("Relations de recrutement liées").click();
     await page.getByRole("link", { name: "recruiting - detection - active" }).click();
