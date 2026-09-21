@@ -34,6 +34,7 @@ describe("safe back link source", () => {
 
     expect(source).toContain('const returnTo = safeReturnTo(valueOf(query, "returnTo"))');
     expect(source).toContain('value.startsWith("/relationships/")');
+    expect(source).toContain('value.startsWith("/organizations/")');
     expect(source).toContain('href={returnTo}>Retour</Link>');
     expect(source).not.toContain("SafeBackLink");
   });
@@ -56,6 +57,7 @@ describe("safe back link source", () => {
     expect(organization).toContain('fallbackHref={returnTo} useHistory={returnTo === "/organizations"}');
     expect(organization).toContain("returnTo=${encodeURIComponent(organizationReturnPath)}");
     expect(organization).toContain("organizationId=${organization.id}&returnTo=${encodeURIComponent(organizationReturnPath)}");
+    expect(organization).toContain("projects/new?organizationId=${organization.id}&returnTo=${encodeURIComponent(organizationReturnPath)}");
     expect(personReturn).toContain("ORGANIZATION_PATH");
   });
 
