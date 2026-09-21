@@ -55,6 +55,7 @@ describe("safe back link source", () => {
     expect(organization).toContain('safeOrganizationReturnTo(valueOf(query, "returnTo"))');
     expect(organization).toContain('fallbackHref={returnTo} useHistory={returnTo === "/organizations"}');
     expect(organization).toContain("returnTo=${encodeURIComponent(organizationReturnPath)}");
+    expect(organization).toContain("organizationId=${organization.id}&returnTo=${encodeURIComponent(organizationReturnPath)}");
     expect(personReturn).toContain("ORGANIZATION_PATH");
   });
 
