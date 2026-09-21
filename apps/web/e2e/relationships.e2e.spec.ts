@@ -76,6 +76,19 @@ test.describe("Relationships authenticated flow", () => {
     await page.getByRole("link", { name: "Retour à la relation" }).click();
     await expect(page).toHaveURL(new RegExp(relationshipPath + "$"));
 
+    const interactionTitle = `${marker} Interaction`;
+    await page.getByText("Chronologie").click();
+    await page.getByRole("link", { name: "Nouvel échange" }).click();
+    await expect(page).toHaveURL((url) => url.pathname === "/interactions/new" && url.searchParams.get("relationshipId") === relationshipId);
+    await page.getByLabel("Titre").fill(interactionTitle);
+    await page.getByLabel("Résumé").fill("Created from Relationship E2E");
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+    await expect(page).toHaveURL(/\/interactions\/[^/?]+\?returnTo=%2Frelationships%2F/);
+    await page.getByRole("link", { name: "Retour" }).click();
+    await expect(page).toHaveURL(new RegExp(relationshipPath + "$"));
+    await page.getByText("Chronologie").click();
+    await expect(page.getByText(interactionTitle)).toBeVisible();
+
     await page.goto(personPath);
     await page.getByText("Relations de recrutement liées").click();
     await page.getByRole("link", { name: "recruiting - detection - active" }).click();
