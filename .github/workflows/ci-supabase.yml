@@ -312,6 +312,72 @@ jobs:
       - name: Seed fictitious QA data
         run: node scripts/seed-supabase-qa.mjs
 
+
+      - name: Verify local logical backup restoration
+        shell: bash
+        run: |
+          set -euo pipefail
+          # This check only accepts the ephemeral CI database, never a hosted project.
+          node --input-type=module <<'JS'
+          const url = new URL(process.env.QA_DB_URL);
+          if (process.env.CI !== "true" || !["127.0.0.1", "localhost"].includes(url.hostname)
+              || url.port !== "54322" || url.pathname !== "/postgres" || url.search) {
+            throw new Error("Backup verification requires the local CI database.");
+          }
+          JS
+          umask 077
+          backup_dir="$(mktemp -d)"
+          restore_db="atlas_restore_$(openssl rand -hex 8)"
+          restore_url="${QA_DB_URL%/postgres}/$restore_db"
+          created=false
+          cleanup() {
+            if [ "$created" = true ]; then
+              psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -q -c "DROP DATABASE \"$restore_db\";" >/dev/null
+            fi
+            rm -rf "$backup_dir"
+          }
+          trap cleanup EXIT
+          cat > "$backup_dir/manifest.sql" <<'SQL'
+          create temporary table restore_manifest (object_name text, row_count bigint, digest text, rls boolean);
+          do $
+          declare t record;
+          begin
+            for t in
+              select n.nspname, c.relname, c.relrowsecurity
+              from pg_class c join pg_namespace n on n.oid = c.relnamespace
+              where n.nspname in ('public', 'auth', 'storage') and c.relkind = 'r'
+              order by n.nspname, c.relname
+            loop
+              execute format(
+                'insert into restore_manifest select %L, count(*), md5(coalesce(string_agg(to_jsonb(r)::text, E''\\n'' order by to_jsonb(r)::text), '''')), %L from %I.%I r',
+                t.nspname || '.' || t.relname, t.relrowsecurity, t.nspname, t.relname
+              );
+            end loop;
+          end $;
+          select object_name, row_count, digest, rls from restore_manifest order by object_name;
+          select schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
+          from pg_policies where schemaname in ('public', 'auth', 'storage')
+          order by schemaname, tablename, policyname;
+          SQL
+          psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -qAt -f "$backup_dir/manifest.sql" > "$backup_dir/before"
+          pg_dump "$QA_DB_URL" --format=custom --file="$backup_dir/database.dump"
+          psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -q -c "CREATE DATABASE \"$restore_db\" TEMPLATE template0;" >/dev/null
+          created=true
+          # Keep ownership and grants: a restore that loses permissions must fail.
+          # Capture errors privately; never print restored data or credentials.
+          if ! pg_restore --dbname="$restore_url" --clean --if-exists --exit-on-error "$backup_dir/database.dump" 2>"$backup_dir/restore-errors"; then
+            echo "Logical restore failed; database object error summary:"
+            sed -n 's/^pg_restore: error: could not execute query: ERROR: /ERROR: /p' "$backup_dir/restore-errors" | head -5
+            exit 1
+          fi
+          psql "$restore_url" -X -v ON_ERROR_STOP=1 -qAt -f "$backup_dir/manifest.sql" > "$backup_dir/after"
+          if ! cmp -s "$backup_dir/before" "$backup_dir/after"; then
+            echo "Restored table contents, row counts, RLS flags or policies differ."
+            exit 1
+          fi
+          echo "Local logical backup restored: table contents, row counts, RLS flags and policies match."
+          echo "Only fictitious CI data was used; no remote database was contacted."
+
       - name: Unit tests
         run: npm test
 
