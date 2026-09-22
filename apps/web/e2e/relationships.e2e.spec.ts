@@ -150,7 +150,7 @@ test.describe("Relationships authenticated flow", () => {
     await expect(page).toHaveURL((url) => `${url.pathname}${url.search}` === organizationReturnPath);
     await expect(page.getByRole("link").filter({ has: page.locator("strong", { hasText: organizationProjectTitle }) })).toBeVisible();
 
-    await page.getByRole("link", { name: personName, exact: true }).click();
+    await page.locator(`a[href="${personPath}?returnTo=${encodeURIComponent(organizationReturnPath)}"]`).click();
     await expect(page).toHaveURL((url) => url.pathname.startsWith("/people/") && url.searchParams.get("returnTo") === organizationReturnPath);
     await page.getByRole("link", { name: "Retour" }).click();
     await expect(page).toHaveURL((url) => `${url.pathname}${url.search}` === organizationReturnPath);
