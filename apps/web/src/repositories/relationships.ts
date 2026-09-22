@@ -103,7 +103,7 @@ export async function listRelationshipPeopleOptions(context: TenantContext): Pro
     .from("people")
     .select("id, display_name")
     .eq("tenant_id", context.tenantId)
-    .order("display_name", { ascending: true });
+    .order("created_at", { ascending: false });
 
   if (error) throw error;
   return (data ?? []) as Pick<Person, "id" | "display_name">[];
@@ -115,7 +115,7 @@ export async function listRelationshipOrganizationOptions(context: TenantContext
     .from("organizations")
     .select("id, name")
     .eq("tenant_id", context.tenantId)
-    .order("name", { ascending: true });
+    .order("created_at", { ascending: false });
 
   if (error) throw error;
   return (data ?? []) as Pick<Organization, "id" | "name">[];
