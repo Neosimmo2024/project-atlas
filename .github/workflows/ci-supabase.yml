@@ -339,7 +339,7 @@ jobs:
           trap cleanup EXIT
           cat > "$backup_dir/manifest.sql" <<'SQL'
           create temporary table restore_manifest (object_name text, row_count bigint, digest text, rls boolean);
-          do $
+          do $atlas_restore$
           declare t record;
           begin
             for t in
@@ -353,7 +353,7 @@ jobs:
                 t.nspname || '.' || t.relname, t.relrowsecurity, t.nspname, t.relname
               );
             end loop;
-          end $;
+          end $atlas_restore$;
           select object_name, row_count, digest, rls from restore_manifest order by object_name;
           select schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
           from pg_policies where schemaname in ('public', 'auth', 'storage')
