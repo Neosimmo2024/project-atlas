@@ -365,7 +365,7 @@ jobs:
           created=true
           # Keep ownership and grants: a restore that loses permissions must fail.
           # Capture errors privately; never print restored data or credentials.
-          if ! pg_restore --dbname="$restore_url" --clean --if-exists --exit-on-error "$backup_dir/database.dump" 2>"$backup_dir/restore-errors"; then
+          if ! pg_restore --dbname="$restore_url" --exit-on-error "$backup_dir/database.dump" 2>"$backup_dir/restore-errors"; then
             echo "Logical restore failed; database object error summary:"
             sed -n 's/^pg_restore: error: could not execute query: ERROR: /ERROR: /p' "$backup_dir/restore-errors" | head -5
             exit 1
