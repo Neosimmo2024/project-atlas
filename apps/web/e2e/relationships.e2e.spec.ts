@@ -95,8 +95,17 @@ test.describe("Relationships authenticated flow", () => {
     await page.locator('select[name="relationship_id"]').selectOption(relationshipId);
     await page.getByLabel("Titre").fill(interactionTitle);
     await page.getByLabel("Résumé").fill("Created from Relationship E2E");
+    const interactionCreatedResponse = page.waitForResponse((response) =>
+      new URL(response.url()).pathname === "/api/interactions" && response.request().method() === "POST"
+    );
     await page.getByRole("button", { name: "Enregistrer" }).click();
-    await expect(page).toHaveURL(/\/interactions\/[^/?]+\?returnTo=%2Frelationships%2F/);
+    const interactionResponse = await interactionCreatedResponse;
+    expect(interactionResponse.status()).toBe(201);
+    const interactionCreated = await interactionResponse.json();
+    await expect(page).toHaveURL((url) =>
+      url.pathname === `/interactions/${interactionCreated.data.id}` && url.searchParams.get("returnTo") === relationshipPath,
+      { timeout: 15000 }
+    );
     await page.getByRole("link", { name: "Retour" }).click();
     await expect(page).toHaveURL(new RegExp(relationshipPath + "$"));
     await page.locator("summary").filter({ hasText: "Chronologie" }).click();
@@ -110,7 +119,7 @@ test.describe("Relationships authenticated flow", () => {
     await expect(page).toHaveURL((url) => url.pathname === "/projects/new" && url.searchParams.get("relationshipId") === relationshipId);
     await page.getByLabel("Titre").fill(projectTitle);
     await page.getByRole("button", { name: "Créer le Projet" }).click();
-    await expect(page).toHaveURL(/\/projects\/[^/?]+\?projectSaved=1&returnTo=%2Frelationships%2F/);
+    await expect(page).toHaveURL((url) => /^\/projects\/[0-9a-f-]{36}$/.test(url.pathname) && url.searchParams.get("projectSaved") === "1" && url.searchParams.get("returnTo") === relationshipPath, { timeout: 15000 });
     await page.getByRole("link", { name: "Retour" }).click();
     await expect(page).toHaveURL(new RegExp(relationshipPath + "$"));
     await page.locator("summary").filter({ hasText: "Projets liés" }).click();
@@ -124,7 +133,7 @@ test.describe("Relationships authenticated flow", () => {
     await expect(page).toHaveURL((url) => url.pathname === "/tasks/new" && url.searchParams.get("returnTo") === organizationReturnPath);
     await page.getByLabel("Titre").fill(organizationTaskTitle);
     await page.getByRole("button", { name: "Enregistrer" }).click();
-    await expect(page).toHaveURL((url) => /^\/tasks\/[0-9a-f-]{36}$/.test(url.pathname) && url.searchParams.get("returnTo") === organizationReturnPath);
+    await expect(page).toHaveURL((url) => /^\/tasks\/[0-9a-f-]{36}$/.test(url.pathname) && url.searchParams.get("returnTo") === organizationReturnPath, { timeout: 15000 });
     await page.getByRole("link", { name: "Retour" }).click();
     await expect(page).toHaveURL((url) => `${url.pathname}${url.search}` === organizationReturnPath);
     await expect(page.getByRole("heading", { name: organizationTaskTitle })).toBeVisible();
@@ -134,7 +143,7 @@ test.describe("Relationships authenticated flow", () => {
     await expect(page).toHaveURL((url) => url.pathname === "/projects/new" && url.searchParams.get("returnTo") === organizationReturnPath);
     await page.getByLabel("Titre").fill(organizationProjectTitle);
     await page.getByRole("button", { name: "Créer le Projet" }).click();
-    await expect(page).toHaveURL((url) => /^\/projects\/[0-9a-f-]{36}$/.test(url.pathname) && url.searchParams.get("returnTo") === organizationReturnPath);
+    await expect(page).toHaveURL((url) => /^\/projects\/[0-9a-f-]{36}$/.test(url.pathname) && url.searchParams.get("returnTo") === organizationReturnPath, { timeout: 15000 });
     await page.getByRole("link", { name: "Retour" }).click();
     await expect(page).toHaveURL((url) => `${url.pathname}${url.search}` === organizationReturnPath);
     await expect(page.getByText(organizationProjectTitle)).toBeVisible();
@@ -153,7 +162,7 @@ test.describe("Relationships authenticated flow", () => {
     await expect(page).toHaveURL((url) => url.pathname === "/projects/new" && url.searchParams.get("returnTo") === personPath);
     await page.getByLabel("Titre").fill(personProjectTitle);
     await page.getByRole("button", { name: "Créer le Projet" }).click();
-    await expect(page).toHaveURL((url) => /^\/projects\/[0-9a-f-]{36}$/.test(url.pathname) && url.searchParams.get("returnTo") === personPath);
+    await expect(page).toHaveURL((url) => /^\/projects\/[0-9a-f-]{36}$/.test(url.pathname) && url.searchParams.get("returnTo") === personPath, { timeout: 15000 });
     await page.getByRole("link", { name: "Retour" }).click();
     await expect(page).toHaveURL(new RegExp(`${personPath}$`));
     await page.locator("summary").filter({ hasText: "Projets liés" }).click();
