@@ -58,8 +58,17 @@ test.describe("Relationships authenticated flow", () => {
       await page.getByRole("link", { name: "Nouvelle tâche" }).click();
       await expect(page).toHaveURL(/\/tasks\/new\?.*returnTo=%2Frelationships%2F/);
       await page.getByLabel("Titre").fill(`${marker} Task ${suffix}`);
+      const createdResponse = page.waitForResponse((response) =>
+        new URL(response.url()).pathname === "/api/tasks" && response.request().method() === "POST"
+      );
       await page.getByRole("button", { name: "Enregistrer" }).click();
-      await expect(page).toHaveURL(/\/tasks\/[^/?]+\?returnTo=%2Frelationships%2F/);
+      const response = await createdResponse;
+      expect(response.status()).toBe(201);
+      const created = await response.json();
+      await expect(page).toHaveURL((url) =>
+        url.pathname === `/tasks/${created.data.id}` && url.searchParams.get("returnTo") === relationshipPath,
+        { timeout: 15000 }
+      );
       await page.getByRole("link", { name: "Retour" }).click();
       await expect(page).toHaveURL(new RegExp(relationshipPath + "$"));
     }
