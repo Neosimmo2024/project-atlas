@@ -83,6 +83,7 @@ test.describe("Relationships authenticated flow", () => {
     await page.locator("summary").filter({ hasText: "Chronologie" }).click();
     await page.getByRole("link", { name: "Nouvel échange" }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/interactions/new" && url.searchParams.get("relationshipId") === relationshipId);
+    await page.getByLabel("Relation").selectOption(relationshipId);
     await page.getByLabel("Titre").fill(interactionTitle);
     await page.getByLabel("Résumé").fill("Created from Relationship E2E");
     await page.getByRole("button", { name: "Enregistrer" }).click();
