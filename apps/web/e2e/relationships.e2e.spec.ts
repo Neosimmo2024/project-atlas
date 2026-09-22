@@ -22,9 +22,11 @@ test.describe("Relationships authenticated flow", () => {
     await expect(page).toHaveURL(/\/dashboard/);
 
     await page.goto("/people/new");
+    const recruitmentCheckbox = page.getByLabel("Candidat recrutement — ajouter automatiquement au Pipeline");
+    if (await recruitmentCheckbox.isChecked()) await recruitmentCheckbox.uncheck();
     await page.getByLabel("Nom d'affichage").fill(personName);
     await page.getByRole("button", { name: "Enregistrer" }).click();
-    await expect(page).toHaveURL(/\/people\/[^/]+$/);
+    await expect(page).toHaveURL((url) => url.pathname.startsWith("/people/") && url.pathname !== "/people/new");
     const personPath = new URL(page.url()).pathname;
 
     await page.goto("/organizations/new");
