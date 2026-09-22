@@ -138,7 +138,7 @@ test.describe("Relationships authenticated flow", () => {
     await expect(page).toHaveURL((url) => /^\/tasks\/[0-9a-f-]{36}$/.test(url.pathname) && url.searchParams.get("returnTo") === organizationReturnPath, { timeout: 15000 });
     await page.getByRole("link", { name: "Retour" }).click();
     await expect(page).toHaveURL((url) => `${url.pathname}${url.search}` === organizationReturnPath);
-    await expect(page.getByRole("heading", { name: organizationTaskTitle })).toBeVisible();
+    await expect(page.locator("a.task-card").getByRole("heading", { name: organizationTaskTitle, exact: true })).toBeVisible();
 
     const organizationProjectTitle = `${marker} Organization Project`;
     await page.getByRole("link", { name: "Nouveau Projet" }).click();
