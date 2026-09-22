@@ -49,7 +49,7 @@ test.describe("Relationships authenticated flow", () => {
     await page.locator("summary").filter({ hasText: "Modifier la relation" }).click();
     await page.getByLabel("Score").fill("82");
     await page.getByRole("button", { name: "Enregistrer" }).click();
-    await expect(page.getByText("82")).toBeVisible();
+    await expect(page.getByText("82", { exact: true })).toBeVisible();
     const relationshipPath = new URL(page.url()).pathname;
 
     const relationshipId = relationshipPath.split("/").pop()!;
