@@ -46,6 +46,7 @@ test.describe("Relationships authenticated flow", () => {
     await expect(page.getByText(organizationName)).toBeVisible();
 
     await page.getByText(personName).click();
+    await page.getByText("Modifier la relation").click();
     await page.getByLabel("Score").fill("82");
     await page.getByRole("button", { name: "Enregistrer" }).click();
     await expect(page.getByText("82")).toBeVisible();
