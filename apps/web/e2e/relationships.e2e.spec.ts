@@ -11,6 +11,8 @@ test.describe("Relationships authenticated flow", () => {
   test.skip(!hasE2eEnv, "Set RELATIONSHIPS_TEST_TENANT_A_EMAIL and RELATIONSHIPS_TEST_TENANT_A_PASSWORD locally to run authenticated Relationships E2E.");
 
   test("login, create, search, edit, duplicate warning, delete, logout", async ({ page }) => {
+    // This scenario covers multiple contextual creation and return flows.
+    test.setTimeout(180000);
     const marker = `Relationship E2E ${Date.now()}`;
     const personName = `${marker} Person`;
     const organizationName = `${marker} Organization`;
@@ -123,7 +125,7 @@ test.describe("Relationships authenticated flow", () => {
     await page.getByRole("link", { name: "Retour" }).click();
     await expect(page).toHaveURL(new RegExp(relationshipPath + "$"));
     await page.locator("summary").filter({ hasText: "Projets liés" }).click();
-    await expect(page.getByText(projectTitle)).toBeVisible();
+    await expect(page.getByRole("link").filter({ has: page.locator("strong", { hasText: projectTitle }) })).toBeVisible();
 
     await page.getByRole("link", { name: organizationName, exact: true }).click();
     await expect(page).toHaveURL((url) => url.pathname.startsWith("/organizations/") && url.searchParams.get("returnTo") === relationshipPath);
@@ -146,7 +148,7 @@ test.describe("Relationships authenticated flow", () => {
     await expect(page).toHaveURL((url) => /^\/projects\/[0-9a-f-]{36}$/.test(url.pathname) && url.searchParams.get("returnTo") === organizationReturnPath, { timeout: 15000 });
     await page.getByRole("link", { name: "Retour" }).click();
     await expect(page).toHaveURL((url) => `${url.pathname}${url.search}` === organizationReturnPath);
-    await expect(page.getByText(organizationProjectTitle)).toBeVisible();
+    await expect(page.getByRole("link").filter({ has: page.locator("strong", { hasText: organizationProjectTitle }) })).toBeVisible();
 
     await page.getByRole("link", { name: personName, exact: true }).click();
     await expect(page).toHaveURL((url) => url.pathname.startsWith("/people/") && url.searchParams.get("returnTo") === organizationReturnPath);
@@ -166,7 +168,7 @@ test.describe("Relationships authenticated flow", () => {
     await page.getByRole("link", { name: "Retour" }).click();
     await expect(page).toHaveURL(new RegExp(`${personPath}$`));
     await page.locator("summary").filter({ hasText: "Projets liés" }).click();
-    await expect(page.getByText(personProjectTitle)).toBeVisible();
+    await expect(page.getByRole("link").filter({ has: page.locator("strong", { hasText: personProjectTitle }) })).toBeVisible();
 
     await page.locator("summary").filter({ hasText: "Relations de recrutement liées" }).click();
     await page.getByRole("link", { name: "recruiting - detection - active" }).click();
@@ -182,6 +184,7 @@ test.describe("Relationships authenticated flow", () => {
 
     await page.goto(`/relationships?query=${encodeURIComponent(marker)}`);
     await page.getByText(personName).click();
+    await page.locator("summary").filter({ hasText: "Suppression" }).click();
     page.once("dialog", (dialog) => dialog.accept());
     await page.getByRole("button", { name: "Supprimer" }).click();
     await expect(page).toHaveURL(/\/relationships/);
