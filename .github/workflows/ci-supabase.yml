@@ -381,6 +381,10 @@ jobs:
           docker exec -e PGPASSWORD "$db_container" pg_dump --username=supabase_admin --dbname=postgres --format=custom --schema=public --schema=auth --schema=storage --file="$container_dump"
           psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -q -c "CREATE DATABASE \"$restore_db\" TEMPLATE template0;" >/dev/null
           created=true
+          # template0 already provides an empty public schema. Remove only that
+          # empty schema in the newly created temporary database so the archive
+          # recreates it with its grants. RESTRICT fails if it is not empty.
+          docker exec -e PGPASSWORD "$db_container" psql --username=supabase_admin --dbname="$restore_db" -X -v ON_ERROR_STOP=1 -q -c 'DROP SCHEMA public RESTRICT;'
           # Restore as the managed local admin role, without granting extra
           # privileges to the application's connection role.
           # Capture errors privately; never print restored data or credentials.
