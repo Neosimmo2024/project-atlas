@@ -23,6 +23,8 @@ test.describe("Tasks authenticated flow", () => {
     await expect(page).toHaveURL(/\/dashboard/);
 
     await page.goto("/people/new");
+    // This scenario needs a person, not an automatic recruiting relationship.
+    await page.getByLabel("Candidat recrutement — ajouter automatiquement au Pipeline").uncheck();
     await page.getByLabel("Nom d'affichage").fill(personName);
     await page.getByRole("button", { name: "Enregistrer" }).click();
     await expect(page).toHaveURL(/\/people\/[0-9a-f-]{36}(?:\?.*)?$/i);
