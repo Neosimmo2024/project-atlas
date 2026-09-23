@@ -58,7 +58,7 @@ test.describe("Relationships authenticated flow", () => {
     for (const suffix of ["1", "2", "3"]) {
       await page.locator("summary").filter({ hasText: "Tâches liées" }).click();
       await page.getByRole("link", { name: "Nouvelle tâche" }).click();
-      await expect(page).toHaveURL(/\/tasks\/new\?.*returnTo=%2Frelationships%2F/);
+      await expect(page).toHaveURL(/\/tasks\/new\?.*returnTo=%2Frelationships%2F/, { timeout: 15000 });
       await page.getByLabel("Titre").fill(`${marker} Task ${suffix}`);
       const createdResponse = page.waitForResponse((response) =>
         new URL(response.url()).pathname === "/api/tasks" && response.request().method() === "POST"

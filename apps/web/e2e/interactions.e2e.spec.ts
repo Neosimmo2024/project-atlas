@@ -32,7 +32,7 @@ test.describe("Interactions authenticated flow", () => {
     await page.goto(personUrl);
     await page.locator("summary").filter({ hasText: "Chronologie" }).click();
     await page.getByRole("link", { name: "Nouvel échange" }).click();
-    await page.getByLabel("Personne").selectOption({ label: personName });
+    await page.locator('select[name="person_id"]').selectOption({ label: personName });
     await page.getByLabel("Titre").fill(marker);
     await page.getByLabel("Résumé").fill("Created from Interactions E2E");
     await page.getByRole("button", { name: "Enregistrer" }).click();
