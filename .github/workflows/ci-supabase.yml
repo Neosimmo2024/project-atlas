@@ -371,12 +371,16 @@ jobs:
             echo "Local Supabase database container was not found."
             exit 1
           fi
+          container_dump="/tmp/$restore_db.dump"
+          docker cp "$backup_dir/database.dump" "$db_container:$container_dump" >/dev/null
           # Capture errors privately; never print restored data or credentials.
-          if ! docker exec -i "$db_container" pg_restore --username=supabase_admin --dbname="$restore_db" --exit-on-error --no-owner < "$backup_dir/database.dump" 2>"$backup_dir/restore-errors"; then
+          if ! docker exec "$db_container" pg_restore --username=supabase_admin --dbname="$restore_db" --exit-on-error --no-owner "$container_dump" 2>"$backup_dir/restore-errors"; then
+            docker exec "$db_container" rm -f "$container_dump"
             echo "Logical restore failed; database object error summary:"
-            sed -n 's/^pg_restore: error: could not execute query: ERROR: /ERROR: /p' "$backup_dir/restore-errors" | head -5
+            sed -n 's/^pg_restore: error: /ERROR: /p' "$backup_dir/restore-errors" | head -5
             exit 1
           fi
+          docker exec "$db_container" rm -f "$container_dump"
           psql "$restore_url" -X -v ON_ERROR_STOP=1 -qAt -f "$backup_dir/manifest.sql" > "$backup_dir/after"
           if ! cmp -s "$backup_dir/before" "$backup_dir/after"; then
             echo "Restored table contents, row counts, RLS flags or policies differ."
