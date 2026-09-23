@@ -334,6 +334,9 @@ jobs:
             if [ "$created" = true ]; then
               psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -q -c "DROP DATABASE \"$restore_db\";" >/dev/null
             fi
+            if [ -n "${db_container:-}" ] && [ -n "${container_dump:-}" ]; then
+              docker exec "$db_container" rm -f "$container_dump" >/dev/null 2>&1 || true
+            fi
             rm -rf "$backup_dir"
           }
           trap cleanup EXIT
@@ -360,27 +363,25 @@ jobs:
           order by schemaname, tablename, policyname;
           SQL
           psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -qAt -f "$backup_dir/manifest.sql" > "$backup_dir/before"
-          pg_dump "$QA_DB_URL" --format=custom --file="$backup_dir/database.dump"
-          psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -q -c "CREATE DATABASE \"$restore_db\" TEMPLATE template0;" >/dev/null
-          created=true
-          # Restore inside the ephemeral local Supabase database container as its
-          # managed admin role. This preserves the complete logical archive without
-          # granting extra privileges to the application's connection role.
+          # Dump and restore with the matching PostgreSQL tools bundled in the
+          # ephemeral local Supabase database container.
           db_container="$(docker ps --format '{{.Names}}' | grep -E '^supabase_db_' | head -1)"
           if [ -z "$db_container" ]; then
             echo "Local Supabase database container was not found."
             exit 1
           fi
           container_dump="/tmp/$restore_db.dump"
-          docker cp "$backup_dir/database.dump" "$db_container:$container_dump" >/dev/null
+          docker exec "$db_container" pg_dump --username=supabase_admin --dbname=postgres --format=custom --file="$container_dump"
+          psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -q -c "CREATE DATABASE \"$restore_db\" TEMPLATE template0;" >/dev/null
+          created=true
+          # Restore as the managed local admin role, without granting extra
+          # privileges to the application's connection role.
           # Capture errors privately; never print restored data or credentials.
           if ! docker exec "$db_container" pg_restore --username=supabase_admin --dbname="$restore_db" --exit-on-error --no-owner "$container_dump" 2>"$backup_dir/restore-errors"; then
-            docker exec "$db_container" rm -f "$container_dump"
             echo "Logical restore failed; database object error summary:"
             sed -n 's/^pg_restore: error: /ERROR: /p' "$backup_dir/restore-errors" | head -5
             exit 1
           fi
-          docker exec "$db_container" rm -f "$container_dump"
           psql "$restore_url" -X -v ON_ERROR_STOP=1 -qAt -f "$backup_dir/manifest.sql" > "$backup_dir/after"
           if ! cmp -s "$backup_dir/before" "$backup_dir/after"; then
             echo "Restored table contents, row counts, RLS flags or policies differ."
