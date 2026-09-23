@@ -375,7 +375,9 @@ jobs:
           # directly in the command line.
           PGPASSWORD="$(node --input-type=module -e 'const u = new URL(process.env.QA_DB_URL); process.stdout.write(decodeURIComponent(u.password));')"
           export PGPASSWORD
-          docker exec -e PGPASSWORD "$db_container" pg_dump --username=supabase_admin --dbname=postgres --format=custom --file="$container_dump"
+          # graphql_public is a Supabase-managed API helper schema, outside the
+          # public/auth/storage data and security catalog verified by this check.
+          docker exec -e PGPASSWORD "$db_container" pg_dump --username=supabase_admin --dbname=postgres --format=custom --exclude-schema=graphql_public --file="$container_dump"
           psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -q -c "CREATE DATABASE \"$restore_db\" TEMPLATE template0;" >/dev/null
           created=true
           # Restore as the managed local admin role, without granting extra
