@@ -52,7 +52,7 @@ test.describe("Interactions authenticated flow", () => {
     await expect(page.locator("p").filter({ hasText: "Updated from Interactions E2E" })).toBeVisible();
 
     await page.goto(`/people?query=${encodeURIComponent(personName)}`);
-    await page.getByText(personName, { exact: true }).click();
+    await page.locator(`a.table-row[href="${new URL(personUrl).pathname}"]`).click();
     await page.locator("summary").filter({ hasText: "Chronologie" }).click();
     await expect(page.getByText(marker, { exact: true })).toBeVisible();
 
