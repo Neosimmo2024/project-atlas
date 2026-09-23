@@ -54,7 +54,10 @@ test.describe("Interactions authenticated flow", () => {
     await page.goto(`/people?query=${encodeURIComponent(personName)}`);
     await page.locator(`a.table-row[href="${new URL(personUrl).pathname}"]`).click();
     await page.locator("summary").filter({ hasText: "Chronologie" }).click();
-    await expect(page.getByText(marker, { exact: true })).toBeVisible();
+    const updatedEvent = page.getByRole("article").filter({
+      has: page.locator(".chronology-type", { hasText: /^Échange modifié$/ })
+    });
+    await expect(updatedEvent.getByRole("heading", { name: marker, exact: true })).toBeVisible();
 
     await page.goto(`/interactions?query=${encodeURIComponent(marker)}`);
     await page.getByText(marker, { exact: true }).click();
