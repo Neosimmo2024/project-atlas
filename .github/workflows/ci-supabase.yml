@@ -363,15 +363,16 @@ jobs:
           pg_dump "$QA_DB_URL" --format=custom --file="$backup_dir/database.dump"
           psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -q -c "CREATE DATABASE \"$restore_db\" TEMPLATE template0;" >/dev/null
           created=true
-          # Supabase platform objects are owned by managed roles that the local
-          # connection role cannot assume; restore their definitions as the local
-          # restore role while retaining grants, RLS policies and data.
-          # Database-level settings such as log_min_messages are platform-managed
-          # and cannot be applied by the local connection role to the temporary DB.
-          pg_restore --list "$backup_dir/database.dump" > "$backup_dir/restore.list"
-          sed -i '/ DATABASE PROPERTIES /d' "$backup_dir/restore.list"
+          # Restore inside the ephemeral local Supabase database container as its
+          # managed admin role. This preserves the complete logical archive without
+          # granting extra privileges to the application's connection role.
+          db_container="$(docker ps --format '{{.Names}}' | grep -E '^supabase_db_' | head -1)"
+          if [ -z "$db_container" ]; then
+            echo "Local Supabase database container was not found."
+            exit 1
+          fi
           # Capture errors privately; never print restored data or credentials.
-          if ! pg_restore --dbname="$restore_url" --exit-on-error --no-owner --use-list="$backup_dir/restore.list" "$backup_dir/database.dump" 2>"$backup_dir/restore-errors"; then
+          if ! docker exec -i "$db_container" pg_restore --username=supabase_admin --dbname="$restore_db" --exit-on-error --no-owner < "$backup_dir/database.dump" 2>"$backup_dir/restore-errors"; then
             echo "Logical restore failed; database object error summary:"
             sed -n 's/^pg_restore: error: could not execute query: ERROR: /ERROR: /p' "$backup_dir/restore-errors" | head -5
             exit 1
