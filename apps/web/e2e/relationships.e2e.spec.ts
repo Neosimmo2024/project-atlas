@@ -40,8 +40,25 @@ test.describe("Relationships authenticated flow", () => {
     await page.getByLabel("Personne").selectOption({ label: personName });
     await page.getByLabel("Organisation").selectOption({ label: organizationName });
     await page.getByLabel("Notes").fill(marker);
+    const relationshipCreatedResponse = page.waitForResponse((response) =>
+      new URL(response.url()).pathname === "/api/relationships"
+      && response.request().method() === "POST"
+      && response.request().postDataJSON()?.person_id === personPath.split("/").pop()
+      && response.request().postDataJSON()?.notes === marker
+    );
     await page.getByRole("button", { name: "Enregistrer" }).click();
-    await expect(page).toHaveURL(/\/relationships\/[^/]+$/);
+    const relationshipResponse = await relationshipCreatedResponse;
+    expect(relationshipResponse.status()).toBe(201);
+    const createdRelationship = await relationshipResponse.json();
+    expect(createdRelationship.data.person_id).toBe(personPath.split("/").pop());
+    expect(createdRelationship.data.notes).toBe(marker);
+    expect(createdRelationship.data.id).toMatch(/^[0-9a-f-]{36}$/i);
+    // A generic /relationships/[^/]+ also matches /relationships/new.
+    // Wait for the committed record before opening the search results.
+    await expect(page).toHaveURL((url) =>
+      url.pathname === `/relationships/${createdRelationship.data.id}`,
+      { timeout: 15000 }
+    );
 
     await page.goto(`/relationships?query=${encodeURIComponent(marker)}`);
     await expect(page.getByText(personName)).toBeVisible();

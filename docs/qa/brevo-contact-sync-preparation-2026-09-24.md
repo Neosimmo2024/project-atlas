@@ -124,3 +124,18 @@ Restent une journalisation persistante dédiée (y compris issue d'écriture inc
 le raccordement applicatif, l'association fiable compte/tenant et la recette réelle
 autorisée après résolution du blocage API. Les contrôles successifs ne garantissent
 pas une transaction atomique entre la base et Brevo.
+
+## CI #343 et correction du scénario Relation
+
+Le commit `612f7acc5ff2c4921b70a3007b1ab9af5938a435` a validé
+596 tests unitaires (dont les 24 nouveaux), 78 tests d'intégration, la restauration
+locale et les trois Vercel. Sept E2E sur huit ont réussi.
+https://github.com/Neosimmo2024/project-atlas/actions/runs/36028852639
+
+La trace du scénario Relation montre que l'assertion d'URL acceptait encore
+`/relationships/new`. La recherche a commencé 22 ms après le POST de création,
+alors que celui-ci a répondu 201 après 2068 ms. Le test recherchait donc trop tôt.
+Correction ciblée : attendre le POST de la personne et des notes attendues,
+vérifier le 201 et l'identité retournée, puis attendre le chemin de cette relation
+avec un délai de 15 secondes. Les assertions de recherche et la suite du parcours
+sont conservées. Aucun comportement applicatif n'est modifié.
