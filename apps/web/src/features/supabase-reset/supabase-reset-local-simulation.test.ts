@@ -61,6 +61,18 @@ describe("Supabase reset local simulation guards", () => {
     }
   });
 
+  it("refuses reset when a contact synchronization attempt exists", () => {
+    const counts = exactCounts();
+    counts["public.brevo_contact_sync_attempts"] = 1;
+    let resetWouldRun = false;
+
+    expect(() => {
+      simulation.assertExactSnapshotCounts(counts);
+      resetWouldRun = true;
+    }).toThrow("public.brevo_contact_sync_attempts");
+    expect(resetWouldRun).toBe(false);
+  });
+
   it("refuses a lower count", () => {
     const counts = exactCounts();
     counts["public.tasks"] = simulation.EXPECTED_COUNTS["public.tasks"] - 1;

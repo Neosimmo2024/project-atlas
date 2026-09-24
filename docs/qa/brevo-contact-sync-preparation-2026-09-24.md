@@ -180,3 +180,8 @@ Le journal est un suivi applicatif, pas une preuve indépendante de livraison Br
 Il ne garantit pas l'atomicité avec le fournisseur. Une tentative incertaine n'est
 jamais déverrouillée automatiquement ; le parcours de rapprochement contrôlé reste
 à développer avant activation. Aucun accès Brevo réel ni aucune écriture distante.
+
+
+### CI #345 reset simulation follow-up
+
+The migration applied successfully, but the local reset simulation stopped because its explicit migration manifest still listed only 0001 through 0021. The manifest now includes exactly 20260924195950_brevo_contact_sync_journal.sql; no wildcard acceptance was introduced. The journal is included in snapshot counts (required empty), post-reset table presence and RLS checks. A regression test refuses reset if any journal attempt exists. Local guard checks confirmed the exact manifest, full count-query coverage, rejection of nonempty/missing journal observations and rejection of remote URLs. Full CI remains to be verified on the follow-up commit.
