@@ -39,7 +39,7 @@ obtenir sa propre CI et ses trois statuts Vercel avant d'être déclarée valid�
 | Traitement d'une réponse | Code d'arrêt, tâche et historique présent | Tests simulés complémentaires ajoutés dans ce lot ; preuve CI du nouveau commit requise |
 | DNS Brevo | Domaine racine authentifié dans Brevo ; sous-domaine reply déjà authentifié | Ne pas confondre authentification DNS et livraison webhook |
 | Configuration API Brevo | Deux clés Atlas existantes actives, valeurs masquées ; création de nouvelle clé refusée | Ticket support envoyé par Renato, retour attendu ; inventaire API des webhooks encore nécessaire |
-| Synchronisation contacts | La revue précédente indique une préparation sans synchronisation effective | À confirmer et terminer avant de promettre une synchronisation |
+| Synchronisation contacts | `prepareBrevoContact` retourne `prepared: true, sent: false` sans envoi | Synchronisation effective à développer avant de la promettre |
 | SMS / n8n | Pas de preuve opérationnelle dans cette recette | Inventaire et décision de périmètre ; aucun envoi ni activation |
 | Sauvegardes | Restauration logique locale de données fictives réussie | Aucune preuve de restauration physique hébergée |
 
@@ -85,3 +85,19 @@ ne les lève pas. Utiliser des données fictives, sans adresse ni numéro de can
 Un arrêt enregistré au contrôle avant envoi bloque la relance. Il n'annule pas un
 email déjà transmis au prestataire. Les simulations ne prouvent pas l'atomicité,
 les courses concurrentes en base, ni la livraison opérationnelle Brevo/cron.
+
+## Validation complémentaire — CI #339
+
+Commit `f6682022267753216eede468d4bfad8c977f5f70` :
+https://github.com/Neosimmo2024/project-atlas/actions/runs/36018004132
+
+- 520 tests unitaires réussis, dont les 12 nouveaux tests de traitement des réponses.
+- 78 tests d'intégration réussis ; lint, typecheck, build et restauration locale réussis.
+- Trois statuts Vercel réussis ; 7 scénarios E2E sur 8 réussis.
+- Échec de `tasks.e2e.spec.ts:30` : délai de navigation de 5 secondes dépassé.
+  La trace prouve un POST /api/people réussi en 201 après 4730 ms, puis le serveur
+  répond en 200 à la fiche créée (530 ms dans next.log).
+- Correction ciblée du test : attendre la réponse POST correspondant au nom fictif,
+  vérifier 201, nom et identifiant retournés, puis l'URL exacte de cette personne
+  avec un délai de 15 secondes. Aucun changement du comportement applicatif.
+  Cette correction doit obtenir sa propre validation CI ; aucun essai E2E local.

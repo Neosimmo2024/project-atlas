@@ -26,8 +26,21 @@ test.describe("Tasks authenticated flow", () => {
     // This scenario needs a person, not an automatic recruiting relationship.
     await page.getByLabel("Candidat recrutement — ajouter automatiquement au Pipeline").uncheck();
     await page.getByLabel("Nom d'affichage").fill(personName);
+    const personResponse = page.waitForResponse((response) =>
+      response.request().method() === "POST"
+      && new URL(response.url()).pathname === "/api/people"
+      && response.request().postDataJSON()?.display_name === personName
+    );
     await page.getByRole("button", { name: "Enregistrer" }).click();
-    await expect(page).toHaveURL(/\/people\/[0-9a-f-]{36}(?:\?.*)?$/i);
+    const createdPersonResponse = await personResponse;
+    expect(createdPersonResponse.status()).toBe(201);
+    const createdPerson = await createdPersonResponse.json();
+    expect(createdPerson.data.display_name).toBe(personName);
+    expect(createdPerson.data.id).toMatch(/^[0-9a-f-]{36}$/i);
+    await expect(page).toHaveURL(
+      (url) => url.pathname === `/people/${createdPerson.data.id}`,
+      { timeout: 15000 }
+    );
     const personUrl = page.url();
 
     await page.goto("/organizations/new");
