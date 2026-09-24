@@ -98,3 +98,29 @@ journalisation persistante, association du compte pilote, inventaire des automat
 Brevo et essai réel autorisé. Les relectures réduisent la fenêtre de changement de
 permission mais ne garantissent pas l'atomicité entre AVENOR et Brevo. Le blocage
 email/SMS du contact ne remplace pas le contrôle des envois transactionnels.
+
+## Lecture autorisée préparée — 24 septembre 2026
+
+`repositories/brevo-contact-source.ts` fournit désormais une source compatible
+avec l'exécuteur. Elle déduit le tenant et l'utilisateur de la session serveur,
+limite cette préparation aux rôles owner/admin, puis revérifie leur rattachement
+à chaque lecture. Un changement de session, de tenant ou une révocation bloque
+la lecture suivante. Le client Supabase authentifié conserve la RLS ; aucun client
+administrateur ni service-role n'est utilisé. Seuls l'identité, l'adresse et les
+deux indicateurs de permission sont sélectionnés, avec filtres tenant/personne.
+Les erreurs sont remplacées par un code fixe sans détails sensibles.
+
+24 tests simulés supplémentaires couvrent les permissions, la révocation,
+les données incohérentes, les erreurs, la relecture des oppositions et l'arrêt de
+l'exécuteur si les droits sont retirés pendant la lecture Brevo. Les 76 tests
+contact passent dans le harnais local Vitest 3.2.4 ; la CI du commit reste à vérifier.
+Ces simulations ne constituent pas une nouvelle preuve des politiques RLS en base.
+
+L'adaptateur n'est appelé par aucune route métier. L'activation demeure absente.
+Le journal actuel `audit_log` trace insert/update/delete de la base ; la timeline
+ne définit pas d'événement de synchronisation contact. Aucun faux événement
+« email envoyé » n'est utilisé pour remplacer un audit Brevo.
+Restent une journalisation persistante dédiée (y compris issue d'écriture inconnue),
+le raccordement applicatif, l'association fiable compte/tenant et la recette réelle
+autorisée après résolution du blocage API. Les contrôles successifs ne garantissent
+pas une transaction atomique entre la base et Brevo.
