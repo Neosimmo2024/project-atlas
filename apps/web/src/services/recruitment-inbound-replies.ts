@@ -52,7 +52,10 @@ export function isAuthorizedBrevoInboundWebhook(request: Request) {
   const expected = configuredWebhookSecret();
   const provided = request.headers.get(webhookHeader)?.trim() ?? "";
   if (!expected || provided.length !== expected.length) return false;
-  return timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+  const providedBytes = Buffer.from(provided);
+  const expectedBytes = Buffer.from(expected);
+  if (providedBytes.length !== expectedBytes.length) return false;
+  return timingSafeEqual(providedBytes, expectedBytes);
 }
 
 function messageIdVariants(value: string | null | undefined) {
