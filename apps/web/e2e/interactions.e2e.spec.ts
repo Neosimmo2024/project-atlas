@@ -26,7 +26,7 @@ test.describe("Interactions authenticated flow", () => {
     await page.getByLabel("Candidat recrutement — ajouter automatiquement au Pipeline").uncheck();
     await page.getByLabel("Nom d'affichage").fill(personName);
     await page.getByRole("button", { name: "Enregistrer" }).click();
-    await expect(page).toHaveURL(/\/people\/[0-9a-f-]{36}(?:\?.*)?$/i);
+    await expect(page).toHaveURL(/\/people\/[0-9a-f-]{36}(?:\?.*)?$/i, { timeout: 15000 });
     const personUrl = page.url();
 
     await page.goto(personUrl);

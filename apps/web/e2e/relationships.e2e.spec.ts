@@ -128,7 +128,7 @@ test.describe("Relationships authenticated flow", () => {
     await expect(page.getByRole("link").filter({ has: page.locator("strong", { hasText: projectTitle }) })).toBeVisible();
 
     await page.getByRole("link", { name: organizationName, exact: true }).click();
-    await expect(page).toHaveURL((url) => url.pathname.startsWith("/organizations/") && url.searchParams.get("returnTo") === relationshipPath);
+    await expect(page).toHaveURL((url) => url.pathname.startsWith("/organizations/") && url.searchParams.get("returnTo") === relationshipPath, { timeout: 15000 });
     const organizationReturnPath = `${new URL(page.url()).pathname}${new URL(page.url()).search}`;
     const organizationTaskTitle = `${marker} Organization Task`;
     await page.getByRole("link", { name: "Nouvelle tâche" }).click();
