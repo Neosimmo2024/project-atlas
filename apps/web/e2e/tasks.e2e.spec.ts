@@ -58,8 +58,13 @@ test.describe("Tasks authenticated flow", () => {
 
     await page.locator("a.task-card").filter({ has: page.getByRole("heading", { name: marker, exact: true }) }).click();
     await page.getByLabel("Raison").fill("Updated from Tasks E2E");
+    const updateResponse = page.waitForResponse((response) =>
+      response.request().method() === "PUT"
+      && new URL(response.url()).pathname === `/api/tasks/${new URL(page.url()).pathname.split("/").pop()}`
+    );
     await page.getByRole("button", { name: "Enregistrer" }).click();
-    await expect(page.locator("p").filter({ hasText: "Updated from Tasks E2E" })).toBeVisible();
+    expect((await updateResponse).ok()).toBeTruthy();
+    await expect(page.locator("p").filter({ hasText: "Updated from Tasks E2E" })).toBeVisible({ timeout: 15000 });
 
     await page.getByRole("button", { name: "Terminer" }).click();
     await expect(page.locator("section").filter({ has: page.getByRole("heading", { name: "Statut", exact: true }) })).toContainText("Terminée");
