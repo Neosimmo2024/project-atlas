@@ -60,3 +60,41 @@ email déjà transmis. Aucun effet réel n'a été testé.
 
 La documentation de mise à jour précise qu'un changement d'adresse d'un contact
 bloqué peut le réinscrire. Le plan refuse donc cette opération automatique.
+
+## Exécuteur serveur ajouté, activation toujours absente
+
+Le module `brevo-contact-sync.ts` fournit maintenant l'exécution isolée du plan.
+Il reste sans appelant métier : aucune route, aucun cron, aucune variable Vercel
+ni import CSV n'a été raccordé. `enabled` doit être explicitement vrai ; sinon,
+il retourne immédiatement sans lire de personne ni appeler Brevo.
+
+Le futur appelant serveur devra fournir une correspondance compte/tenant de
+confiance, une clé via un canal serveur, et une lecture de personne autorisée.
+Ces éléments ne doivent jamais provenir directement d'un corps de requête client.
+Aucun stockage de clé ni interface d'activation n'est ajouté ici.
+
+L'exécuteur :
+- cherche d'abord par identifiant externe tenant/personne ; seules les absences
+  HTTP 404 avec code `document_not_found` sont considérées comme telles ;
+- refuse les états incomplets, erreurs de lecture et identités contradictoires ;
+- vérifie les collisions d'adresse avant création, sans adopter ni fusionner ;
+- relit la source après la lecture Brevo et après la recherche de collision ;
+- conserve les oppositions existantes et n'envoie que les champs du plan ;
+- utilise une origine fixe, refuse les redirections et limite chaque requête à 10 s ;
+- retourne des codes fixes sans erreur brute, clé ni données de contact ;
+- ne réessaie aucune écriture automatiquement. Une réponse ambiguë retourne
+  `write_outcome_unknown` et exige un rapprochement avant reprise.
+
+27 tests de l'exécuteur et 25 du plan passent localement sous Vitest 3.2.4 avec
+transport simulé et réseau réel interdit. La CI du commit doit confirmer ces résultats.
+
+La documentation GET Brevo autorise la recherche par `identifierType=ext_id`,
+mais son schéma de réponse ne garantit pas le retour du champ `ext_id`.
+L'identité provient donc de cette recherche explicite ; toute valeur contradictoire
+renvoyée est refusée. Source : https://developers.brevo.com/reference/get-contact-info
+
+Restent avant activation : liaison au contexte autorisé de l'application,
+journalisation persistante, association du compte pilote, inventaire des automatisations
+Brevo et essai réel autorisé. Les relectures réduisent la fenêtre de changement de
+permission mais ne garantissent pas l'atomicité entre AVENOR et Brevo. Le blocage
+email/SMS du contact ne remplace pas le contrôle des envois transactionnels.
