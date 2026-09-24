@@ -402,6 +402,19 @@ jobs:
           echo "Local logical backup restored: table contents, row counts, RLS flags and policies match."
           echo "Only fictitious CI data was used; no remote database was contacted."
 
+      - name: Verify Brevo contact journal locally
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          const u = new URL(process.env.QA_DB_URL);
+          if (process.env.CI !== "true" || !["127.0.0.1", "localhost"].includes(u.hostname)
+              || u.port !== "54322" || u.pathname !== "/postgres" || u.search) {
+            throw new Error("Journal verification requires the local CI database.");
+          }
+          JS
+          psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -q -f scripts/test-brevo-contact-journal.sql
+          supabase db advisors --local --type security --level error --fail-on none
+
       - name: Unit tests
         run: npm test
 

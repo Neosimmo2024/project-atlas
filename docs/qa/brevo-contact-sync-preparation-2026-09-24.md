@@ -139,3 +139,44 @@ Correction ciblée : attendre le POST de la personne et des notes attendues,
 vérifier le 201 et l'identité retournée, puis attendre le chemin de cette relation
 avec un délai de 15 secondes. Les assertions de recherche et la suite du parcours
 sont conservées. Aucun comportement applicatif n'est modifié.
+
+## Journal persistant préparé — 24 septembre 2026
+
+La CI #344 du parent `a9912432` a réussi : 596 unitaires, 78 intégration,
+8 E2E et trois Vercel. La présente évolution doit obtenir sa propre validation.
+
+La migration `20260924195950_brevo_contact_sync_journal.sql` ajoute
+`brevo_contact_sync_attempts`. Elle est préparée pour le dépôt et la CI locale ;
+elle n'est appliquée à aucune base distante. Le journal conserve les identifiants
+organisation/utilisateur/personne, les dates, un statut, un code de résultat fermé
+et, en cas de succès, l'identifiant Brevo. Aucune adresse, clé ou erreur brute.
+
+- Lecture réservée aux owner/admin actifs de l'organisation.
+- Création uniquement par l'acteur authentifié pour une personne de son organisation.
+- Clôture uniquement par cet acteur encore autorisé, depuis l'état pending.
+- Identité et date de création non modifiables ; résultats terminés non modifiables.
+- Aucun droit de suppression pour les clients authentifiés ou anonymes.
+- Index unique tenant/personne pour les états pending et write_outcome_unknown :
+  une tentative concurrente, interrompue ou incertaine empêche une nouvelle tentative.
+- La suppression d'une personne/utilisateur ne supprime pas son identifiant de journal ;
+  la suppression de l'organisation supprime son journal. Une politique de conservation
+  opérationnelle reste à définir avant activation.
+
+`syncBrevoContactWithJournal` attend la confirmation de l'écriture pending avant
+l'exécution. Si la clôture échoue, il retourne journal_completion_failed sans relancer
+et sans annoncer un succès confirmé. La ligne pending reste bloquante. Les erreurs
+inattendues sont traitées comme un résultat incertain. Les appels restent désactivés
+par défaut et aucune route/variable/cron n'est activé. Le futur appelant serveur
+utilisera l'adaptateur de source autorisée et ce journal, jamais le moteur brut seul.
+
+11 tests du contrôleur et 21 tests du dépôt de journal s'ajoutent aux 76 tests contacts
+existants : 108 réussites locales sous Vitest 3.2.4. Le script transactionnel
+`scripts/test-brevo-contact-journal.sql` teste permissions, isolation, identité,
+transitions, révocation, blocages et absence d'accès anonyme. Il réussit en PostgreSQL
+embarqué local avec un socle Auth minimal ; la CI exécute le même script dans le vrai
+Supabase local après contrôle explicite de l'URL locale. Tous ses fixtures sont annulés.
+
+Le journal est un suivi applicatif, pas une preuve indépendante de livraison Brevo.
+Il ne garantit pas l'atomicité avec le fournisseur. Une tentative incertaine n'est
+jamais déverrouillée automatiquement ; le parcours de rapprochement contrôlé reste
+à développer avant activation. Aucun accès Brevo réel ni aucune écriture distante.
