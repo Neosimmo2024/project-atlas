@@ -33,6 +33,7 @@ export type RecruitmentOrchestrationSummary = {
   scheduled: number;
   stopped: number;
   claimed: number;
+  skipped: number;
   sent: number;
   errors: number;
 };
@@ -232,6 +233,7 @@ async function processDueSteps(limit = 25) {
 
   let sent = 0;
   let errors = 0;
+  let skipped = 0;
   for (const step of claimed) {
     if (step.step_index !== 1 && step.step_index !== 2) {
       const { error: completeError } = await supabase.rpc("complete_recruitment_email_step", {
@@ -260,8 +262,17 @@ async function processDueSteps(limit = 25) {
     if (sequenceError) throw sequenceError;
     if (personError) throw personError;
 
+    // The claim is a snapshot: a reply/refusal can stop the sequence before this read.
+    // Do not complete a cancelled/deleted step or overwrite its terminal state.
+    const currentSequence = sequence as Pick<SequenceRow, "email" | "status" | "lifecycle_status"> | null;
+    if (!currentSequence || currentSequence.status !== "sent"
+      || currentSequence.lifecycle_status === "stopped" || currentSequence.lifecycle_status === "completed") {
+      skipped += 1;
+      continue;
+    }
+
     const typedPerson = person as PersonRow | null;
-    const email = (sequence as { email?: string } | null)?.email;
+    const email = currentSequence.email;
     let result: Awaited<ReturnType<typeof sendRecruitmentFollowUpEmail>>;
     if (!typedPerson || !typedPerson.contact_allowed || typedPerson.do_not_contact || !email) {
       result = { success: false, error: "Contact non autorisé ou email manquant au moment de l’envoi." };
@@ -285,7 +296,7 @@ async function processDueSteps(limit = 25) {
     else errors += 1;
   }
 
-  return { claimed: claimed.length, sent, errors };
+  return { claimed: claimed.length, sent, errors, skipped };
 }
 
 export async function runRecruitmentEmailOrchestration(input?: { prepareLimit?: number; claimLimit?: number }) {
@@ -295,6 +306,7 @@ export async function runRecruitmentEmailOrchestration(input?: { prepareLimit?: 
     scheduled: prepared.scheduled,
     stopped: prepared.stopped,
     claimed: processed.claimed,
+    skipped: processed.skipped,
     sent: processed.sent,
     errors: processed.errors
   } satisfies RecruitmentOrchestrationSummary;

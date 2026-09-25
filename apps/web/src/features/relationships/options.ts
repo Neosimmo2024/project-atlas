@@ -26,7 +26,13 @@ export const RELATIONSHIP_TYPE_LABELS: Record<(typeof RELATIONSHIP_TYPES)[number
   prospecting: "Prospection"
 };
 
-export const RELATIONSHIP_PIPELINE_STAGE_LABELS = RECRUITMENT_PIPELINE_STAGE_LABELS;
+export const RELATIONSHIP_PIPELINE_STAGE_LABELS = {
+  ...RECRUITMENT_PIPELINE_STAGE_LABELS,
+  conversation: "Conversation engagée",
+  appointment: "Rendez-vous obtenu",
+  presentation: "Présentation réalisée",
+  rejected: "Refus"
+};
 
 export const RELATIONSHIP_STATUS_LABELS: Record<(typeof RELATIONSHIP_STATUSES)[number], string> = {
   active: "Active",

@@ -15,14 +15,19 @@ export async function getTenantContext(): Promise<TenantContext | null> {
     .limit(1)
     .maybeSingle();
 
-  if (error || !data) return null;
+  // A failed lookup is not evidence that the user has no active membership.
+  // Do not propagate database messages: they may contain sensitive details.
+  if (error) throw new Error("TENANT_CONTEXT_LOOKUP_FAILED");
+  if (!data) return null;
 
   const roleJoin = data.roles as { slug?: TenantContext["role"] } | { slug?: TenantContext["role"] }[] | null;
   const role = Array.isArray(roleJoin) ? roleJoin[0]?.slug : roleJoin?.slug;
   const tenantJoin = data.tenants as { id?: string; name?: string } | { id?: string; name?: string }[] | null;
   const tenant = Array.isArray(tenantJoin) ? tenantJoin[0] : tenantJoin;
 
-  if (!role || !tenant?.id || !tenant.name) return null;
+  if (!role || !tenant?.id || !tenant.name) {
+    throw new Error("TENANT_CONTEXT_INCOMPLETE");
+  }
 
   return { tenantId: data.tenant_id, tenant: { id: tenant.id, name: tenant.name }, userId: user.id, role };
 }

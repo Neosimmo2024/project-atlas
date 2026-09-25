@@ -97,30 +97,48 @@ export async function listRelationships(context: TenantContext, params: Relation
   };
 }
 
+const RELATIONSHIP_OPTIONS_PAGE_SIZE = 1000;
+
 export async function listRelationshipPeopleOptions(context: TenantContext): Promise<Pick<Person, "id" | "display_name">[]> {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("people")
-    .select("id, display_name")
-    .eq("tenant_id", context.tenantId)
-    .order("display_name", { ascending: true })
-    .limit(200);
+  const people: Pick<Person, "id" | "display_name">[] = [];
 
-  if (error) throw error;
-  return (data ?? []) as Pick<Person, "id" | "display_name">[];
+  for (let from = 0; ; from += RELATIONSHIP_OPTIONS_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("people")
+      .select("id, display_name")
+      .eq("tenant_id", context.tenantId)
+      .order("created_at", { ascending: false })
+      .range(from, from + RELATIONSHIP_OPTIONS_PAGE_SIZE - 1);
+
+    if (error) throw error;
+    const page = (data ?? []) as Pick<Person, "id" | "display_name">[];
+    people.push(...page);
+    if (page.length < RELATIONSHIP_OPTIONS_PAGE_SIZE) break;
+  }
+
+  return people;
 }
 
 export async function listRelationshipOrganizationOptions(context: TenantContext): Promise<Pick<Organization, "id" | "name">[]> {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("organizations")
-    .select("id, name")
-    .eq("tenant_id", context.tenantId)
-    .order("name", { ascending: true })
-    .limit(200);
+  const organizations: Pick<Organization, "id" | "name">[] = [];
 
-  if (error) throw error;
-  return (data ?? []) as Pick<Organization, "id" | "name">[];
+  for (let from = 0; ; from += RELATIONSHIP_OPTIONS_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("organizations")
+      .select("id, name")
+      .eq("tenant_id", context.tenantId)
+      .order("created_at", { ascending: false })
+      .range(from, from + RELATIONSHIP_OPTIONS_PAGE_SIZE - 1);
+
+    if (error) throw error;
+    const page = (data ?? []) as Pick<Organization, "id" | "name">[];
+    organizations.push(...page);
+    if (page.length < RELATIONSHIP_OPTIONS_PAGE_SIZE) break;
+  }
+
+  return organizations;
 }
 
 export async function getRelationshipDetail(context: TenantContext, relationshipId: string): Promise<RelationshipDetail | null> {

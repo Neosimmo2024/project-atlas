@@ -28,6 +28,10 @@ function valueOf(params: Record<string, string | string[] | undefined>, key: str
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
 
+function safeReturnTo(value: string) {
+  return value.startsWith("/relationships/") || value.startsWith("/organizations/") || value.startsWith("/people/") ? value : "/projects";
+}
+
 export default async function ProjectDetailPage({ params, searchParams }: ProjectDetailPageProps) {
   const { id } = await params;
   const query = await searchParams;
@@ -37,6 +41,7 @@ export default async function ProjectDetailPage({ params, searchParams }: Projec
   const detail = await getProjectDetail(context, id);
   if (!detail) notFound();
 
+  const returnTo = safeReturnTo(valueOf(query, "returnTo"));
   const tab = valueOf(query, "tab") || "overview";
   const timelineCategory = valueOf(query, "timelineCategory") || "all";
   const timelinePage = Number(valueOf(query, "timelinePage") || 1);
@@ -56,7 +61,7 @@ export default async function ProjectDetailPage({ params, searchParams }: Projec
 
   return (
     <div className="page stack">
-      <EntityHeader eyebrow="Projet" title={project.title} meta={`${projectTypeLabel(project.project_type)} - ${projectStatusLabel(project.status)} - ${projectStageLabel(project.stage)}`} actions={<Link className="button subtle-button" href="/projects">Retour</Link>} />
+      <EntityHeader eyebrow="Projet" title={project.title} meta={`${projectTypeLabel(project.project_type)} - ${projectStatusLabel(project.status)} - ${projectStageLabel(project.stage)}`} actions={<Link className="button subtle-button" href={returnTo}>Retour</Link>} />
 
       {valueOf(query, "toast") ? <p className="success" aria-live="polite">{valueOf(query, "toast")}</p> : null}
       {valueOf(query, "projectSaved") === "1" ? <p className="success" aria-live="polite">Projet enregistré.</p> : null}
@@ -84,6 +89,7 @@ export default async function ProjectDetailPage({ params, searchParams }: Projec
           relationshipOptions={relationshipOptions}
           ownerOptions={ownerOptions}
           currentUserId={context.userId}
+          returnTo={returnTo === "/projects" ? undefined : returnTo}
         />
       </PageSection>
     </div>

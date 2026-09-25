@@ -102,6 +102,7 @@ export default async function TaskDetailPage({ params, searchParams }: TaskDetai
         <TaskForm
           mode="edit"
           task={task}
+          returnTo={returnTo}
           peopleOptions={peopleOptions}
           organizationOptions={organizationOptions}
           relationshipOptions={relationshipOptions}
