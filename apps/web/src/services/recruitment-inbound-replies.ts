@@ -203,6 +203,23 @@ async function ensureCandidateReplyFollowUpTask(sequence: SequenceRow, item: Bre
     })
     .select("id")
     .single();
+  if (error?.code === "23505") {
+    // The unique database index arbitrates concurrent notifications. Never
+    // overwrite a task that another worker (or a user) has already created.
+    const { data: winner, error: lookupError } = await supabase
+      .from("tasks")
+      .select("id")
+      .eq("tenant_id", sequence.tenant_id)
+      .eq("person_id", sequence.person_id)
+      .is("deleted_at", null)
+      .contains("metadata", metadataKey)
+      .limit(1)
+      .maybeSingle();
+    if (lookupError) throw lookupError;
+    if (winner) return winner.id as string;
+    // An unrelated uniqueness violation must not mark this reply processed.
+    throw error;
+  }
   if (error) throw error;
   return data.id as string;
 }
@@ -317,3 +334,4 @@ export async function processBrevoInboundReplies(payload: BrevoInboundPayload): 
 
   return summary;
 }
+

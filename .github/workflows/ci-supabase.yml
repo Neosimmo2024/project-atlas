@@ -413,6 +413,7 @@ jobs:
           }
           JS
           psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -q -f scripts/test-brevo-contact-journal.sql
+          psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -q -f scripts/test-security-hardening.sql
           supabase db advisors --local --type security --level error --fail-on none
 
       - name: Unit tests
@@ -475,3 +476,4 @@ jobs:
             kill "$(cat apps/web/next.pid)" || true
           fi
           supabase stop || true
+

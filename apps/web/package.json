@@ -16,11 +16,11 @@
     "@playwright/test": "^1.61.1",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.45.4",
-    "csv-parse": "^7.0.1",
-    "next": "^15.0.0",
+    "csv-parse": "7.0.3",
+    "next": "15.5.26",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "vitest": "^4.1.10",
+    "vitest": "4.1.11",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -28,7 +28,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "eslint": "^9.10.0",
-    "eslint-config-next": "^15.0.0",
+    "eslint-config-next": "15.5.26",
     "typescript": "^5.6.2"
   }
 }

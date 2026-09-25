@@ -135,4 +135,23 @@ describe("Brevo inbound reply processing with a simulated database", () => {
     await expect(processBrevoInboundReplies({ items: [item] })).rejects.toThrow("simulated task failure");
     expect(write("timeline_events", "upsert")).toBeUndefined();
   });
+  it("reuses the task committed by a competing webhook worker", async () => {
+    result("recruitment_email_sequences", sequence); result("timeline_events");
+    result("recruitment_email_sequences"); result("tasks"); result("relationships", relationship);
+    result("tasks", null, Object.assign(new Error("duplicate"), { code: "23505" }));
+    result("tasks", { id: "concurrent-winner" }); result("timeline_events");
+    expect(await processBrevoInboundReplies({ items: [item] })).toMatchObject({ processed: 1 });
+    expect(write("timeline_events", "upsert")).toMatchObject({ metadata: { follow_up_task_id: "concurrent-winner" } });
+    expect(calls.filter(c => c.table === "tasks" && c.method === "insert")).toHaveLength(1);
+  });
+  it("does not swallow an unrelated unique constraint error", async () => {
+    result("recruitment_email_sequences", sequence); result("timeline_events");
+    result("recruitment_email_sequences"); result("tasks"); result("relationships", relationship);
+    result("tasks", null, Object.assign(new Error("unrelated duplicate"), { code: "23505" }));
+    result("tasks");
+    await expect(processBrevoInboundReplies({ items: [item] })).rejects.toThrow("unrelated duplicate");
+    expect(write("timeline_events", "upsert")).toBeUndefined();
+  });
+
 });
+
