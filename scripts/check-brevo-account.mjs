@@ -1,3 +1,4 @@
+import { checkBrevoWebhooks } from "./check-brevo-webhooks.mjs";
 import { pathToFileURL } from "node:url";
 
 // Opt-in read-only diagnostic. Never logs credentials or account response data.
@@ -28,6 +29,9 @@ export async function checkBrevoAccount(env, request) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const inspection = await checkBrevoWebhooks(process.env, fetch);
+  if (inspection.status !== "SKIPPED") console.log("BREVO_WEBHOOK_CHECK " + JSON.stringify(inspection));
+  if (!["SKIPPED", "INSPECTED"].includes(inspection.status)) process.exitCode = 1;
   const result = await checkBrevoAccount(process.env, fetch);
   if (result !== "SKIPPED") console.log("BREVO_AUTH_CHECK " + result);
   if (!["SKIPPED", "ACCEPTED_HTTP_200"].includes(result)) process.exitCode = 1;
