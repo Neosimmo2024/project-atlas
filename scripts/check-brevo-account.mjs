@@ -1,3 +1,4 @@
+import { pinBrevoWebhook } from "./pin-brevo-webhook.mjs";
 import { checkBrevoWebhooks } from "./check-brevo-webhooks.mjs";
 import { pathToFileURL } from "node:url";
 
@@ -29,6 +30,9 @@ export async function checkBrevoAccount(env, request) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const pin = await pinBrevoWebhook(process.env, fetch);
+  if (pin.status !== "SKIPPED") console.log("BREVO_WEBHOOK_PIN " + JSON.stringify(pin));
+  if (!["SKIPPED", "ALREADY_PINNED", "UPDATED_VERIFIED"].includes(pin.status)) process.exitCode = 1;
   const inspection = await checkBrevoWebhooks(process.env, fetch);
   if (inspection.status !== "SKIPPED") console.log("BREVO_WEBHOOK_CHECK " + JSON.stringify(inspection));
   if (!["SKIPPED", "INSPECTED"].includes(inspection.status)) process.exitCode = 1;
