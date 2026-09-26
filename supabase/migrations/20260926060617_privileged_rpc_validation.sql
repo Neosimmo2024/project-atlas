@@ -232,8 +232,8 @@ begin
     raise exception 'TENANT_MEMBER_ACTION_NOT_ALLOWED' using errcode = '22023';
   end if;
 
-  if (select count(*) from public.tenant_users
-      where user_id = v_actor_user_id and status = 'active') <> 1 then
+  if (select count(*) from public.tenant_users tu
+      where tu.user_id = v_actor_user_id and tu.status = 'active') <> 1 then
     raise exception 'TENANT_CONTEXT_AMBIGUOUS' using errcode = '42501';
   end if;
 
