@@ -93,35 +93,7 @@ export function LoginForm() {
       </div>
       {error ? <p className="error">{error}</p> : null}
       <Button type="submit" disabled={loading}>{loading ? "Connexion..." : "Se connecter"}</Button>
-      <PasswordToggleFallback />
     </form>
-  );
-}
-
-function PasswordToggleFallback() {
-  return (
-    <script
-      dangerouslySetInnerHTML={{
-        __html: `
-document.addEventListener("click", function (event) {
-  var target = event.target;
-  if (!(target instanceof Element)) return;
-  var button = target.closest("[data-password-toggle]");
-  if (!button) return;
-  var inputId = button.getAttribute("aria-controls");
-  if (!inputId) return;
-  var input = document.getElementById(inputId);
-  if (!(input instanceof HTMLInputElement)) return;
-  var shouldShow = input.type === "password";
-  input.type = shouldShow ? "text" : "password";
-  var label = shouldShow ? "Masquer le mot de passe" : "Afficher le mot de passe";
-  button.setAttribute("aria-label", label);
-  button.setAttribute("title", label);
-  button.setAttribute("data-visible", shouldShow ? "true" : "false");
-});
-        `.trim()
-      }}
-    />
   );
 }
 
@@ -144,3 +116,4 @@ function EyeOffIcon() {
     </svg>
   );
 }
+

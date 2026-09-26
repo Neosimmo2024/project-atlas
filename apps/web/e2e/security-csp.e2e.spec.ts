@@ -8,6 +8,10 @@ test("production CSP authorizes framework scripts, blocks injected inline script
   expect(scriptPolicy).not.toContain("'unsafe-eval'");
   const nonce = scriptPolicy.match(/'nonce-([^']+)'/)![1];
   await expect(page.getByRole("button", { name: "Se connecter", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Afficher le mot de passe", exact: true }).click();
+  await expect(page.locator("#login-password")).toHaveAttribute("type", "text");
+  await page.getByRole("button", { name: "Masquer le mot de passe", exact: true }).click();
+  await expect(page.locator("#login-password")).toHaveAttribute("type", "password");
   const scripts = await page.locator("script").evaluateAll((nodes) => nodes.map((node) => ({ nonce: (node as HTMLScriptElement).nonce, type: (node as HTMLScriptElement).type })));
   expect(scripts.length).toBeGreaterThan(0);
   expect(scripts.filter((script) => !script.type || script.type === "text/javascript").every((script) => script.nonce === nonce)).toBe(true);
