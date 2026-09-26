@@ -30,7 +30,8 @@ export const EXPECTED_MIGRATIONS = [
   "0020_recruitment_sequence_engine.sql",
   "0021_csv_import_direct_write_hardening.sql",
   "20260924195950_brevo_contact_sync_journal.sql",
-  "20260925222113_security_audit_hardening.sql"
+  "20260925222113_security_audit_hardening.sql",
+      "20260926060617_privileged_rpc_validation.sql"
 ];
 export const EXPECTED_COUNTS = Object.freeze({
   "auth.users": 1,
@@ -584,7 +585,7 @@ declare
 begin
   select count(*)
   into missing_version_count
-  from unnest(array['0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011','0012','0013','0014','0015','0016','0017','0018','0019','0020','0021','20260924195950','20260925222113']) as version_prefix
+  from unnest(array['0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011','0012','0013','0014','0015','0016','0017','0018','0019','0020','0021','20260924195950','20260925222113','20260926060617']) as version_prefix
   where not exists (
     select 1 from supabase_migrations.schema_migrations sm
     where sm.version like version_prefix || '%'

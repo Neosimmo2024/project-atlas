@@ -81,5 +81,79 @@ select set_config('request.jwt.claim.sub', owner_b::text, true) from journal_fix
 select pg_temp.assert_true((select count(*)=0 from public.tasks where tenant_id=(select tenant_a from journal_fixture)),
   'cross-tenant task isolation preserved');
 reset role;
+-- Privileged RPC regression checks: all fixtures roll back with this file.
+create function pg_temp.assert_error(statement text, expected_message text) returns void
+language plpgsql as $$ begin
+  begin
+    execute statement;
+  exception when others then
+    if sqlerrm = expected_message then return; end if;
+    raise exception 'Unexpected RPC rejection: % (expected %)', sqlerrm, expected_message;
+  end;
+  raise exception 'RPC accepted a forbidden request: %', expected_message;
+end $$;
+insert into public.relationships(tenant_id, person_id, relationship_type)
+select tenant_a, person_a, 'recruiting' from journal_fixture;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', owner_a::text, true) from journal_fixture;
+select pg_temp.assert_error(
+  format('select public.transition_recruitment_pipeline(%L::uuid,%L::uuid,''signature'',p_confirmed=>null,p_signature_at=>now())',
+    r.id, f.tenant_a), 'Signature requires confirmation and signature date.')
+from journal_fixture f join public.relationships r on r.person_id=f.person_a;
+select pg_temp.assert_error(
+  format('select public.transition_recruitment_pipeline(%L::uuid,%L::uuid,''signature'',p_confirmed=>false,p_signature_at=>now())',
+    r.id, f.tenant_a), 'Signature requires confirmation and signature date.')
+from journal_fixture f join public.relationships r on r.person_id=f.person_a;
+select public.transition_recruitment_pipeline(r.id, f.tenant_a, 'signature',
+  p_confirmed=>true, p_signature_at=>now())
+from journal_fixture f join public.relationships r on r.person_id=f.person_a;
+select pg_temp.assert_error(
+  format('select public.transition_recruitment_pipeline(%L::uuid,%L::uuid,''qualification'',p_confirmed=>null,p_reason=>''Correction test'')',
+    r.id, f.tenant_a), 'Leaving signature requires confirmation and correction reason.')
+from journal_fixture f join public.relationships r on r.person_id=f.person_a;
+select pg_temp.assert_true(exists(select 1 from public.relationships
+  where person_id=(select person_a from journal_fixture) and pipeline_stage='signature'),
+  'NULL confirmation did not change signature');
+select public.transition_recruitment_pipeline(r.id, f.tenant_a, 'qualification',
+  p_confirmed=>true, p_reason=>'Correction test')
+from journal_fixture f join public.relationships r on r.person_id=f.person_a;
+select pg_temp.assert_error(
+  format('select public.analyze_csv_import_cancellation(%L::uuid,%L::uuid,null)',tenant_a,gen_random_uuid()),
+  'Authenticated user mismatch.') from journal_fixture;
+select pg_temp.assert_error(
+  format('select public.cancel_csv_import(%L::uuid,%L::uuid,''rpc-test'',null,true)',tenant_a,gen_random_uuid()),
+  'Authenticated user mismatch.') from journal_fixture;
+select set_config('request.jwt.claim.sub', reader_a::text, true) from journal_fixture;
+select pg_temp.assert_error(
+  format('select public.manage_tenant_member(%L::uuid,''suspend'')',owner_a),
+  'TENANT_MEMBER_FORBIDDEN') from journal_fixture;
+select set_config('request.jwt.claim.sub', admin_a::text, true) from journal_fixture;
+select pg_temp.assert_error(
+  format('select public.manage_tenant_member(%L::uuid,''change_role'',''owner'')',reader_a),
+  'TENANT_MEMBER_OWNER_ROLE_FORBIDDEN') from journal_fixture;
+reset role;
+-- Capture the tenant-A relationship ID before testing tenant-B isolation.
+create temporary table rpc_relationship as select id from public.relationships
+where person_id=(select person_a from journal_fixture);
+grant select on rpc_relationship to authenticated;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', owner_b::text, true) from journal_fixture;
+select pg_temp.assert_error(
+  format('select public.transition_recruitment_pipeline(%L::uuid,%L::uuid,''signature'',p_confirmed=>true,p_signature_at=>now())',
+    (select id from rpc_relationship), tenant_a),
+  'Insufficient role for recruitment pipeline transition.') from journal_fixture;
+reset role;
+insert into public.tenant_users(tenant_id,user_id,role_id)
+select tenant_b,owner_a,(select id from public.roles where slug='owner') from journal_fixture;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', owner_a::text, true) from journal_fixture;
+select pg_temp.assert_error(
+  format('select public.manage_tenant_member(%L::uuid,''suspend'')',reader_a),
+  'TENANT_CONTEXT_AMBIGUOUS') from journal_fixture;
+select pg_temp.assert_error('select public.list_tenant_members_for_admin()', 'TENANT_CONTEXT_AMBIGUOUS');
+reset role;
+select pg_temp.assert_true(exists(select 1 from public.tenant_users
+  where user_id=(select reader_a from journal_fixture) and status='active'),
+  'ambiguous tenant request did not suspend any member');
 rollback;
 \echo Security hardening SQL checks passed.
