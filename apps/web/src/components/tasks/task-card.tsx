@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import type { MouseEvent } from "react";
 import { TASK_PRIORITY_LABELS, TASK_STATUS_LABELS } from "@/features/tasks/options";
 import type { TaskListItem } from "@/repositories/tasks";
 
@@ -12,8 +16,18 @@ function isOverdue(task: TaskListItem) {
 }
 
 export function TaskCard({ task }: { task: TaskListItem }) {
+  const router = useRouter();
+  const taskHref = `/tasks/${task.id}`;
+
+  function openTask(event: MouseEvent<HTMLAnchorElement>) {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    const returnTo = `${window.location.pathname}${window.location.search}`;
+    router.push(`${taskHref}?returnTo=${encodeURIComponent(returnTo)}`);
+  }
+
   return (
-    <Link className={`card task-card stack ${isOverdue(task) ? "task-overdue" : ""}`} href={`/tasks/${task.id}`}>
+    <Link className={`card task-card stack ${isOverdue(task) ? "task-overdue" : ""}`} href={taskHref} onClick={openTask}>
       <div>
         <p className="muted">{TASK_STATUS_LABELS[task.status]} - {TASK_PRIORITY_LABELS[task.priority]}</p>
         <h2>{task.title}</h2>

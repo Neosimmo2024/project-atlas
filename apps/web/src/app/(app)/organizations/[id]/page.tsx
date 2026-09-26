@@ -30,6 +30,19 @@ function valueOf(params: Record<string, string | string[] | undefined>, key: str
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
 
+function safeOrganizationReturnTo(value: string) {
+  if (!value) return "/organizations";
+
+  try {
+    const parsed = new URL(value, "http://atlas.local");
+    const isRelationshipReturn = /^\/relationships\/[^/]+$/.test(parsed.pathname);
+    if (parsed.origin !== "http://atlas.local" || !isRelationshipReturn) return "/organizations";
+    return `${parsed.pathname}${parsed.search}`;
+  } catch {
+    return "/organizations";
+  }
+}
+
 export default async function OrganizationDetailPage({ params, searchParams }: OrganizationDetailPageProps) {
   const { id } = await params;
   const query = await searchParams;
@@ -40,6 +53,10 @@ export default async function OrganizationDetailPage({ params, searchParams }: O
   if (!detail) notFound();
 
   const { organization, parent, children, people, relationships } = detail;
+  const returnTo = safeOrganizationReturnTo(valueOf(query, "returnTo"));
+  const organizationReturnPath = returnTo === "/organizations"
+    ? `/organizations/${organization.id}`
+    : `/organizations/${organization.id}?returnTo=${encodeURIComponent(returnTo)}`;
   const timelineCategory = normalizeTimelineCategory(valueOf(query, "timelineCategory"));
   const timelinePage = Number(valueOf(query, "timelinePage") || 1);
   const [parentOptions, chronology, tasks, projects] = await Promise.all([
@@ -58,7 +75,7 @@ export default async function OrganizationDetailPage({ params, searchParams }: O
           <p className="muted">Organisations</p>
           <h1>{organization.name}</h1>
         </div>
-        <SafeBackLink fallbackHref="/organizations" />
+        <SafeBackLink fallbackHref={returnTo} useHistory={returnTo === "/organizations"} />
       </header>
 
       <div className="grid">
@@ -114,7 +131,7 @@ export default async function OrganizationDetailPage({ params, searchParams }: O
         <h2>Personnes liées</h2>
         {people.length === 0 ? <p className="muted">Aucune personne liée.</p> : people.map(({ person, relationship }) => (
           <p key={relationship.id}>
-            <Link href={`/people/${person.id}`}>{person.display_name}</Link>
+            <Link href={`/people/${person.id}?returnTo=${encodeURIComponent(organizationReturnPath)}`}>{person.display_name}</Link>
             {" - "}
             {person.job_title ?? relationship.relationship_type}
           </p>
@@ -128,7 +145,7 @@ export default async function OrganizationDetailPage({ params, searchParams }: O
         ))}
       </section>
 
-      <ContextProjects result={projects} newHref={`/projects/new?organizationId=${organization.id}`} allHref={`/projects?organizationId=${organization.id}`} />
+      <ContextProjects result={projects} newHref={`/projects/new?organizationId=${organization.id}&returnTo=${encodeURIComponent(organizationReturnPath)}`} allHref={`/projects?organizationId=${organization.id}`} />
 
       <section className="card stack">
         <div className="page-header">
@@ -142,7 +159,7 @@ export default async function OrganizationDetailPage({ params, searchParams }: O
       <section className="card stack">
         <div className="page-header">
           <h2>Tâches liées</h2>
-          <Link className="button subtle-button" href={`/tasks/new?sourceType=organization&sourceId=${organization.id}&organizationId=${organization.id}`}>Nouvelle tâche</Link>
+          <Link className="button subtle-button" href={`/tasks/new?sourceType=organization&sourceId=${organization.id}&organizationId=${organization.id}&returnTo=${encodeURIComponent(organizationReturnPath)}`}>Nouvelle tâche</Link>
         </div>
         {valueOf(query, "taskDeleted") === "1" ? <p className="success">Tâche supprimée.</p> : null}
         {tasks.tasks.length === 0 ? <p className="muted">Aucune tâche liée.</p> : tasks.tasks.map((task) => <TaskCard key={task.id} task={task} />)}

@@ -312,6 +312,110 @@ jobs:
       - name: Seed fictitious QA data
         run: node scripts/seed-supabase-qa.mjs
 
+
+      - name: Verify local logical backup restoration
+        shell: bash
+        run: |
+          set -euo pipefail
+          # This check only accepts the ephemeral CI database, never a hosted project.
+          node --input-type=module <<'JS'
+          const url = new URL(process.env.QA_DB_URL);
+          if (process.env.CI !== "true" || !["127.0.0.1", "localhost"].includes(url.hostname)
+              || url.port !== "54322" || url.pathname !== "/postgres" || url.search) {
+            throw new Error("Backup verification requires the local CI database.");
+          }
+          JS
+          umask 077
+          backup_dir="$(mktemp -d)"
+          restore_db="atlas_restore_$(openssl rand -hex 8)"
+          restore_url="${QA_DB_URL%/postgres}/$restore_db"
+          created=false
+          cleanup() {
+            if [ "$created" = true ]; then
+              psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -q -c "DROP DATABASE \"$restore_db\";" >/dev/null
+            fi
+            if [ -n "${db_container:-}" ] && [ -n "${container_dump:-}" ]; then
+              docker exec "$db_container" rm -f "$container_dump" >/dev/null 2>&1 || true
+            fi
+            rm -rf "$backup_dir"
+          }
+          trap cleanup EXIT
+          cat > "$backup_dir/manifest.sql" <<'SQL'
+          create temporary table restore_manifest (object_name text, row_count bigint, digest text, rls boolean);
+          do $atlas_restore$
+          declare t record;
+          begin
+            for t in
+              select n.nspname, c.relname, c.relrowsecurity
+              from pg_class c join pg_namespace n on n.oid = c.relnamespace
+              where n.nspname in ('public', 'auth', 'storage') and c.relkind = 'r'
+              order by n.nspname, c.relname
+            loop
+              execute format(
+                'insert into restore_manifest select %L, count(*), md5(coalesce(string_agg(to_jsonb(r)::text, E''\\n'' order by to_jsonb(r)::text), '''')), %L from %I.%I r',
+                t.nspname || '.' || t.relname, t.relrowsecurity, t.nspname, t.relname
+              );
+            end loop;
+          end $atlas_restore$;
+          select object_name, row_count, digest, rls from restore_manifest order by object_name;
+          select schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
+          from pg_policies where schemaname in ('public', 'auth', 'storage')
+          order by schemaname, tablename, policyname;
+          SQL
+          psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -qAt -f "$backup_dir/manifest.sql" > "$backup_dir/before"
+          # Dump and restore with the matching PostgreSQL tools bundled in the
+          # ephemeral local Supabase database container.
+          db_container="$(docker ps --format '{{.Names}}' | grep -E '^supabase_db_' | head -1)"
+          if [ -z "$db_container" ]; then
+            echo "Local Supabase database container was not found."
+            exit 1
+          fi
+          container_dump="/tmp/$restore_db.dump"
+          # Reuse the ephemeral local password without printing it or placing it
+          # directly in the command line.
+          PGPASSWORD="$(node --input-type=module -e 'const u = new URL(process.env.QA_DB_URL); process.stdout.write(decodeURIComponent(u.password));')"
+          export PGPASSWORD
+          # Export exactly the public/auth/storage schemas whose data, RLS and
+          # policies are compared below. Supabase-managed API helper schemas and
+          # their cross-schema default privileges are intentionally out of scope.
+          docker exec -e PGPASSWORD "$db_container" pg_dump --username=supabase_admin --dbname=postgres --format=custom --schema=public --schema=auth --schema=storage --file="$container_dump"
+          psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -q -c "CREATE DATABASE \"$restore_db\" TEMPLATE template0;" >/dev/null
+          created=true
+          # template0 already provides an empty public schema. Remove only that
+          # empty schema in the newly created temporary database so the archive
+          # recreates it with its grants. RESTRICT fails if it is not empty.
+          docker exec -e PGPASSWORD "$db_container" psql --username=supabase_admin --dbname="$restore_db" -X -v ON_ERROR_STOP=1 -q -c 'DROP SCHEMA public RESTRICT;'
+          # Restore as the managed local admin role, without granting extra
+          # privileges to the application's connection role.
+          # Capture errors privately; never print restored data or credentials.
+          if ! docker exec -e PGPASSWORD "$db_container" pg_restore --username=supabase_admin --dbname="$restore_db" --exit-on-error --no-owner "$container_dump" 2>"$backup_dir/restore-errors"; then
+            echo "Logical restore failed; database object error summary:"
+            sed -n 's/^pg_restore: error: /ERROR: /p' "$backup_dir/restore-errors" | head -5
+            exit 1
+          fi
+          unset PGPASSWORD
+          psql "$restore_url" -X -v ON_ERROR_STOP=1 -qAt -f "$backup_dir/manifest.sql" > "$backup_dir/after"
+          if ! cmp -s "$backup_dir/before" "$backup_dir/after"; then
+            echo "Restored table contents, row counts, RLS flags or policies differ."
+            exit 1
+          fi
+          echo "Local logical backup restored: table contents, row counts, RLS flags and policies match."
+          echo "Only fictitious CI data was used; no remote database was contacted."
+
+      - name: Verify Brevo contact journal locally
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          const u = new URL(process.env.QA_DB_URL);
+          if (process.env.CI !== "true" || !["127.0.0.1", "localhost"].includes(u.hostname)
+              || u.port !== "54322" || u.pathname !== "/postgres" || u.search) {
+            throw new Error("Journal verification requires the local CI database.");
+          }
+          JS
+          psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -q -f scripts/test-brevo-contact-journal.sql
+          psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -q -f scripts/test-security-hardening.sql
+          supabase db advisors --local --type security --level error --fail-on none
+
       - name: Unit tests
         run: npm test
 
@@ -331,7 +435,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm run dev -- --hostname 127.0.0.1 --port 3000 > next.log 2>&1 &
+          npx next start --hostname 127.0.0.1 --port 3000 > next.log 2>&1 &
           echo "$!" > next.pid
           for attempt in {1..90}; do
             if curl -fsS http://127.0.0.1:3000/api/health >/dev/null; then
@@ -344,7 +448,7 @@ jobs:
         working-directory: apps/web
 
       - name: E2E tests
-        run: npm --workspace apps/web run e2e -- e2e/foundation-ui.e2e.spec.ts e2e/projects.e2e.spec.ts e2e/recruitment-pipeline.e2e.spec.ts e2e/recruitment-pipeline-ui.e2e.spec.ts e2e/csv-import-history.e2e.spec.ts --workers=1
+        run: npm --workspace apps/web run e2e -- e2e/foundation-ui.e2e.spec.ts e2e/projects.e2e.spec.ts e2e/relationships.e2e.spec.ts e2e/recruitment-pipeline.e2e.spec.ts e2e/recruitment-pipeline-ui.e2e.spec.ts e2e/csv-import-history.e2e.spec.ts e2e/tasks.e2e.spec.ts e2e/interactions.e2e.spec.ts e2e/security-csp.e2e.spec.ts --workers=1
 
       - name: Upload Pipeline visual QA artifacts
         if: always()
@@ -372,3 +476,4 @@ jobs:
             kill "$(cat apps/web/next.pid)" || true
           fi
           supabase stop || true
+

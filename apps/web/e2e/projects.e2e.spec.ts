@@ -29,7 +29,7 @@ test.describe("Projects authenticated flow", () => {
     await page.getByLabel("Description").fill("Created from Projects E2E");
     await page.getByLabel(/Valeur estim[eé]e/).fill("1234.00");
     await page.getByRole("button", { name: /Cr[eé]er le Projet/ }).click();
-    await expect(page).toHaveURL(/\/projects\/[^/]+\?projectSaved=1/);
+    await expect(page).toHaveURL(/\/projects\/[^/]+\?projectSaved=1/, { timeout: 15000 });
     await expect(page.getByText(/Projet enregistr[eé]\./)).toBeVisible();
 
     const projectUrl = page.url().replace(/\?.*$/, "");

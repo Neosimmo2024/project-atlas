@@ -1,3 +1,4 @@
+import { logServerError } from "@/lib/security/logger";
 import { NextResponse } from "next/server";
 import {
   isAuthorizedRecruitmentOrchestrator,
@@ -14,8 +15,9 @@ export async function POST(request: Request) {
   try {
     const summary = await runRecruitmentEmailOrchestration();
     return NextResponse.json({ data: summary });
-  } catch (error) {
-    console.error("Recruitment email orchestration failed", error);
+  } catch {
+    logServerError("Recruitment email orchestration failed");
     return NextResponse.json({ error: "Recruitment email orchestration failed." }, { status: 500 });
   }
 }
+

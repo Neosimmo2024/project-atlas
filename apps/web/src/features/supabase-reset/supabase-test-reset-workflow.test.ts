@@ -95,7 +95,7 @@ describe("Supabase test reset workflow", () => {
     }
   });
 
-  it("tracks canonical repository migrations through 0021 while keeping the remote reset lock at validated 0019", () => {
+  it("tracks canonical repository migrations including the contact journal while keeping the remote reset lock at validated 0019", () => {
     const migrations = readdirSync(resolve(root, "supabase/migrations")).filter((name) => name.endsWith(".sql")).sort();
     expect(migrations).toEqual([
       "0001_core.sql",
@@ -118,7 +118,10 @@ describe("Supabase test reset workflow", () => {
       "0018_recruitment_initial_email_sequence.sql",
       "0019_recruitment_email_template_management.sql",
       "0020_recruitment_sequence_engine.sql",
-      "0021_csv_import_direct_write_hardening.sql"
+      "0021_csv_import_direct_write_hardening.sql",
+      "20260924195950_brevo_contact_sync_journal.sql",
+      "20260925222113_security_audit_hardening.sql",
+      "20260926060617_privileged_rpc_validation.sql"
     ]);
     expect(workflow).toContain("Refusing reset: migration set is not exactly 0001 through 0019.");
     expect(workflow).not.toContain("Refusing reset: migration set is not exactly 0001 through 0021.");

@@ -28,7 +28,10 @@ export const EXPECTED_MIGRATIONS = [
   "0018_recruitment_initial_email_sequence.sql",
   "0019_recruitment_email_template_management.sql",
   "0020_recruitment_sequence_engine.sql",
-  "0021_csv_import_direct_write_hardening.sql"
+  "0021_csv_import_direct_write_hardening.sql",
+  "20260924195950_brevo_contact_sync_journal.sql",
+  "20260925222113_security_audit_hardening.sql",
+      "20260926060617_privileged_rpc_validation.sql"
 ];
 export const EXPECTED_COUNTS = Object.freeze({
   "auth.users": 1,
@@ -46,7 +49,8 @@ export const EXPECTED_COUNTS = Object.freeze({
   "public.audit_log": 29,
   "public.action_plan_decisions": 0,
   "public.recruitment_email_sequences": 0,
-  "public.recruitment_email_template_versions": 0
+  "public.recruitment_email_template_versions": 0,
+  "public.brevo_contact_sync_attempts": 0
 });
 export const LOCAL_AUTH_READINESS = Object.freeze({
   timeoutMs: 120000,
@@ -361,7 +365,7 @@ function verifyMigrationSet() {
   const actual = migrations.join("\n");
   const expected = EXPECTED_MIGRATIONS.join("\n");
   if (actual !== expected) {
-    throw new Error("Migration set is not exactly 0001 through 0021.");
+    throw new Error("Migration set does not match the exact expected migration list.");
   }
 }
 
@@ -406,6 +410,7 @@ from (
   union all select 'public.action_plan_decisions', count(*)::integer from public.action_plan_decisions
   union all select 'public.recruitment_email_sequences', count(*)::integer from public.recruitment_email_sequences
   union all select 'public.recruitment_email_template_versions', count(*)::integer from public.recruitment_email_template_versions
+  union all select 'public.brevo_contact_sync_attempts', count(*)::integer from public.brevo_contact_sync_attempts
 ) counts;
 `);
   return JSON.parse(output);
@@ -580,13 +585,13 @@ declare
 begin
   select count(*)
   into missing_version_count
-  from unnest(array['0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011','0012','0013','0014','0015','0016','0017','0018','0019','0020','0021']) as version_prefix
+  from unnest(array['0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011','0012','0013','0014','0015','0016','0017','0018','0019','0020','0021','20260924195950','20260925222113','20260926060617']) as version_prefix
   where not exists (
     select 1 from supabase_migrations.schema_migrations sm
     where sm.version like version_prefix || '%'
   );
   if missing_version_count > 0 then
-    raise exception 'Expected migration history 0001 through 0021 is incomplete.';
+    raise exception 'Expected migration history including the contact journal is incomplete.';
   end if;
 
   select count(*)
@@ -609,7 +614,8 @@ begin
     'public.csv_import_runs',
     'public.recruitment_email_sequences',
     'public.recruitment_email_template_versions',
-    'public.recruitment_email_sequence_steps'
+    'public.recruitment_email_sequence_steps',
+    'public.brevo_contact_sync_attempts'
   ]) as table_name
   where to_regclass(table_name) is null;
   if missing_table_count > 0 then
@@ -634,7 +640,8 @@ begin
     'csv_import_runs',
     'recruitment_email_sequences',
     'recruitment_email_template_versions',
-    'recruitment_email_sequence_steps'
+    'recruitment_email_sequence_steps',
+    'brevo_contact_sync_attempts'
   ]) as table_name
   where not exists (
     select 1
@@ -828,3 +835,4 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     process.exit(1);
   });
 }
+
