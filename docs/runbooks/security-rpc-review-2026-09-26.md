@@ -38,3 +38,36 @@ Référence : https://supabase.com/docs/guides/observability/advisors?queryGroup
 ## Validation des scripts et du serveur
 
 La CI exécute désormais les parcours navigateur avec next start après compilation. Le test security-csp.e2e.spec.ts vérifie les nonces des scripts Next.js, leur renouvellement et le blocage effectif d’un script inline injecté sans nonce. Les tests du middleware couvrent aussi le remplacement des en-têtes fournis par un client et la présence de la politique sur redirection/refus CSRF.
+
+## Diagnostic d'une prochaine réponse pilote (préparé, inactif)
+
+Le message sortant du 25 septembre à 17:04 a passé SPF/DKIM/DMARC chez Gmail.
+Sa réponse à 17:20 est arrivée dans Atlas, classée sender_mismatch car elle venait
+de l'adresse principale plutôt que de l'alias +atlasqa. La séquence est arrêtée.
+L'authentification SMTP de cette réponse chez Brevo n'est pas établie par ces faits.
+
+Un diagnostic opt-in collecte seulement Authentication-Results,
+ARC-Authentication-Results et Received-SPF dans les métadonnées de l'événement
+existant, sous inbound_auth_diagnostic. Chaque nom est limité à deux valeurs de
+2048 caractères. Aucun corps, pièce jointe, cookie ou en-tête d'autorisation n'est
+ajouté par ce diagnostic. Les valeurs restent du texte non fiable, sans décision
+de sécurité fondée sur « pass » ; un expéditeur divergent reste à vérifier.
+
+Activation possible uniquement sur le projet Vercel QA
+prj_V0z2DwPzzhgWJxuv7iEEHWMG2yon, en preview, avec l'URL Supabase QA exacte :
+- ATLAS_INBOUND_DIAGNOSTIC_SEQUENCE_ID : UUID d'une seule séquence de test autorisée ;
+- ATLAS_INBOUND_DIAGNOSTIC_UNTIL : date ISO d'expiration UTC, à moins d'une heure.
+
+Ces variables ne sont pas configurées par ce lot. Le webhook pilote reste sur
+son ancien déploiement. Avant tout test réel : autoriser l'email et la réponse,
+préparer la séquence fictive, pointer le webhook sur la version QA validée avec
+son secret inchangé, puis vérifier le ciblage. Ne pas rejouer le message historique :
+son idempotence empêche une nouvelle collecte. Garder le cron désactivé.
+
+Après le test : lire seulement l'événement de cette séquence via un accès autorisé,
+confronter les noms de récepteurs et les résultats aux garanties de Brevo avant
+leur interprétation, retirer les deux variables et supprimer la seule clé
+inbound_auth_diagnostic de l'événement ciblé après consignation d'un bilan sans
+valeurs brutes. L'expiration arrête la collecte mais ne supprime pas les preuves
+déjà enregistrées. La visibilité de ces métadonnées reste celle du tenant QA.
+La collecte ne lève pas à elle seule la réserve d'authentification des réponses.

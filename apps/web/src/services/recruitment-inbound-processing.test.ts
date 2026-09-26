@@ -62,6 +62,7 @@ afterEach(() => {
   expect(results).toEqual([]);
   expect(fetch).not.toHaveBeenCalled();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   vi.clearAllMocks();
 });
 
@@ -85,6 +86,26 @@ describe("Brevo inbound reply processing with a simulated database", () => {
     expect(await processBrevoInboundReplies({ items: [{ ...item, From: { Address: "other@example.invalid" } }] })).toMatchObject({ processed: 1, reviewRequired: 1, stopped: 0 });
     expect(writes()).toHaveLength(1);
     expect(write("timeline_events", "upsert")).toMatchObject({ event_type: "recruitment_email_error", metadata: { reason: "sender_mismatch", follow_up_task_id: null } });
+  });
+  it("captures untrusted evidence only for the QA pilot without accepting a mismatched sender", async () => {
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("VERCEL_PROJECT_ID", "prj_V0z2DwPzzhgWJxuv7iEEHWMG2yon");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://mahgxumwucxehsooijag.supabase.co");
+    vi.stubEnv("ATLAS_INBOUND_DIAGNOSTIC_SEQUENCE_ID", sequence.id);
+    vi.stubEnv("ATLAS_INBOUND_DIAGNOSTIC_UNTIL", new Date(Date.now() + 30 * 60 * 1000).toISOString());
+    result("recruitment_email_sequences", sequence); result("timeline_events"); result("timeline_events");
+    expect(await processBrevoInboundReplies({ items: [{ ...item,
+      From: { Address: "other@example.invalid" },
+      Headers: { "Authentication-Results": "attacker.invalid; dmarc=pass", Authorization: "do-not-store" },
+    }] })).toMatchObject({ processed: 1, reviewRequired: 1, stopped: 0 });
+    expect(writes()).toHaveLength(1);
+    expect(write("timeline_events", "upsert")).toMatchObject({ metadata: {
+      reason: "sender_mismatch", follow_up_task_id: null,
+      inbound_auth_diagnostic: { trust: "unverified_email_headers", headers: {
+        "authentication-results": ["attacker.invalid; dmarc=pass"],
+      } },
+    } });
+    expect(JSON.stringify(writes())).not.toContain("do-not-store");
   });
   it.each(["stopped", "completed"])("preserves a %s sequence while creating the response task", async terminal => {
     matchingReply({ terminal });

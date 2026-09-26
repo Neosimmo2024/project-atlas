@@ -1,10 +1,12 @@
 import { timingSafeEqual } from "node:crypto";
+import { collectInboundDiagnostic } from "./recruitment-inbound-diagnostic";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 
 type Mailbox = { Address?: string | null; Name?: string | null };
 type Recipient = Mailbox | string;
 
 export type BrevoInboundEmail = {
+  Headers?: unknown;
   MessageId?: string | null;
   InReplyTo?: string | null;
   From?: Mailbox | null;
@@ -233,6 +235,7 @@ async function insertReplyEvent(input: {
   followUpTaskId?: string | null;
 }) {
   const messageId = input.item.MessageId!.trim();
+  const diagnostic = collectInboundDiagnostic(input.sequence.id, input.item.Headers);
   const supabase = createSupabaseServiceRoleClient();
   const { error } = await supabase.from("timeline_events").upsert({
     tenant_id: input.sequence.tenant_id,
@@ -254,7 +257,8 @@ async function insertReplyEvent(input: {
       sent_at: input.item.SentAtDate ?? null,
       reply_excerpt: replyExcerpt(input.item.ExtractedMarkdownMessage),
       follow_up_task_id: input.followUpTaskId ?? null,
-      source: "brevo_inbound_parsing"
+      source: "brevo_inbound_parsing",
+      ...(diagnostic ? { inbound_auth_diagnostic: diagnostic } : {})
     },
     visibility: "tenant",
     idempotency_key: eventKey(messageId)
