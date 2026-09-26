@@ -435,7 +435,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm run dev -- --hostname 127.0.0.1 --port 3000 > next.log 2>&1 &
+          npx next start --hostname 127.0.0.1 --port 3000 > next.log 2>&1 &
           echo "$!" > next.pid
           for attempt in {1..90}; do
             if curl -fsS http://127.0.0.1:3000/api/health >/dev/null; then
@@ -448,7 +448,7 @@ jobs:
         working-directory: apps/web
 
       - name: E2E tests
-        run: npm --workspace apps/web run e2e -- e2e/foundation-ui.e2e.spec.ts e2e/projects.e2e.spec.ts e2e/relationships.e2e.spec.ts e2e/recruitment-pipeline.e2e.spec.ts e2e/recruitment-pipeline-ui.e2e.spec.ts e2e/csv-import-history.e2e.spec.ts e2e/tasks.e2e.spec.ts e2e/interactions.e2e.spec.ts --workers=1
+        run: npm --workspace apps/web run e2e -- e2e/foundation-ui.e2e.spec.ts e2e/projects.e2e.spec.ts e2e/relationships.e2e.spec.ts e2e/recruitment-pipeline.e2e.spec.ts e2e/recruitment-pipeline-ui.e2e.spec.ts e2e/csv-import-history.e2e.spec.ts e2e/tasks.e2e.spec.ts e2e/interactions.e2e.spec.ts e2e/security-csp.e2e.spec.ts --workers=1
 
       - name: Upload Pipeline visual QA artifacts
         if: always()

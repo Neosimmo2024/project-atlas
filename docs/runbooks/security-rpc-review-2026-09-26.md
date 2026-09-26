@@ -28,9 +28,13 @@ Le script transactionnel scripts/test-security-hardening.sql vérifie les confir
 
 ## Limites et suites
 
-- L'avertissement de protection des mots de passe compromis demeure tant que l'option Auth n'est pas activée dans le tableau de bord connecté.
+- La protection des mots de passe compromis est activée en QA et son alerte Supabase a disparu (contrôle du 26 septembre).
 - Les états de synchronisation/envoi Brevo restent déclarables par les rôles métier autorisés via RPC ; la vérification de la preuve fournisseur est effectuée par les services applicatifs, pas par PostgreSQL. Un durcissement réservant ces écritures de résultat au serveur demande une évolution coordonnée des services et RPC.
-- La CSP autorise encore certains scripts/styles inline ; SPF/DKIM et un marqueur server-only explicite restent à traiter.
+- La CSP des scripts utilise désormais un nonce aléatoire par réponse, transmis au rendu Next.js après remplacement de toute valeur fournie par le client. Les scripts inline sans nonce sont interdits ; unsafe-eval reste limité au développement. Les pages sont rendues dynamiquement pour éviter de réutiliser un nonce mis en cache, ce qui augmente le travail serveur pour les anciennes pages publiques statiques. Les styles inline restent autorisés pour préserver les styles React existants. SPF/DKIM reste à vérifier. Le module Supabase privilégié est marqué server-only ; le mock de ce marqueur est strictement réservé à Vitest.
 - Le cron QA reste arrêté et les cibles webhook/cron du pilote restent inchangées.
 
 Référence : https://supabase.com/docs/guides/observability/advisors?queryGroups=lint&lint=0029_authenticated_security_definer_function_executable
+
+## Validation des scripts et du serveur
+
+La CI exécute désormais les parcours navigateur avec next start après compilation. Le test security-csp.e2e.spec.ts vérifie les nonces des scripts Next.js, leur renouvellement et le blocage effectif d’un script inline injecté sans nonce. Les tests du middleware couvrent aussi le remplacement des en-têtes fournis par un client et la présence de la politique sur redirection/refus CSRF.

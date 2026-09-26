@@ -8,10 +8,12 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/(.*)",
-        headers: buildSecurityHeaders()
+        // The middleware supplies the per-request CSP.
+        headers: buildSecurityHeaders().filter((header) => header.key !== "Content-Security-Policy")
       }
     ];
   }
 };
 
 export default nextConfig;
+

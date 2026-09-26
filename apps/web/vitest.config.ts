@@ -6,9 +6,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export default defineConfig({
+  test: { setupFiles: [resolve(__dirname, "test/setup.ts")] },
   resolve: {
     alias: {
       "@": resolve(__dirname, "src")
     }
   }
 });
+
