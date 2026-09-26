@@ -15,19 +15,24 @@ test("production CSP authorizes framework scripts, blocks injected inline script
   const scripts = await page.locator("script").evaluateAll((nodes) => nodes.map((node) => ({ nonce: (node as HTMLScriptElement).nonce, type: (node as HTMLScriptElement).type })));
   expect(scripts.length).toBeGreaterThan(0);
   expect(scripts.filter((script) => !script.type || script.type === "text/javascript").every((script) => script.nonce === nonce)).toBe(true);
-  const blocked = await page.evaluate(async () => {
-    return await new Promise<boolean>((resolve) => {
-      const marker = "data-csp-injection-ran";
-      document.addEventListener("securitypolicyviolation", (event) => {
-        if (event.violatedDirective.startsWith("script-src")) resolve(!document.documentElement.hasAttribute(marker));
-      });
-      const script = document.createElement("script");
-      script.textContent = `document.documentElement.setAttribute('${marker}', 'yes')`;
-      document.body.appendChild(script);
-      setTimeout(() => resolve(false), 3000);
-    });
-  });
-  expect(blocked).toBe(true);
   const next = await page.reload();
   expect(next!.headers()["content-security-policy"]).not.toContain(`'nonce-${nonce}'`);
+
+  // Inject into the HTTP document: DevTools evaluate/createElement is not a
+  // parser-inserted injection and inherits strict-dynamic script trust.
+  await page.route("**/login", async (route) => {
+    const original = await route.fetch();
+    const html = await original.text();
+    expect(html).toContain("</head>");
+    await route.fulfill({
+      response: original,
+      body: html.replace("</head>", '<script>window.__cspInjectionRan = true;</script></head>'),
+    });
+  });
+  const violation = page.waitForEvent("console", {
+    predicate: (message) => /inline/i.test(message.text()) && /Content Security Policy/i.test(message.text()),
+  });
+  await page.reload();
+  expect((await violation).type()).toBe("error");
+  expect(await page.evaluate(() => "__cspInjectionRan" in window)).toBe(false);
 });
