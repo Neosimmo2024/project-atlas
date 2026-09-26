@@ -205,7 +205,7 @@ begin
 
   return v_updated;
 end;
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.manage_tenant_member(p_target_user_id uuid, p_action text, p_role_slug text DEFAULT NULL::text)
  RETURNS TABLE(tenant_user_id uuid, tenant_id uuid, user_id uuid, role_slug text, status text)
@@ -346,7 +346,7 @@ begin
   join public.roles r on r.id = tu.role_id
   where tu.id = v_target_tenant_user_id;
 end;
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.analyze_csv_import_cancellation(p_tenant_id uuid, p_import_run_id uuid, p_actor_user_id uuid)
  RETURNS jsonb
@@ -369,7 +369,7 @@ begin
 
   return public._csv_import_created_entity_report(p_tenant_id, p_import_run_id);
 end;
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.cancel_csv_import(p_tenant_id uuid, p_import_run_id uuid, p_idempotency_key text, p_actor_user_id uuid, p_confirm boolean)
  RETURNS jsonb
@@ -569,4 +569,4 @@ begin
 
   return v_report;
 end;
-$function$
+$function$;
