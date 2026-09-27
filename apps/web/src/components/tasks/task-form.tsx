@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { atlasDateTimeInputToIso, toAtlasDateTimeInput } from "@/lib/date-time";
 import { TASK_PRIORITY_OPTIONS, TASK_STATUS_OPTIONS } from "@/features/tasks/options";
 import { projectMatchesTaskContext } from "@/features/tasks/project-options";
 import { RELATIONSHIP_PIPELINE_STAGE_LABELS, RELATIONSHIP_TYPE_LABELS } from "@/features/relationships/options";
@@ -29,13 +30,6 @@ function valueOrEmpty(value: string | number | Record<string, unknown> | null | 
   return value ?? "";
 }
 
-function toDateTimeLocal(value: string | null | undefined) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString().slice(0, 16);
-}
-
 function defaultValue(task: Task | undefined, defaults: TaskFormProps["defaults"], key: keyof NonNullable<TaskFormProps["defaults"]>) {
   return task?.[key] ?? defaults?.[key] ?? "";
 }
@@ -46,7 +40,7 @@ function relationshipLabel(relationship: TaskRelationshipOption) {
   return `${type} - ${stage}`;
 }
 
-function formToPayload(form: HTMLFormElement) {
+function formToPayload(form: HTMLFormElement, originalDueAt?: string | null) {
   const data = new FormData(form);
   const sourceType = String(data.get("source_type") ?? "") as TaskSourceType | "";
   return {
@@ -54,7 +48,7 @@ function formToPayload(form: HTMLFormElement) {
     description: String(data.get("description") ?? ""),
     status: String(data.get("status") ?? "todo"),
     priority: String(data.get("priority") ?? "normal"),
-    due_at: String(data.get("due_at") ?? ""),
+    due_at: atlasDateTimeInputToIso(String(data.get("due_at") ?? ""), originalDueAt),
     assigned_to: String(data.get("assigned_to") ?? ""),
     person_id: String(data.get("person_id") ?? ""),
     organization_id: String(data.get("organization_id") ?? ""),
@@ -132,7 +126,7 @@ export function TaskForm({ mode, task, returnTo, defaults, peopleOptions, organi
       const response = await fetch(endpoint, {
         method: mode === "create" ? "POST" : "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(formToPayload(event.currentTarget))
+        body: JSON.stringify(formToPayload(event.currentTarget, task?.due_at ?? defaults?.due_at))
       });
       const result = await readResponseBody(response);
 
@@ -172,7 +166,7 @@ export function TaskForm({ mode, task, returnTo, defaults, peopleOptions, organi
           </select>
           <FieldError name="priority" />
         </label>
-        <label>Échéance<Input name="due_at" type="datetime-local" defaultValue={toDateTimeLocal(task?.due_at)} /><FieldError name="due_at" /></label>
+        <label>Échéance<Input name="due_at" type="datetime-local" aria-describedby="task-due-at-help" defaultValue={toAtlasDateTimeInput(task?.due_at ?? defaults?.due_at)} /><span id="task-due-at-help" className="field-help">Heure de Paris (été/hiver).</span><FieldError name="due_at" /></label>
       </div>
       <input type="hidden" name="assigned_to" value={valueOrEmpty(task?.assigned_to) as string} />
 

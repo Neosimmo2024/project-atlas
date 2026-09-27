@@ -53,9 +53,17 @@ test.describe("Tasks authenticated flow", () => {
     await page.getByRole("link", { name: "Nouvelle tâche" }).click();
     await page.getByLabel("Titre").fill(marker);
     await page.getByLabel("Description").fill("Created from Tasks E2E");
+    await page.getByLabel("Échéance", { exact: true }).fill("2026-09-25T18:22");
+    const createTaskResponse = page.waitForResponse((response) =>
+      response.request().method() === "POST" && new URL(response.url()).pathname === "/api/tasks"
+    );
     await page.getByRole("button", { name: "Enregistrer" }).click();
     await expect(page).toHaveURL(/\/tasks\/[0-9a-f-]{36}(?:\?.*)?$/i);
     await expect(page).toHaveURL(/returnTo=%2Fpeople%2F/);
+    const createdTask = await (await createTaskResponse).json();
+    expect(new Date(createdTask.data.due_at).toISOString()).toBe("2026-09-25T16:22:00.000Z");
+    await expect(page.getByLabel("Échéance", { exact: true })).toHaveValue("2026-09-25T18:22");
+    await expect(page.locator("section").filter({ has: page.getByRole("heading", { name: "Statut", exact: true }) })).toContainText("18:22");
     await page.getByRole("link", { name: "Retour" }).click();
     await expect(page).toHaveURL(personUrl);
 
@@ -76,7 +84,11 @@ test.describe("Tasks authenticated flow", () => {
       && new URL(response.url()).pathname === `/api/tasks/${new URL(page.url()).pathname.split("/").pop()}`
     );
     await page.getByRole("button", { name: "Enregistrer" }).click();
-    expect((await updateResponse).ok()).toBeTruthy();
+    const savedTaskResponse = await updateResponse;
+    expect(savedTaskResponse.ok()).toBeTruthy();
+    const savedTask = await savedTaskResponse.json();
+    expect(new Date(savedTask.data.due_at).toISOString()).toBe("2026-09-25T16:22:00.000Z");
+    await expect(page.getByLabel("Échéance", { exact: true })).toHaveValue("2026-09-25T18:22");
     await expect(page.locator("p").filter({ hasText: "Updated from Tasks E2E" })).toBeVisible({ timeout: 15000 });
 
     await page.getByRole("button", { name: "Terminer" }).click();

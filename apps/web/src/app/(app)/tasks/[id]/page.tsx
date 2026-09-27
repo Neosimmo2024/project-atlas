@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatAtlasDate } from "@/lib/date-time";
 import { notFound } from "next/navigation";
 import { DeleteTaskButton } from "@/components/tasks/delete-task-button";
 import { SafeBackLink } from "@/components/navigation/safe-back-link";
@@ -24,7 +25,7 @@ type TaskDetailPageProps = {
 
 function formatDate(value: string | null) {
   if (!value) return "-";
-  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  return formatAtlasDate(value) ?? "-";
 }
 
 function valueOf(params: Record<string, string | string[] | undefined>, key: string) {

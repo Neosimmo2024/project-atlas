@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { formatAtlasDate } from "@/lib/date-time";
 import { useRouter } from "next/navigation";
 import type { MouseEvent } from "react";
 import { TASK_PRIORITY_LABELS, TASK_STATUS_LABELS } from "@/features/tasks/options";
@@ -8,7 +9,7 @@ import type { TaskListItem } from "@/repositories/tasks";
 
 function formatDate(value: string | null) {
   if (!value) return "Aucune échéance";
-  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  return formatAtlasDate(value) ?? "Aucune échéance";
 }
 
 function isOverdue(task: TaskListItem) {
