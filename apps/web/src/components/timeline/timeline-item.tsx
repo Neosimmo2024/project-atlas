@@ -109,6 +109,11 @@ function displayTitle(event: TimelineListItem) {
 export function TimelineItem({ event, returnHref }: { event: TimelineListItem; returnHref?: string }) {
   const href = sourceHref(event, returnHref);
   const contextLinks = linkedContext(event);
+  const eventLabel = event.event_type === "recruitment_email_error"
+    && event.metadata?.reason === "sender_mismatch"
+    && event.metadata?.source === "brevo_inbound_parsing"
+    ? "Réponse email reçue à vérifier"
+    : TIMELINE_EVENT_LABELS[event.event_type];
 
   return (
     <article className="chronology-item">
@@ -117,7 +122,7 @@ export function TimelineItem({ event, returnHref }: { event: TimelineListItem; r
       </div>
       <div className="stack">
         <div className="chronology-heading">
-          <p className="chronology-type">{TIMELINE_EVENT_LABELS[event.event_type]}</p>
+          <p className="chronology-type">{eventLabel}</p>
           <h3>{displayTitle(event)}</h3>
           <p className="muted">{formatDate(event.occurred_at)} · {authorLabel(event)}</p>
         </div>
