@@ -48,7 +48,7 @@ export default async function BrevoContactsPage({ searchParams }: {
     </section> : <>
       <form className={`card ${styles.filters}`} method="get">
         <label htmlFor="brevo-status">État de l’opération
-          <select id="brevo-status" name="status" defaultValue={history.status}>
+          <select key={history.status} id="brevo-status" name="status" defaultValue={history.status}>
             <option value="">Tous les états</option>
             {Object.entries(contactHistoryStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
