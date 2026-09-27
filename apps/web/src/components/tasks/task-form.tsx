@@ -166,7 +166,7 @@ export function TaskForm({ mode, task, returnTo, defaults, peopleOptions, organi
           </select>
           <FieldError name="priority" />
         </label>
-        <label>Échéance<Input name="due_at" type="datetime-local" aria-describedby="task-due-at-help" defaultValue={toAtlasDateTimeInput(task?.due_at ?? defaults?.due_at)} /><span id="task-due-at-help" className="field-help">Heure de Paris (été/hiver).</span><FieldError name="due_at" /></label>
+        <label>Échéance<Input name="due_at" type="datetime-local" aria-label="Échéance" aria-describedby="task-due-at-help" defaultValue={toAtlasDateTimeInput(task?.due_at ?? defaults?.due_at)} /><span id="task-due-at-help" className="field-help">Heure de Paris (été/hiver).</span><FieldError name="due_at" /></label>
       </div>
       <input type="hidden" name="assigned_to" value={valueOrEmpty(task?.assigned_to) as string} />
 
