@@ -7,13 +7,30 @@ export async function getTenantContext(): Promise<TenantContext | null> {
 
   if (!user) return null;
 
-  const { data, error } = await supabase
-    .from("tenant_users")
-    .select("tenant_id, tenants(id, name), roles(slug)")
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .limit(1)
-    .maybeSingle();
+  const lookup = (retry = false) => {
+    let query = supabase
+      .from("tenant_users")
+      .select("tenant_id, tenants(id, name), roles(slug)")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .limit(1);
+    // A retry must reach PostgREST, not reuse the failed render-time GET.
+    if (retry) query = query.abortSignal(new AbortController().signal);
+    return query.maybeSingle();
+  };
+
+  let { data, error } = await lookup();
+  if (error?.code === "PGRST303") {
+    // Observed after session renewal: Auth accepts the user while the data API
+    // briefly rejects JWT claims. Retry this read once, never grant access from
+    // Auth alone or retry permission/schema errors.
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    const { data: verified, error: authError } = await supabase.auth.getUser();
+    if (authError || verified.user?.id !== user.id) {
+      throw new Error("TENANT_CONTEXT_LOOKUP_FAILED");
+    }
+    ({ data, error } = await lookup(true));
+  }
 
   // A failed lookup is not evidence that the user has no active membership.
   // Do not propagate database messages: they may contain sensitive details.
