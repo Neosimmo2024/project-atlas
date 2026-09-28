@@ -7,3 +7,7 @@ Un diagnostic explicite, réservé au propriétaire du tenant QA et au projet Ve
 Les commandes restent invisibles sans les variables de liaison serveur et les flags distincts de contrôle/revue. Le diagnostic est disponible avant leur configuration afin de lever le blocage d’identification du compte sans extraire la clé existante.
 
 Validation locale : 846 tests (113 fichiers), TypeScript et ESLint. Les nouveaux cas couvrent le périmètre QA, les droits et leur révocation, la minimisation de réponse, le compte inattendu, les erreurs fournisseur, la confirmation explicite et les entrées non fiables des formulaires. La validation du déploiement et du diagnostic réel reste à effectuer au moment de ce commit.
+
+## Diagnostic réel et liaison Preview
+
+Le diagnostic exécuté depuis la page QA sur `cf6b7c5` a confirmé la correspondance avec l’adresse NEOS IMMO attendue et l’organisation `69aae9fea303e8f4220b4e98`. La liaison au tenant QA `8e27b0ff-3f1a-41fa-8390-628c718723a2` et les flags de contrôle/revue ont ensuite été enregistrés uniquement pour la branche `agent/security-hardening-2026-09-26` du projet QA Preview. Aucun flag de synchronisation n’a été activé. Cette mise à jour documentaire déclenche le build qui prendra ces paramètres en compte ; sa validation fonctionnelle reste à effectuer.
