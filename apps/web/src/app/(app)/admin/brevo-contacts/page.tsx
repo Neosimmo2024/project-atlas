@@ -3,6 +3,8 @@ import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { contactHistoryStatuses, listBrevoContactHistory } from "@/repositories/brevo-contact-history";
 import styles from "./page.module.css";
+import { BrevoAccountDiagnostic, BrevoContactControls } from "@/components/brevo-contact-controls";
+import { brevoContactCommandAvailability, isBrevoQaScope } from "@/repositories/brevo-account-diagnostic";
 
 export const dynamic = "force-dynamic";
 const reasons: Record<string, string> = {
@@ -30,6 +32,7 @@ export default async function BrevoContactsPage({ searchParams }: {
   const params = await searchParams;
   const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
   const history = await listBrevoContactHistory({ page: first(params.page), status: first(params.status) });
+  const commands = brevoContactCommandAvailability();
   if (history.state === "forbidden") return <div className="page stack"><EmptyState title="Accès non autorisé" body="Le suivi Brevo est réservé aux propriétaires et administrateurs de votre espace." /></div>;
 
   return <div className={`page stack ${styles.page}`}>
@@ -37,10 +40,11 @@ export default async function BrevoContactsPage({ searchParams }: {
       title="Suivi des contacts Brevo" subtitle="Retrouvez les opérations enregistrées et les situations qui demandent une vérification."
       actions={<Link className="button subtle-button" href="/people">Voir les personnes</Link>} />
     <section className="card stack" aria-label="État de la synchronisation">
-      <div><span className="status-badge subtle">Consultation uniquement</span></div>
+      <div><span className="status-badge subtle">Synchronisation inactive</span></div>
       <h2>Synchronisation automatique non activée</h2>
-      <p>Cette page consulte l’historique. Elle ne crée aucun contact et ne déclenche aucun email ou SMS.</p>
+      <p>Consultez l’historique et effectuez les vérifications manuelles disponibles. Ces contrôles ne créent aucun contact et ne déclenchent aucun email ou SMS.</p>
     </section>
+    {history.state === "ready" && isBrevoQaScope() ? <BrevoAccountDiagnostic /> : null}
     {history.state !== "ready" ? <section className="card stack" role="status">
       <h2>{history.state === "not_installed" ? "Historique pas encore disponible" : "Historique temporairement indisponible"}</h2>
       <p>{history.state === "not_installed" ? "Le suivi doit encore être installé sur cet environnement. Aucune opération ne peut être confirmée depuis cet écran pour le moment." : "Les opérations n’ont pas pu être chargées. Réessayez dans quelques instants."}</p>
@@ -71,6 +75,8 @@ export default async function BrevoContactsPage({ searchParams }: {
             </div> : row.status === "pending" || row.status === "write_outcome_unknown" ? <p>Une vérification est nécessaire avant toute nouvelle tentative.</p> : null}
             {row.provider_contact_id ? <p>Identifiant Brevo : {row.provider_contact_id}</p> : null}
             {row.finished_at ? <p>Dernier résultat enregistré le {date(row.finished_at)}</p> : null}
+            {commands.checks && !row.review && (row.status === "pending" || row.status === "write_outcome_unknown")
+              ? <BrevoContactControls attemptId={row.id} canClose={commands.reviews && row.status === "write_outcome_unknown"} /> : null}
           </li>)}</ul>}
         <nav className="actions" aria-label="Pages de l’historique Brevo">
           {history.page > 1 ? <Link className="button subtle-button" href={url(history.page - 1, history.status)}>Page précédente</Link> : null}
