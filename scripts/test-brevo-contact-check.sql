@@ -1,5 +1,9 @@
 \set ON_ERROR_STOP on
 begin;
+-- Match hosted least-privilege permissions, then apply the canonical fix.
+revoke all on public.brevo_contact_sync_attempts from service_role;
+revoke update on public.roles from service_role;
+\ir ../supabase/migrations/20260928120500_brevo_contact_service_lock_grants.sql
 -- Transactional fictitious fixtures. This file is only run against local CI.
 create temporary table journal_fixture as select
   gen_random_uuid() as tenant_a, gen_random_uuid() as tenant_b,
@@ -46,6 +50,8 @@ create temporary table check_fixture as select id from public.brevo_contact_sync
 where tenant_id=(select tenant_a from journal_fixture);
 grant select on check_fixture to service_role, authenticated, anon;
 set local role service_role;
+select pg_temp.assert_rejected('update public.roles set slug=slug', 'server cannot change role authority');
+select pg_temp.assert_rejected('update public.brevo_contact_sync_attempts set status=status', 'server cannot rewrite outcomes');
 select public.record_brevo_contact_check(tenant_a, owner_a, (select id from check_fixture), 'pending', 'outcome_unresolved') from journal_fixture;
 select public.record_brevo_contact_check(tenant_a, admin_a, (select id from check_fixture), 'pending', 'linked_contact_observed_review_required') from journal_fixture;
 select pg_temp.assert_true((select count(*)=2 from public.brevo_contact_checks), 'two observations retained');

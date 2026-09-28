@@ -11,3 +11,9 @@ Validation locale : 846 tests (113 fichiers), TypeScript et ESLint. Les nouveaux
 ## Diagnostic réel et liaison Preview
 
 Le diagnostic exécuté depuis la page QA sur `cf6b7c5` a confirmé la correspondance avec l’adresse NEOS IMMO attendue et l’organisation `69aae9fea303e8f4220b4e98`. La liaison au tenant QA `8e27b0ff-3f1a-41fa-8390-628c718723a2` et les flags de contrôle/revue ont ensuite été enregistrés uniquement pour la branche `agent/security-hardening-2026-09-26` du projet QA Preview. Aucun flag de synchronisation n’a été activé. Cette mise à jour documentaire déclenche le build qui prendra ces paramètres en compte ; sa validation fonctionnelle reste à effectuer.
+
+## Correction observée en QA
+
+Le premier contrôle réel a révélé des droits manquants pour les RPC `SECURITY INVOKER` : contrairement aux valeurs par défaut locales, le rôle serveur hébergé n’avait pas SELECT sur le journal ni de droit UPDATE permettant de verrouiller les lignes du journal et des rôles. La migration `20260928120500_brevo_contact_service_lock_grants.sql` accorde SELECT et uniquement UPDATE sur des colonnes sans pouvoir de modification des résultats ou des droits (horodatage des rôles/adhésions et ID protégé par le trigger du journal). Elle ne donne aucun droit d’écriture supplémentaire aux utilisateurs.
+
+Les tests SQL de contrôle et de revue retirent désormais les permissions locales larges, réappliquent cette migration et vérifient que le serveur ne peut changer ni les slugs des rôles ni les résultats des tentatives. Les trois suites SQL passent. Après application QA, le bouton a enregistré `outcome_unresolved` pour la tentative fictive, avec acteur courant, état `write_outcome_unknown` conservé et aucune revue créée.
