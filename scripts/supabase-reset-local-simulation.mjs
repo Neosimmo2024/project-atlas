@@ -32,7 +32,8 @@ export const EXPECTED_MIGRATIONS = [
   "20260924195950_brevo_contact_sync_journal.sql",
   "20260925222113_security_audit_hardening.sql",
       "20260926060617_privileged_rpc_validation.sql",
-      "20260928062634_brevo_contact_check_audit.sql"
+      "20260928062634_brevo_contact_check_audit.sql",
+      "20260928080003_brevo_contact_review_closure.sql"
 ];
 export const EXPECTED_COUNTS = Object.freeze({
   "auth.users": 1,
@@ -52,7 +53,8 @@ export const EXPECTED_COUNTS = Object.freeze({
   "public.recruitment_email_sequences": 0,
   "public.recruitment_email_template_versions": 0,
   "public.brevo_contact_sync_attempts": 0,
-  "public.brevo_contact_checks": 0
+  "public.brevo_contact_checks": 0,
+  "public.brevo_contact_reviews": 0
 });
 export const LOCAL_AUTH_READINESS = Object.freeze({
   timeoutMs: 120000,
@@ -414,6 +416,7 @@ from (
   union all select 'public.recruitment_email_template_versions', count(*)::integer from public.recruitment_email_template_versions
   union all select 'public.brevo_contact_sync_attempts', count(*)::integer from public.brevo_contact_sync_attempts
   union all select 'public.brevo_contact_checks', count(*)::integer from public.brevo_contact_checks
+  union all select 'public.brevo_contact_reviews', count(*)::integer from public.brevo_contact_reviews
 ) counts;
 `);
   return JSON.parse(output);
@@ -619,7 +622,8 @@ begin
     'public.recruitment_email_template_versions',
     'public.recruitment_email_sequence_steps',
     'public.brevo_contact_sync_attempts',
-    'public.brevo_contact_checks'
+    'public.brevo_contact_checks',
+    'public.brevo_contact_reviews'
   ]) as table_name
   where to_regclass(table_name) is null;
   if missing_table_count > 0 then
@@ -646,7 +650,8 @@ begin
     'recruitment_email_template_versions',
     'recruitment_email_sequence_steps',
     'brevo_contact_sync_attempts',
-    'brevo_contact_checks'
+    'brevo_contact_checks',
+    'brevo_contact_reviews'
   ]) as table_name
   where not exists (
     select 1

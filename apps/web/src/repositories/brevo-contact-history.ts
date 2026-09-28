@@ -15,6 +15,7 @@ export type ContactHistoryRow = {
   id: string; person_id: string; status: ContactHistoryStatus;
   created_at: string; finished_at: string | null;
   result_code: string | null; provider_contact_id: number | null;
+  review?: { decision: "linked_observed_keep_blocked" | "suppression_observed_keep_blocked"; closed_at: string };
 };
 export type ContactHistoryResult =
   | { state: "forbidden" | "unavailable" | "not_installed" }
@@ -37,7 +38,19 @@ export async function listBrevoContactHistory(params: { page?: string; status?: 
       .range((page - 1) * 20, page * 20 - 1);
     if (error) return { state: ["42P01", "PGRST205"].includes(error.code) ? "not_installed" : "unavailable" };
     if (!Array.isArray(data) || count === null) return { state: "unavailable" };
-    return { state: "ready", rows: data as ContactHistoryRow[], total: count, page, status, tenantName: context.tenant.name };
+    const rows = data as ContactHistoryRow[];
+    if (rows.length) {
+      const { data: reviews, error: reviewError } = await db.from("brevo_contact_reviews")
+        .select("attempt_id, decision, closed_at").eq("tenant_id", context.tenantId).in("attempt_id", rows.map(row => row.id));
+      if (reviewError || !Array.isArray(reviews)) return { state: "unavailable" };
+      for (const review of reviews) {
+        const row = rows.find(row => row.id === review.attempt_id);
+        if (!row || !["linked_observed_keep_blocked", "suppression_observed_keep_blocked"].includes(review.decision)
+          || typeof review.closed_at !== "string" || !Number.isFinite(Date.parse(review.closed_at))) return { state: "unavailable" };
+        row.review = { decision: review.decision, closed_at: review.closed_at };
+      }
+    }
+    return { state: "ready", rows, total: count, page, status, tenantName: context.tenant.name };
   } catch {
     return { state: "unavailable" };
   }

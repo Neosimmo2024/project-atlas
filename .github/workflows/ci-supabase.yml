@@ -414,6 +414,7 @@ jobs:
           JS
           psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -q -f scripts/test-brevo-contact-journal.sql
           psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -q -f scripts/test-brevo-contact-check.sql
+          psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -q -f scripts/test-brevo-contact-review.sql
           psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -q -f scripts/test-security-hardening.sql
           supabase db advisors --local --type security --level error --fail-on none
 

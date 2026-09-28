@@ -64,9 +64,13 @@ export default async function BrevoContactsPage({ searchParams }: {
             <div className={styles.heading}><strong>{contactHistoryStatuses[row.status] ?? "État à vérifier"}</strong><time dateTime={row.created_at}>{date(row.created_at)}</time></div>
             <p>Personne <Link href={`/people/${encodeURIComponent(row.person_id)}`}>{row.person_id}</Link></p>
             {row.result_code ? <p>{reasons[row.result_code] ?? "Motif à vérifier"}</p> : null}
-            {row.status === "pending" || row.status === "write_outcome_unknown" ? <p>Une vérification est nécessaire avant toute nouvelle tentative.</p> : null}
+            {row.review ? <div className="stack">
+              <p><strong>Revue clôturée — nouvelle tentative bloquée</strong></p>
+              <p>{row.review.decision === "linked_observed_keep_blocked" ? "Un contact associé a été observé." : "Le blocage des emails et SMS a été observé."} Le résultat de l’écriture initiale reste incertain.</p>
+              <p>Revue enregistrée le {date(row.review.closed_at)}</p>
+            </div> : row.status === "pending" || row.status === "write_outcome_unknown" ? <p>Une vérification est nécessaire avant toute nouvelle tentative.</p> : null}
             {row.provider_contact_id ? <p>Identifiant Brevo : {row.provider_contact_id}</p> : null}
-            {row.finished_at ? <p>Clôturée le {date(row.finished_at)}</p> : null}
+            {row.finished_at ? <p>Dernier résultat enregistré le {date(row.finished_at)}</p> : null}
           </li>)}</ul>}
         <nav className="actions" aria-label="Pages de l’historique Brevo">
           {history.page > 1 ? <Link className="button subtle-button" href={url(history.page - 1, history.status)}>Page précédente</Link> : null}
@@ -80,6 +84,7 @@ export default async function BrevoContactsPage({ searchParams }: {
       <p><strong>Contact créé :</strong> Brevo a confirmé la création. Cela ne confirme pas l’envoi d’un message.</p>
       <p><strong>Emails et SMS bloqués :</strong> le blocage des envois a été confirmé pour ce contact.</p>
       <p><strong>À vérifier :</strong> le résultat n’est pas confirmé. Aucune relance automatique n’est effectuée depuis ce suivi.</p>
+      <p><strong>Revue clôturée :</strong> une observation a été conservée avec la décision de bloquer toute nouvelle tentative. Cela ne confirme pas le résultat de l’écriture initiale.</p>
     </section>
   </div>;
 }
