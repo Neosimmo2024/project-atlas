@@ -33,7 +33,8 @@ export const EXPECTED_MIGRATIONS = [
   "20260925222113_security_audit_hardening.sql",
       "20260926060617_privileged_rpc_validation.sql",
       "20260928062634_brevo_contact_check_audit.sql",
-      "20260928080003_brevo_contact_review_closure.sql"
+      "20260928080003_brevo_contact_review_closure.sql",
+      "20260928120500_brevo_contact_service_lock_grants.sql"
 ];
 export const EXPECTED_COUNTS = Object.freeze({
   "auth.users": 1,
