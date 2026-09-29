@@ -53,7 +53,7 @@ export async function runBrevoContactPilot(confirmation: string) {
     if (typeof expectedId !== "number" || !Number.isSafeInteger(expectedId) || expectedId <= 0) return fail("verification_required");
     const checked = await ensureBrevoPilotChannels({ ...options, externalId: `atlas:${tenantId}:${brevoPilotPersonId}`,
       contactId: expectedId, email, authorize: async () => { await readPerson(target); } });
-    if (checked.status !== "verified") return fail("channels_unconfirmed");
+    if (checked.status !== "verified") return { ...fail("channels_unconfirmed"), diagnostic: checked.diagnostic };
     return { status: result?.status === "created" ? "created_verified" : "existing_verified", contactId: checked.contactId };
   } catch { return fail("unavailable"); }
 }
