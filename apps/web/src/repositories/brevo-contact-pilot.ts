@@ -53,8 +53,10 @@ export async function runBrevoContactPilot(confirmation: string) {
     await readPerson(target);
     const expectedId = previous?.provider_contact_id ?? (result && "contactId" in result ? result.contactId : undefined);
     if (observed.kind !== "found" || observed.contact.email !== email
-      || !observed.contact.emailBlacklisted || !observed.contact.smsBlacklisted
       || (expectedId !== undefined && observed.contact.id !== expectedId)) return fail("verification_required");
+    if (!observed.contact.emailBlacklisted || !observed.contact.smsBlacklisted) {
+      return { status: "contact_verified_channels_unconfirmed", contactId: observed.contact.id };
+    }
     return { status: result?.status === "created" ? "created_verified" : "existing_verified", contactId: observed.contact.id };
   } catch { return fail("unavailable"); }
 }

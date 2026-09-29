@@ -47,6 +47,12 @@ it("does not report success when the returned identity or suppression differs", 
   m.observe.mockResolvedValue({ kind: "found", contact: { id: 100, email: person.email, emailBlacklisted: false, smsBlacklisted: true } });
   expect((await run(confirmation)).status).toBe("verification_required");
 });
+it("distinguishes an existing identity from unconfirmed channel suppression without writing again", async () => {
+  m.previous.mockResolvedValue({ data: { provider_contact_id: 99 }, error: null });
+  m.observe.mockResolvedValue({ kind: "found", contact: { id: 99, email: person.email, emailBlacklisted: true, smsBlacklisted: false } });
+  expect(await run(confirmation)).toEqual({ status: "contact_verified_channels_unconfirmed", contactId: 99 });
+  expect(m.sync).not.toHaveBeenCalled(); expect(m.journal).not.toHaveBeenCalled();
+});
 it("rechecks owner permissions before reading or writing the source", async () => {
   m.context.mockResolvedValueOnce(actor).mockResolvedValue({ ...actor, role: "admin" });
   expect((await run(confirmation)).status).toBe("unavailable"); expect(m.sync).not.toHaveBeenCalled();

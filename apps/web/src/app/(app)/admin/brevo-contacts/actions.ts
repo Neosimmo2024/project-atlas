@@ -40,5 +40,6 @@ export async function pilotContactAction(_previous: { message: string }, form: F
   revalidatePath("/admin/brevo-contacts");
   if (result.status === "created_verified") return { message: `Contact fictif créé et vérifié dans Brevo : ${result.contactId}. Emails et SMS bloqués.` };
   if (result.status === "existing_verified") return { message: `Contact fictif déjà présent : ${result.contactId}. Aucun nouveau contact créé. Emails et SMS bloqués.` };
+  if (result.status === "contact_verified_channels_unconfirmed") return { message: `Contact fictif retrouvé et identifié dans Brevo : ${result.contactId}. Toute nouvelle création est bloquée. Le blocage de tous les canaux n’est pas confirmé ; aucune synchronisation automatique ni aucun envoi ne sont activés.` };
   return { message: "Test non confirmé. Consultez l’historique ; aucune relance automatique n’est effectuée." };
 }

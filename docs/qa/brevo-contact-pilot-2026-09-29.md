@@ -8,4 +8,8 @@ Le moteur existant conserve ses vérifications d’identité, de collision email
 
 Validation locale : 864 tests sur 114 fichiers, TypeScript et ESLint. Les tests couvrent le second clic, la suppression externe, le compte inattendu, les droits révoqués, la fiche altérée, l’issue incertaine et le blocage des deux canaux dans le POST initial. Les tests sont exécutés avec TZ=UTC comme la CI ; deux tests préexistants du module Projets supposent ce fuseau et échouent sous le TZ=Asia/Tokyo de cet environnement.
 
-Aucune migration ni activation de synchronisation générale. Le résultat du parcours réel sera consigné dans la PR après déploiement.
+Aucune migration ni activation de synchronisation générale.
+
+Parcours réel : Brevo a créé le contact 334, avec l’EXT_ID attendu. Le second clic a conservé une seule opération `created` dans le journal. L’interface Brevo confirme la fiche, les campagnes email blocklistées et l’absence de téléphone ; les emails transactionnels restent indiqués « Abonné ». Aucun envoi n’a été déclenché. Ne pas assimiler `emailBlacklisted` à un blocage de tous les emails transactionnels.
+
+La confirmation de tous les canaux n’a pas abouti. Le pilote distingue désormais une identité retrouvée du blocage incomplet des canaux, sans nouvelle écriture ni assouplissement de la condition de blocage complet. Le contrôle ajouté porte le total local à 865 tests ; TypeScript reste valide. Le contact fictif et son journal sont conservés pour revue. La synchronisation automatique reste inactive.
