@@ -6,6 +6,8 @@ import styles from "./page.module.css";
 import { BrevoAccountDiagnostic, BrevoContactControls, BrevoContactPilot } from "@/components/brevo-contact-controls";
 import { brevoContactCommandAvailability, isBrevoQaScope } from "@/repositories/brevo-account-diagnostic";
 
+import { BrevoSmsPilotPreview } from "@/components/brevo-sms-pilot-preview";
+
 export const dynamic = "force-dynamic";
 const reasons: Record<string, string> = {
   invalid_identity: "Identité à vérifier", tenant_mismatch: "Compte incompatible", missing_configuration: "Configuration incomplète",
@@ -44,7 +46,7 @@ export default async function BrevoContactsPage({ searchParams }: {
       <h2>Synchronisation automatique non activée</h2>
       <p>Consultez l’historique et effectuez les vérifications manuelles disponibles. Le test manuel ci-dessous peut créer un seul contact fictif puis vérifier ses restrictions d’envoi. Aucun email ou SMS n’est déclenché par cette page.</p>
     </section>
-    {history.state === "ready" && isBrevoQaScope() ? <><BrevoAccountDiagnostic /><BrevoContactPilot /></> : null}
+    {history.state === "ready" && isBrevoQaScope() ? <><BrevoAccountDiagnostic /><BrevoContactPilot /><BrevoSmsPilotPreview /></> : null}
     {history.state !== "ready" ? <section className="card stack" role="status">
       <h2>{history.state === "not_installed" ? "Historique pas encore disponible" : "Historique temporairement indisponible"}</h2>
       <p>{history.state === "not_installed" ? "Le suivi doit encore être installé sur cet environnement. Aucune opération ne peut être confirmée depuis cet écran pour le moment." : "Les opérations n’ont pas pu être chargées. Réessayez dans quelques instants."}</p>
