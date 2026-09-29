@@ -37,6 +37,18 @@ it("includes global blocks while matching only the exact recipient", async () =>
   expect((await run(o)).status).toBe("verified"); expect(transport.mock.calls.every(c => c[1]?.method === "GET")).toBe(true);
   expect(transport.mock.calls.filter(c => String(c[0]).includes("blockedContacts")).every(c => !String(c[0]).includes("senders="))).toBe(true);
 });
+it.each([["adminBlocked", "verified"], ["unknown", "channels_unconfirmed"]])("handles an omitted global sender only with explicit administrative reason %s", async (code, status) => {
+  const { o, transport } = setup(true); const base = transport.getMockImplementation()!;
+  transport.mockImplementation((url, init) => String(url).includes("blockedContacts")
+    ? Promise.resolve(new Response(JSON.stringify({ count: 1, contacts: [{ email, reason: { code } }] }))) : base(url, init));
+  expect((await run(o)).status).toBe(status);
+});
+it("never uses another recipient's global block", async () => {
+  const { o, transport } = setup(true); const base = transport.getMockImplementation()!;
+  transport.mockImplementation((url, init) => String(url).includes("blockedContacts")
+    ? Promise.resolve(new Response(JSON.stringify({ count: 1, contacts: [{ email: "other@example.invalid", reason: { code: "adminBlocked" } }] }))) : base(url, init));
+  expect((await run(o)).status).toBe("channels_unconfirmed");
+});
 it.each([{ id: 335 }, { email: "other@example.invalid" }, { ext_id: "foreign" }, { attributes: { SMS: "+33600000000" } }, { attributes: null }])("fails closed on identity or phone changes %j", async change => {
   const { o, state, transport } = setup(); Object.assign(state, change);
   expect((await run(o)).status).toBe("channels_unconfirmed"); expect(transport.mock.calls.some(c => c[1]?.method === "PUT")).toBe(false);

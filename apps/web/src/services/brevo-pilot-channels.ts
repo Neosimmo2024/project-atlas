@@ -61,7 +61,11 @@ export async function ensureBrevoPilotChannels(o: Options) {
       });
       evidence = `:rows_${v.contacts.length}:own_${own.length}:sender_${kinds.join("_") || "none"}`;
       for (const c of v.contacts) {
-        if (object(c) && c.email === o.email && (c.senderEmail === null || c.senderEmail === sender)) return true;
+        if (!object(c) || c.email !== o.email) continue;
+        // Live Brevo omits senderEmail for an administrative global block.
+        // Require its explicit reason; a missing sender alone is not proof.
+        const globalAdminBlock = c.senderEmail === undefined && object(c.reason) && c.reason.code === "adminBlocked";
+        if (c.senderEmail === null || c.senderEmail === sender || globalAdminBlock) return true;
       }
       if (offset + v.contacts.length >= v.count) return false;
       if (v.contacts.length !== 100) throw new Error("incomplete");
