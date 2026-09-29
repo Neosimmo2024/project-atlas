@@ -1,9 +1,10 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 type SimulationModule = {
   EXPECTED_CONFIRMATION: string;
+  EXPECTED_MIGRATIONS: string[];
   EXPECTED_COUNTS: Record<string, number>;
   LOCAL_AUTH_READINESS: {
     timeoutMs: number;
@@ -302,4 +303,9 @@ describe("Supabase reset local simulation guards", () => {
     expect(source).toContain("anon role must not execute list_tenant_members_for_admin.");
     expect(source).toContain("service_role cannot execute list_tenant_members_for_admin.");
   });
+});
+
+it("keeps the local reset allowlist aligned with canonical migrations", () => {
+  const files = readdirSync(resolve(process.cwd(), "..", "..", "supabase", "migrations")).filter(name => name.endsWith(".sql")).sort();
+  expect([...simulation.EXPECTED_MIGRATIONS].sort()).toEqual(files);
 });
