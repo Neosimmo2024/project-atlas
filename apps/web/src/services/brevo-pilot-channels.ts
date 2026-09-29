@@ -8,7 +8,8 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** QA-only caller. Restriction-only: never creates, subscribes, sends or edits identity. */
 export async function ensureBrevoPilotChannels(o: Options) {
   let phase = "configuration";
-  const fail = (reason = "unconfirmed") => ({ status: "channels_unconfirmed" as const, diagnostic: `${phase}:${reason}` });
+  let evidence = "";
+  const fail = (reason = "unconfirmed") => ({ status: "channels_unconfirmed" as const, diagnostic: `${phase}:${reason}${evidence}` });
   if (o.enabled !== true || !o.apiKey?.trim() || !Number.isSafeInteger(o.contactId) || o.contactId <= 0
     || !/^atlas:[0-9a-f-]{36}:[0-9a-f-]{36}$/.test(o.externalId)
     || !o.externalId.startsWith(`atlas:${o.accountTenantId}:`) || !emailPattern.test(o.email)
@@ -53,6 +54,12 @@ export async function ensureBrevoPilotChannels(o: Options) {
       const v = await json(`smtp/blockedContacts?limit=100&offset=${offset}`);
       if (!Array.isArray(v.contacts)) throw new Error("contacts_missing");
       if (typeof v.count !== "number" || !Number.isSafeInteger(v.count) || v.count < 0) throw new Error("count_invalid");
+      const own = v.contacts.filter(c => object(c) && typeof c.email === "string" && c.email.toLowerCase() === o.email);
+      const kinds = own.map(c => {
+        const s = (c as Record<string, unknown>).senderEmail;
+        return s === null ? "null" : s === "" ? "empty" : s === sender ? "match" : Array.isArray(s) ? "array" : s === undefined ? "missing" : "other";
+      });
+      evidence = `:rows_${v.contacts.length}:own_${own.length}:sender_${kinds.join("_") || "none"}`;
       for (const c of v.contacts) {
         if (object(c) && c.email === o.email && (c.senderEmail === null || c.senderEmail === sender)) return true;
       }
