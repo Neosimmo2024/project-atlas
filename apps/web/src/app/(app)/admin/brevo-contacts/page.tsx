@@ -42,7 +42,7 @@ export default async function BrevoContactsPage({ searchParams }: {
     <section className="card stack" aria-label="État de la synchronisation">
       <div><span className="status-badge subtle">Synchronisation inactive</span></div>
       <h2>Synchronisation automatique non activée</h2>
-      <p>Consultez l’historique et effectuez les vérifications manuelles disponibles. Le test manuel ci-dessous peut créer un seul contact fictif avec les envois bloqués. Aucun email ou SMS n’est déclenché par cette page.</p>
+      <p>Consultez l’historique et effectuez les vérifications manuelles disponibles. Le test manuel ci-dessous peut créer un seul contact fictif puis vérifier ses restrictions d’envoi. Aucun email ou SMS n’est déclenché par cette page.</p>
     </section>
     {history.state === "ready" && isBrevoQaScope() ? <><BrevoAccountDiagnostic /><BrevoContactPilot /></> : null}
     {history.state !== "ready" ? <section className="card stack" role="status">
@@ -70,7 +70,7 @@ export default async function BrevoContactsPage({ searchParams }: {
             {row.result_code ? <p>{reasons[row.result_code] ?? "Motif à vérifier"}</p> : null}
             {row.review ? <div className="stack">
               <p><strong>Revue clôturée — nouvelle tentative bloquée</strong></p>
-              <p>{row.review.decision === "linked_observed_keep_blocked" ? "Un contact associé a été observé." : "Le blocage des emails et SMS a été observé."} Le résultat de l’écriture initiale reste incertain.</p>
+              <p>{row.review.decision === "linked_observed_keep_blocked" ? "Un contact associé a été observé." : "Le blocage des campagnes email et SMS a été observé."} Le résultat de l’écriture initiale reste incertain.</p>
               <p>Revue enregistrée le {date(row.review.closed_at)}</p>
             </div> : row.status === "pending" || row.status === "write_outcome_unknown" ? <p>Une vérification est nécessaire avant toute nouvelle tentative.</p> : null}
             {row.provider_contact_id ? <p>Identifiant Brevo : {row.provider_contact_id}</p> : null}
@@ -88,7 +88,7 @@ export default async function BrevoContactsPage({ searchParams }: {
     <section className="card stack">
       <h2>Comment lire les résultats ?</h2>
       <p><strong>Contact créé :</strong> Brevo a confirmé la création. Cela ne confirme pas l’envoi d’un message.</p>
-      <p><strong>Emails et SMS bloqués :</strong> le blocage des envois a été confirmé pour ce contact.</p>
+      <p><strong>Campagnes email et SMS bloquées :</strong> les indicateurs de blocage des campagnes ont été confirmés pour ce contact. Ce résultat ne confirme pas le blocage des messages transactionnels.</p>
       <p><strong>À vérifier :</strong> le résultat n’est pas confirmé. Aucune relance automatique n’est effectuée depuis ce suivi.</p>
       <p><strong>Revue clôturée :</strong> une observation a été conservée avec la décision de bloquer toute nouvelle tentative. Cela ne confirme pas le résultat de l’écriture initiale.</p>
     </section>

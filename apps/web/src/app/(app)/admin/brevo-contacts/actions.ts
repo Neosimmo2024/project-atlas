@@ -27,7 +27,7 @@ export async function contactCommandAction(_previous: { message: string }, form:
     const messages: Record<string, string> = {
       outcome_unresolved: "Contrôle enregistré : le résultat reste incertain. Nouvelle tentative bloquée.",
       linked_contact_observed_review_required: "Contrôle enregistré : un contact associé a été observé. La revue peut être clôturée en conservant le blocage.",
-      suppression_observed_review_required: "Contrôle enregistré : les emails et SMS sont bloqués. La revue peut être clôturée en conservant le blocage.",
+      suppression_observed_review_required: "Contrôle enregistré : les campagnes email et SMS sont bloquées. Le blocage transactionnel n’est pas confirmé par ce contrôle. La revue peut être clôturée en conservant le blocage.",
     };
     return { message: messages[result.status] ?? "Contrôle enregistré : la situation demande une vérification. Nouvelle tentative bloquée." };
   } catch { return { message: "Opération indisponible. Aucun réessai automatique n’est lancé." }; }

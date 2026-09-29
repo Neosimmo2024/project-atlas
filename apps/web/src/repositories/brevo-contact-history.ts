@@ -4,7 +4,7 @@ import { getTenantContext } from "./tenant-context";
 export const contactHistoryStatuses = {
   pending: "À vérifier — opération non clôturée",
   created: "Contact créé",
-  suppressed: "Emails et SMS bloqués",
+  suppressed: "Campagnes email et SMS bloquées",
   blocked: "Synchronisation bloquée",
   skipped: "Aucune modification nécessaire",
   failed: "Échec",
