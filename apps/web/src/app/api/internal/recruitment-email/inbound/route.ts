@@ -1,3 +1,4 @@
+import { logServerError } from "@/lib/security/logger";
 import { NextResponse } from "next/server";
 import {
   isAuthorizedBrevoInboundWebhook,
@@ -19,8 +20,9 @@ export async function POST(request: Request) {
 
   try {
     return NextResponse.json({ data: await processBrevoInboundReplies(payload) });
-  } catch (error) {
-    console.error("Brevo inbound reply processing failed", error);
+  } catch {
+    logServerError("Brevo inbound reply processing failed");
     return NextResponse.json({ error: "Inbound reply processing failed" }, { status: 500 });
   }
 }
+

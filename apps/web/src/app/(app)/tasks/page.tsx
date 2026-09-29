@@ -20,15 +20,19 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
   const status = valueOf(params, "status");
   const priority = valueOf(params, "priority");
   const due = valueOf(params, "due");
+  const personId = valueOf(params, "personId");
+  const relationshipId = valueOf(params, "relationshipId");
   const page = Number(valueOf(params, "page") || 1);
   const currentParams = new URLSearchParams();
   if (query) currentParams.set("query", query);
   if (status) currentParams.set("status", status);
   if (priority) currentParams.set("priority", priority);
   if (due) currentParams.set("due", due);
+  if (personId) currentParams.set("personId", personId);
+  if (relationshipId) currentParams.set("relationshipId", relationshipId);
 
   const result = context
-    ? await listTasks(context, { query, status, priority, due, page, pageSize: 10 })
+    ? await listTasks(context, { query, status, priority, due, personId, relationshipId, page, pageSize: 10 })
     : { tasks: [], total: 0, page: 1, pageSize: 10, pageCount: 1 };
 
   return (
@@ -38,11 +42,15 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
           <p className="muted">Tâches intelligentes</p>
           <h1>Tâches</h1>
         </div>
-        <Link className="button link-button" href="/tasks/new">Nouvelle tâche</Link>
+        <div className="actions">
+          {personId ? <Link className="button subtle-button" href={`/people/${personId}`}>Retour à la fiche</Link> : null}
+          {relationshipId ? <Link className="button subtle-button" href={`/relationships/${relationshipId}`}>Retour à la relation</Link> : null}
+          <Link className="button link-button" href="/tasks/new">Nouvelle tâche</Link>
+        </div>
       </header>
 
       {valueOf(params, "taskDeleted") === "1" ? <p className="success">Tâche supprimée.</p> : null}
-      <TaskFilters query={query} status={status} priority={priority} due={due} />
+      <TaskFilters query={query} status={status} priority={priority} due={due} personId={personId} relationshipId={relationshipId} />
       <TaskList result={result} currentParams={currentParams} />
     </div>
   );

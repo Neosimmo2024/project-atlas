@@ -27,7 +27,8 @@ const payload = {
 describe("talent qualification API", () => {
   beforeEach(() => {
     mocks.context.mockReset().mockResolvedValue(context);
-    mocks.get.mockReset(); mocks.save.mockReset();
+    mocks.get.mockReset().mockResolvedValue(null);
+    mocks.save.mockReset();
   });
 
   it("ignores any browser tenant id and saves a draft with server context", async () => {
@@ -56,6 +57,17 @@ describe("talent qualification API", () => {
     mocks.save.mockResolvedValue({ id: "qualification-a", state: "completed" });
     const response = await PUT(new Request("http://localhost/api/people/person-a/qualification", {
       method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...payload, action: "finalize" })
+    }), { params: Promise.resolve({ id: "person-a" }) });
+    expect(response.status).toBe(200);
+    expect(mocks.save).toHaveBeenCalledWith(context, "person-a", expect.objectContaining({ conclusion: "continue" }), true);
+  });
+
+  it("keeps an already completed qualification completed even if draft is submitted", async () => {
+    const { PUT } = await import("../../app/api/people/[id]/qualification/route");
+    mocks.get.mockResolvedValue({ id: "qualification-a", state: "completed" });
+    mocks.save.mockResolvedValue({ id: "qualification-a", state: "completed" });
+    const response = await PUT(new Request("http://localhost/api/people/person-a/qualification", {
+      method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...payload, action: "draft" })
     }), { params: Promise.resolve({ id: "person-a" }) });
     expect(response.status).toBe(200);
     expect(mocks.save).toHaveBeenCalledWith(context, "person-a", expect.objectContaining({ conclusion: "continue" }), true);

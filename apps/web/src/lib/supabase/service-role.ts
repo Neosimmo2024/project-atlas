@@ -1,3 +1,5 @@
+import "server-only";
+
 import { createClient } from "@supabase/supabase-js";
 
 export function createSupabaseServiceRoleClient() {
@@ -15,3 +17,4 @@ export function createSupabaseServiceRoleClient() {
     }
   });
 }
+

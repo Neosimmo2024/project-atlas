@@ -8,11 +8,14 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
-function sourceHref(event: TimelineListItem) {
+function sourceHref(event: TimelineListItem, returnHref?: string) {
   if (event.source_type === "person" && event.person) return `/people/${event.person.id}`;
   if (event.source_type === "organization" && event.organization) return `/organizations/${event.organization.id}`;
   if (event.source_type === "relationship" && event.relationship) return `/relationships/${event.relationship.id}`;
-  if (event.source_type === "interaction" && event.interaction) return `/interactions/${event.interaction.id}`;
+  if (event.source_type === "interaction" && event.interaction) {
+    const href = `/interactions/${event.interaction.id}`;
+    return returnHref ? `${href}?returnTo=${encodeURIComponent(returnHref)}` : href;
+  }
   if (event.source_type === "task" && event.task) return `/tasks/${event.task.id}`;
   return "";
 }
@@ -103,9 +106,14 @@ function displayTitle(event: TimelineListItem) {
   return userFacingTimelineText(event.title);
 }
 
-export function TimelineItem({ event }: { event: TimelineListItem }) {
-  const href = sourceHref(event);
+export function TimelineItem({ event, returnHref }: { event: TimelineListItem; returnHref?: string }) {
+  const href = sourceHref(event, returnHref);
   const contextLinks = linkedContext(event);
+  const eventLabel = event.event_type === "recruitment_email_error"
+    && event.metadata?.reason === "sender_mismatch"
+    && event.metadata?.source === "brevo_inbound_parsing"
+    ? "Réponse email reçue à vérifier"
+    : TIMELINE_EVENT_LABELS[event.event_type];
 
   return (
     <article className="chronology-item">
@@ -114,7 +122,7 @@ export function TimelineItem({ event }: { event: TimelineListItem }) {
       </div>
       <div className="stack">
         <div className="chronology-heading">
-          <p className="chronology-type">{TIMELINE_EVENT_LABELS[event.event_type]}</p>
+          <p className="chronology-type">{eventLabel}</p>
           <h3>{displayTitle(event)}</h3>
           <p className="muted">{formatDate(event.occurred_at)} · {authorLabel(event)}</p>
         </div>

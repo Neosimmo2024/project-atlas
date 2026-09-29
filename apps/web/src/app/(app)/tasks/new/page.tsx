@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TaskForm } from "@/components/tasks/task-form";
+import { safeTaskReturnTo } from "@/features/tasks/task-detail-return";
 import {
   listTaskInteractionOptions,
   listTaskOrganizationOptions,
@@ -47,6 +48,7 @@ export default async function NewTaskPage({ searchParams }: NewTaskPageProps) {
     source_type: sourceType(params),
     source_id: valueOf(params, "sourceId") || null
   };
+  const returnTo = safeTaskReturnTo(valueOf(params, "returnTo"));
 
   return (
     <div className="page stack">
@@ -55,11 +57,12 @@ export default async function NewTaskPage({ searchParams }: NewTaskPageProps) {
           <p className="muted">Tâches intelligentes</p>
           <h1>Nouvelle tâche</h1>
         </div>
-        <Link className="button subtle-button" href="/tasks">Retour</Link>
+        <Link className="button subtle-button" href={returnTo}>Retour</Link>
       </header>
       <section className="card stack">
         <TaskForm
           mode="create"
+          returnTo={returnTo}
           defaults={defaults}
           peopleOptions={peopleOptions}
           organizationOptions={organizationOptions}

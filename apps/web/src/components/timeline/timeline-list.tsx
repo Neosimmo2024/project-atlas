@@ -21,11 +21,12 @@ export function TimelineList({ result, basePath, category, hiddenFields = {} }: 
 
   const previousHref = timelineHref(basePath, category, Math.max(result.page - 1, 1), hiddenFields);
   const nextHref = timelineHref(basePath, category, Math.min(result.page + 1, result.pageCount), hiddenFields);
+  const returnHref = timelineHref(basePath, category, result.page, hiddenFields);
 
   return (
     <div className="stack">
       <div className="chronology-list">
-        {result.events.map((event) => <TimelineItem key={event.id} event={event} />)}
+        {result.events.map((event) => <TimelineItem key={event.id} event={event} returnHref={returnHref} />)}
       </div>
       {shouldShowTimelinePagination(result.pageCount) ? (
         <div className="pagination">

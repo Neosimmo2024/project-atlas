@@ -16,6 +16,7 @@ export function TalentQualificationForm({ personId, qualification, canEdit }: Pr
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const isCompleted = qualification?.state === "completed";
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -30,7 +31,7 @@ export function TalentQualificationForm({ personId, qualification, canEdit }: Pr
     const result = await response.json();
     setLoading(false);
     if (!response.ok) { setErrors(result.fields ?? []); setMessage(result.error ?? "Enregistrement impossible."); return; }
-    setMessage(payload.action === "finalize" ? "Qualification terminée." : "Brouillon enregistré.");
+    setMessage(payload.action === "finalize" ? (isCompleted ? "Qualification mise à jour." : "Qualification terminée.") : "Brouillon enregistré.");
     router.refresh();
   }
 
@@ -60,8 +61,8 @@ export function TalentQualificationForm({ personId, qualification, canEdit }: Pr
         {errorFor("conclusion") ? <span className="field-error">{errorFor("conclusion")}</span> : null}
       </label>
       {canEdit ? <div className="actions qualification-actions">
-        <Button type="submit" name="action" value="draft" disabled={loading}>Enregistrer le brouillon</Button>
-        <Button type="submit" name="action" value="finalize" disabled={loading}>Terminer la qualification</Button>
+        {!isCompleted ? <Button type="submit" name="action" value="draft" disabled={loading}>Enregistrer le brouillon</Button> : null}
+        <Button type="submit" name="action" value="finalize" disabled={loading}>{isCompleted ? "Enregistrer les modifications" : "Terminer la qualification"}</Button>
       </div> : <p className="muted">Votre rôle permet la consultation, mais pas la modification.</p>}
     </form>
   );

@@ -1,3 +1,4 @@
+import { formatAtlasDate } from "@/lib/date-time";
 import type { ActionPlanCategory, ActionPlanItem, ActionPlanReason, ActionPlanSourceType } from "@/types/domain";
 
 export const ACTION_PLAN_CATEGORY_LABELS: Record<ActionPlanCategory, string> = {
@@ -82,15 +83,7 @@ export function actionPlanItemLinkLabel(item: ActionPlanItem) {
 }
 
 export function formatActionPlanDate(value: string | null) {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-
-  return new Intl.DateTimeFormat("fr-FR", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Europe/Paris"
-  }).format(date);
+  return formatAtlasDate(value);
 }
 
 function hoursLabel(value: unknown) {

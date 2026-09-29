@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { PipelineFilters } from "@/components/recruitment-pipeline/pipeline-filters";
 import { PipelinePageClient } from "@/components/recruitment-pipeline/pipeline-page-client";
 import { EmptyState, ErrorState, PageHeader, Pagination } from "@/components/ui";
@@ -34,6 +34,12 @@ export default async function PipelinePage({ searchParams }: PipelinePageProps) 
     );
   }
 
+  const pipelineReturnTo = hrefForPipelineReturn(params);
+  const cards = result.cards.map((card) => ({
+    ...card,
+    href: `${card.href}?returnTo=${encodeURIComponent(pipelineReturnTo)}`
+  }));
+
   return (
     <div className="page stack">
       <PageHeader
@@ -47,12 +53,22 @@ export default async function PipelinePage({ searchParams }: PipelinePageProps) 
         <EmptyState title="Pipeline vide" body="Créez une relation pour alimenter le pipeline de recrutement." action={<Link className="button link-button" href="/relationships/new">Créer une relation</Link>} />
       ) : (
         <>
-          <PipelinePageClient initialCards={result.cards} owners={result.owners} filters={filters} role={context.role} invalidStages={result.invalidStages} />
+          <PipelinePageClient initialCards={cards} owners={result.owners} filters={filters} role={context.role} invalidStages={result.invalidStages} />
           <Pagination page={result.page} pageCount={result.pageCount} total={result.total} hrefForPage={(page) => hrefForPipelinePage(params, page)} label="Pagination du pipeline" />
         </>
       )}
     </div>
   );
+}
+
+function hrefForPipelineReturn(params: Record<string, string | string[] | undefined>) {
+  const next = new URLSearchParams();
+  for (const [key, rawValue] of Object.entries(params)) {
+    const value = Array.isArray(rawValue) ? rawValue[0] : rawValue;
+    if (value) next.set(key, value);
+  }
+  const query = next.toString();
+  return query ? `/pipeline?${query}` : "/pipeline";
 }
 
 function hrefForPipelinePage(params: Record<string, string | string[] | undefined>, page: number) {

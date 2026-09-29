@@ -1,3 +1,4 @@
+import { logServerError } from "@/lib/security/logger";
 import { NextResponse } from "next/server";
 
 import { isAuthorizedRecruitmentOrchestrator } from "@/services/recruitment-email-orchestrator";
@@ -13,8 +14,9 @@ export async function POST(request: Request) {
   try {
     const templates = await bootstrapRecruitmentFollowUpTemplates();
     return NextResponse.json({ data: { templates, emailsSent: 0 } });
-  } catch (error) {
-    console.error("Recruitment follow-up template bootstrap failed", error);
+  } catch {
+    logServerError("Recruitment follow-up template bootstrap failed");
     return NextResponse.json({ error: "Recruitment follow-up template bootstrap failed." }, { status: 500 });
   }
 }
+

@@ -1,0 +1,33 @@
+import { SMS_PILOT_MESSAGE } from "@/features/recruitment-sms/pilot-preview";
+import { beforeEach, afterEach, expect, it, vi } from "vitest";
+import { runSmsPersonalPilot as run, getSmsPilotView, smsPilotConfirmation } from "./brevo-sms-pilot";
+const m=vi.hoisted(()=>({context:vi.fn(),scope:vi.fn(),db:vi.fn(),binding:vi.fn(),send:vi.fn(),single:vi.fn(),read:vi.fn()}));
+vi.mock("./tenant-context",()=>({getTenantContext:m.context}));
+vi.mock("./brevo-account-diagnostic",()=>({isBrevoQaScope:m.scope}));
+vi.mock("@/lib/supabase/service-role",()=>({createSupabaseServiceRoleClient:m.db}));
+vi.mock("@/services/brevo-account-binding",()=>({verifyBrevoAccountBinding:m.binding}));
+vi.mock("@/services/brevo-sms-pilot",()=>({sendBrevoSmsPilot:m.send}));
+const actor={role:"owner",tenantId:"8e27b0ff-3f1a-41fa-8390-628c718723a2",userId:"5ab1ce0d-a43a-4f4a-b576-0f9d10c606e6"};
+const recipient="+33600000000";
+beforeEach(()=>{
+ vi.resetAllMocks();m.context.mockResolvedValue(actor);m.scope.mockReturnValue(true);
+ vi.stubEnv("ATLAS_SMS_PILOT_ENABLED","1");vi.stubEnv("ATLAS_SMS_PILOT_RECIPIENT",recipient);vi.stubEnv("BREVO_API_KEY","fake");
+ vi.stubEnv("ATLAS_BREVO_CONTACT_TENANT_ID",actor.tenantId);vi.stubEnv("ATLAS_BREVO_ORGANIZATION_ID","69aae9fea303e8f4220b4e98");
+ const query={select:vi.fn(),insert:vi.fn(),update:vi.fn(),eq:vi.fn(),single:m.single,maybeSingle:m.read};
+ for(const f of [query.select,query.insert,query.update,query.eq])f.mockReturnValue(query);
+ m.db.mockReturnValue({from:vi.fn().mockReturnValue(query)});m.single.mockResolvedValue({data:{id:"10000000-0000-4000-8000-000000000001"},error:null});m.read.mockResolvedValue({data:null,error:null});
+ m.binding.mockResolvedValue({status:"verified"});m.send.mockResolvedValue({status:"accepted",messageId:"123"});
+});
+afterEach(()=>vi.unstubAllEnvs());
+it("requires explicit confirmation",async()=>{expect((await run("",recipient)).status).toBe("confirmation_required");expect(m.context).not.toHaveBeenCalled();});
+it.each([null,{...actor,role:"admin"},{...actor,userId:"other"},{...actor,tenantId:"other"}])("rejects unauthorized actor %j",async value=>{m.context.mockResolvedValue(value);expect((await run(smsPilotConfirmation,recipient,SMS_PILOT_MESSAGE)).status).toBe("unavailable");expect(m.send).not.toHaveBeenCalled();});
+it("rejects production",async()=>{m.scope.mockReturnValue(false);await run(smsPilotConfirmation,recipient,SMS_PILOT_MESSAGE);expect(m.send).not.toHaveBeenCalled();});
+it("defaults to disabled",async()=>{vi.stubEnv("ATLAS_SMS_PILOT_ENABLED","");expect((await run(smsPilotConfirmation,recipient,SMS_PILOT_MESSAGE)).status).toBe("disabled");expect(m.db).not.toHaveBeenCalled();});
+it("refuses an arbitrary browser number",async()=>{expect((await run(smsPilotConfirmation,"+33700000000",SMS_PILOT_MESSAGE)).status).toBe("recipient_mismatch");expect(m.send).not.toHaveBeenCalled();});
+it("binds the server recipient and rechecks authorization",async()=>{await run(smsPilotConfirmation,recipient,SMS_PILOT_MESSAGE);const o=m.send.mock.calls[0][0];expect(o.recipient).toBe(recipient);expect(await o.verifyAccount()).toBe(true);m.context.mockResolvedValue({...actor,role:"reader"});await expect(o.authorize()).rejects.toThrow();});
+it("refuses changed server configuration",async()=>{await run(smsPilotConfirmation,recipient,SMS_PILOT_MESSAGE);const o=m.send.mock.calls[0][0];vi.stubEnv("ATLAS_SMS_PILOT_RECIPIENT","+33700000000");await expect(o.authorize()).rejects.toThrow();});
+it("does not return a ready view without journal access",async()=>{m.read.mockResolvedValue({data:null,error:{code:"42P01"}});expect(await getSmsPilotView()).toEqual({status:"unavailable"});});
+it("keeps terminal attempts locked in the view",async()=>{m.read.mockResolvedValue({data:{status:"accepted"},error:null});expect(await getSmsPilotView()).toEqual({status:"accepted"});});
+it("fails on missing journal completion",async()=>{await run(smsPilotConfirmation,recipient,SMS_PILOT_MESSAGE);const o=m.send.mock.calls[0][0];m.single.mockResolvedValue({data:null,error:null});await expect(o.journal.finish("10000000-0000-4000-8000-000000000001",{status:"unknown"})).rejects.toThrow();});
+
+it("rejects a changed or stale displayed message",async()=>{expect((await run(smsPilotConfirmation,recipient,"other text")).status).toBe("confirmation_required");expect(m.send).not.toHaveBeenCalled();});

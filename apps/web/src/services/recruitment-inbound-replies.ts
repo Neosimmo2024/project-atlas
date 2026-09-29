@@ -1,10 +1,12 @@
 import { timingSafeEqual } from "node:crypto";
+import { collectInboundDiagnostic } from "./recruitment-inbound-diagnostic";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 
 type Mailbox = { Address?: string | null; Name?: string | null };
 type Recipient = Mailbox | string;
 
 export type BrevoInboundEmail = {
+  Headers?: unknown;
   MessageId?: string | null;
   InReplyTo?: string | null;
   From?: Mailbox | null;
@@ -52,7 +54,10 @@ export function isAuthorizedBrevoInboundWebhook(request: Request) {
   const expected = configuredWebhookSecret();
   const provided = request.headers.get(webhookHeader)?.trim() ?? "";
   if (!expected || provided.length !== expected.length) return false;
-  return timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+  const providedBytes = Buffer.from(provided);
+  const expectedBytes = Buffer.from(expected);
+  if (providedBytes.length !== expectedBytes.length) return false;
+  return timingSafeEqual(providedBytes, expectedBytes);
 }
 
 function messageIdVariants(value: string | null | undefined) {
@@ -200,6 +205,23 @@ async function ensureCandidateReplyFollowUpTask(sequence: SequenceRow, item: Bre
     })
     .select("id")
     .single();
+  if (error?.code === "23505") {
+    // The unique database index arbitrates concurrent notifications. Never
+    // overwrite a task that another worker (or a user) has already created.
+    const { data: winner, error: lookupError } = await supabase
+      .from("tasks")
+      .select("id")
+      .eq("tenant_id", sequence.tenant_id)
+      .eq("person_id", sequence.person_id)
+      .is("deleted_at", null)
+      .contains("metadata", metadataKey)
+      .limit(1)
+      .maybeSingle();
+    if (lookupError) throw lookupError;
+    if (winner) return winner.id as string;
+    // An unrelated uniqueness violation must not mark this reply processed.
+    throw error;
+  }
   if (error) throw error;
   return data.id as string;
 }
@@ -213,6 +235,7 @@ async function insertReplyEvent(input: {
   followUpTaskId?: string | null;
 }) {
   const messageId = input.item.MessageId!.trim();
+  const diagnostic = collectInboundDiagnostic(input.sequence.id, input.item.Headers);
   const supabase = createSupabaseServiceRoleClient();
   const { error } = await supabase.from("timeline_events").upsert({
     tenant_id: input.sequence.tenant_id,
@@ -234,7 +257,8 @@ async function insertReplyEvent(input: {
       sent_at: input.item.SentAtDate ?? null,
       reply_excerpt: replyExcerpt(input.item.ExtractedMarkdownMessage),
       follow_up_task_id: input.followUpTaskId ?? null,
-      source: "brevo_inbound_parsing"
+      source: "brevo_inbound_parsing",
+      ...(diagnostic ? { inbound_auth_diagnostic: diagnostic } : {})
     },
     visibility: "tenant",
     idempotency_key: eventKey(messageId)
@@ -314,3 +338,4 @@ export async function processBrevoInboundReplies(payload: BrevoInboundPayload): 
 
   return summary;
 }
+
