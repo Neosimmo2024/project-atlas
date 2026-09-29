@@ -1,13 +1,13 @@
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { runBrevoContactPilot as run, brevoPilotPersonId as personId } from "./brevo-contact-pilot";
-const m = vi.hoisted(() => ({ context: vi.fn(), scope: vi.fn(), binding: vi.fn(), source: vi.fn(), read: vi.fn(), journal: vi.fn(), sync: vi.fn(), observer: vi.fn(), observe: vi.fn(), db: vi.fn(), previous: vi.fn() }));
+const m = vi.hoisted(() => ({ context: vi.fn(), scope: vi.fn(), binding: vi.fn(), source: vi.fn(), read: vi.fn(), journal: vi.fn(), sync: vi.fn(), channels: vi.fn(), db: vi.fn(), previous: vi.fn() }));
 vi.mock("./tenant-context", () => ({ getTenantContext: m.context }));
 vi.mock("./brevo-account-diagnostic", () => ({ isBrevoQaScope: m.scope }));
 vi.mock("@/services/brevo-account-binding", () => ({ verifyBrevoAccountBinding: m.binding }));
 vi.mock("./brevo-contact-source", () => ({ createAuthorizedBrevoContactSource: m.source }));
 vi.mock("./brevo-contact-journal", () => ({ createBrevoContactJournal: m.journal }));
 vi.mock("@/services/brevo-contact-journal", () => ({ syncBrevoContactWithJournal: m.sync }));
-vi.mock("@/services/brevo-contact-observer", () => ({ createBrevoContactObserver: m.observer }));
+vi.mock("@/services/brevo-pilot-channels", () => ({ ensureBrevoPilotChannels: m.channels }));
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: m.db }));
 const tenantId = "8e27b0ff-3f1a-41fa-8390-628c718723a2";
 const person = { tenantId, personId, email: "atlas-pilot-20260929@example.invalid", contactAllowed: true, doNotContact: false };
@@ -19,7 +19,7 @@ beforeEach(() => {
   m.scope.mockReturnValue(true); m.context.mockResolvedValue(actor); m.binding.mockResolvedValue({ status: "verified" });
   m.read.mockResolvedValue({ ...person }); m.source.mockResolvedValue({ readPerson: m.read }); m.journal.mockResolvedValue({});
   m.sync.mockImplementation(async (_target, options) => { await options.readPerson(_target); return { status: "created", contactId: 99 }; });
-  m.observer.mockReturnValue(m.observe); m.observe.mockResolvedValue({ kind: "found", contact: { id: 99, email: person.email, emailBlacklisted: true, smsBlacklisted: true } });
+  m.channels.mockImplementation(async o => { await o.authorize(); return { status: "verified", contactId: 99, sms: "not_configured", senderCount: 1 }; });
   const query = { select: vi.fn(), eq: vi.fn(), limit: vi.fn(), maybeSingle: m.previous };
   for (const fn of [query.select, query.eq, query.limit]) fn.mockReturnValue(query);
   m.db.mockResolvedValue({ from: vi.fn().mockReturnValue(query) }); m.previous.mockResolvedValue({ data: null, error: null });
@@ -39,22 +39,21 @@ it("second click only verifies the original id without another write", async () 
   await run(confirmation); m.previous.mockResolvedValue({ data: { provider_contact_id: 99 }, error: null });
   expect(await run(confirmation)).toEqual({ status: "existing_verified", contactId: 99 }); expect(m.sync).toHaveBeenCalledTimes(1);
 });
-it("does not recreate a successful pilot removed from Brevo", async () => {
-  m.previous.mockResolvedValue({ data: { provider_contact_id: 99 }, error: null }); m.observe.mockResolvedValue({ kind: "absent" });
-  expect((await run(confirmation)).status).toBe("verification_required"); expect(m.sync).not.toHaveBeenCalled();
-});
-it("does not report success when the returned identity or suppression differs", async () => {
-  m.observe.mockResolvedValue({ kind: "found", contact: { id: 100, email: person.email, emailBlacklisted: false, smsBlacklisted: true } });
-  expect((await run(confirmation)).status).toBe("verification_required");
-});
-it("distinguishes an existing identity from unconfirmed channel suppression without writing again", async () => {
+it("does not recreate a successful pilot when channel verification fails", async () => {
   m.previous.mockResolvedValue({ data: { provider_contact_id: 99 }, error: null });
-  m.observe.mockResolvedValue({ kind: "found", contact: { id: 99, email: person.email, emailBlacklisted: true, smsBlacklisted: false } });
-  expect(await run(confirmation)).toEqual({ status: "contact_verified_channels_unconfirmed", contactId: 99 });
-  expect(m.sync).not.toHaveBeenCalled(); expect(m.journal).not.toHaveBeenCalled();
+  m.channels.mockResolvedValue({ status: "channels_unconfirmed" });
+  expect((await run(confirmation)).status).toBe("channels_unconfirmed"); expect(m.sync).not.toHaveBeenCalled();
+});
+it("does not adopt an existing contact without its recorded successful id", async () => {
+  m.sync.mockResolvedValue({ status: "skipped" });
+  expect((await run(confirmation)).status).toBe("verification_required"); expect(m.channels).not.toHaveBeenCalled();
+});
+it("passes the fixed identity and fresh authorization to channel enforcement", async () => {
+  await run(confirmation);
+  expect(m.channels).toHaveBeenCalledWith(expect.objectContaining({ contactId: 99, email: person.email, externalId: `atlas:${tenantId}:${personId}` }));
 });
 it("rechecks owner permissions before reading or writing the source", async () => {
   m.context.mockResolvedValueOnce(actor).mockResolvedValue({ ...actor, role: "admin" });
   expect((await run(confirmation)).status).toBe("unavailable"); expect(m.sync).not.toHaveBeenCalled();
 });
-it("never retries an uncertain write", async () => { m.sync.mockResolvedValue({ status: "write_outcome_unknown" }); expect((await run(confirmation)).status).toBe("write_outcome_unknown"); expect(m.sync).toHaveBeenCalledTimes(1); expect(m.observe).not.toHaveBeenCalled(); });
+it("never retries an uncertain write", async () => { m.sync.mockResolvedValue({ status: "write_outcome_unknown" }); expect((await run(confirmation)).status).toBe("write_outcome_unknown"); expect(m.sync).toHaveBeenCalledTimes(1); expect(m.channels).not.toHaveBeenCalled(); });

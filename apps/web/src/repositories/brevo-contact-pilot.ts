@@ -5,7 +5,7 @@ import { verifyBrevoAccountBinding } from "@/services/brevo-account-binding";
 import { createAuthorizedBrevoContactSource } from "./brevo-contact-source";
 import { createBrevoContactJournal } from "./brevo-contact-journal";
 import { syncBrevoContactWithJournal } from "@/services/brevo-contact-journal";
-import { createBrevoContactObserver } from "@/services/brevo-contact-observer";
+import { ensureBrevoPilotChannels } from "@/services/brevo-pilot-channels";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 // Explicit one-contact QA pilot authorized on 29 September. No arbitrary target.
@@ -49,14 +49,11 @@ export async function runBrevoContactPilot(confirmation: string) {
       });
       if (result.status !== "created" && result.status !== "skipped") return fail(result.status);
     }
-    const observed = await createBrevoContactObserver(options)(`atlas:${tenantId}:${brevoPilotPersonId}`);
-    await readPerson(target);
     const expectedId = previous?.provider_contact_id ?? (result && "contactId" in result ? result.contactId : undefined);
-    if (observed.kind !== "found" || observed.contact.email !== email
-      || (expectedId !== undefined && observed.contact.id !== expectedId)) return fail("verification_required");
-    if (!observed.contact.emailBlacklisted || !observed.contact.smsBlacklisted) {
-      return { status: "contact_verified_channels_unconfirmed", contactId: observed.contact.id };
-    }
-    return { status: result?.status === "created" ? "created_verified" : "existing_verified", contactId: observed.contact.id };
+    if (typeof expectedId !== "number" || !Number.isSafeInteger(expectedId) || expectedId <= 0) return fail("verification_required");
+    const checked = await ensureBrevoPilotChannels({ ...options, externalId: `atlas:${tenantId}:${brevoPilotPersonId}`,
+      contactId: expectedId, email, authorize: async () => { await readPerson(target); } });
+    if (checked.status !== "verified") return fail("channels_unconfirmed");
+    return { status: result?.status === "created" ? "created_verified" : "existing_verified", contactId: checked.contactId };
   } catch { return fail("unavailable"); }
 }

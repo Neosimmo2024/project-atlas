@@ -38,8 +38,9 @@ export async function pilotContactAction(_previous: { message: string }, form: F
   const confirmation = form.get("confirmation");
   const result = await runBrevoContactPilot(typeof confirmation === "string" ? confirmation : "");
   revalidatePath("/admin/brevo-contacts");
-  if (result.status === "created_verified") return { message: `Contact fictif créé et vérifié dans Brevo : ${result.contactId}. Emails et SMS bloqués.` };
-  if (result.status === "existing_verified") return { message: `Contact fictif déjà présent : ${result.contactId}. Aucun nouveau contact créé. Emails et SMS bloqués.` };
-  if (result.status === "contact_verified_channels_unconfirmed") return { message: `Contact fictif retrouvé et identifié dans Brevo : ${result.contactId}. Toute nouvelle création est bloquée. Le blocage de tous les canaux n’est pas confirmé ; aucune synchronisation automatique ni aucun envoi ne sont activés.` };
+  const channels = "Campagnes email bloquées. Emails transactionnels bloqués pour les expéditeurs Brevo actuels. SMS : sans numéro. Aucun envoi effectué.";
+  if (result.status === "created_verified") return { message: `Contact fictif créé et vérifié dans Brevo : ${result.contactId}. ${channels}` };
+  if (result.status === "existing_verified") return { message: `Contact fictif déjà présent : ${result.contactId}. Aucun nouveau contact créé. ${channels}` };
+  if (result.status === "channels_unconfirmed") return { message: "Le contact créé est conservé, mais le contrôle de ses canaux n’est pas confirmé. Aucune nouvelle création ni aucun envoi ne sont lancés automatiquement." };
   return { message: "Test non confirmé. Consultez l’historique ; aucune relance automatique n’est effectuée." };
 }

@@ -40,7 +40,7 @@ export function BrevoContactPilot() {
   const [state, action, pending] = useActionState(pilotContactAction, { message: "" });
   return <section className="card stack" aria-label="Test d’un contact fictif">
     <h2>Test d’un contact fictif</h2>
-    <p>Ce test est réservé au propriétaire de la QA. Il concerne uniquement la fiche fictive préparée pour ce parcours. Le contact sera créé avec les emails et SMS bloqués, sans inscription à une liste.</p>
+    <p>Ce test est réservé au propriétaire de la QA. Il concerne uniquement la fiche fictive préparée pour ce parcours. Le test bloque les campagnes email et les emails transactionnels des expéditeurs Brevo actuels, puis vérifie le résultat. La fiche n’a ni téléphone ni inscription à une liste.</p>
     <form action={action} className="stack">
       <label><input type="checkbox" name="confirmation" value="create_one_blocklisted_test_contact" required disabled={pending} /> Je confirme le test sur un seul contact fictif, sans envoi.</label>
       <div><button className="button" disabled={pending}>{pending ? "Vérification en cours…" : "Créer ou vérifier le contact fictif"}</button></div>
