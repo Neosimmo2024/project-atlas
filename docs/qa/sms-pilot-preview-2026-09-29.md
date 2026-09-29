@@ -4,7 +4,7 @@ L’écran QA « Suivi des contacts Brevo », déjà réservé aux propriétaire
 
 Le message technique est fixe et composé de 104 caractères GSM simples ; un test vérifie sa limite de 160 caractères. La préparation normalise les formats 06/07 et +336/+337, rejette les listes, les formats ambigus et les numéros hors périmètre. La syntaxe ne prouve ni la propriété ni la réception. Toute modification du champ efface le résultat précédent.
 
-Le parcours d’envoi réel n’est pas implémenté par ce lot. Avant celui-ci : vérifier l’activation SMS du compte, l’expéditeur, les crédits, le numéro personnel autorisé, puis prévoir un journal idempotent et un envoi unique avec résultat explicite, sans reprise automatique en cas d’issue incertaine. Aucun candidat réel ni automatisme de relance ne fait partie de ce test.
+Ce premier lot concernait uniquement l’aperçu. Le raccordement d’envoi unique est décrit dans sms-personal-send-2026-09-29.md et reste désactivé par défaut. Avant celui-ci : vérifier l’activation SMS du compte, l’expéditeur, les crédits, le numéro personnel autorisé, puis prévoir un journal idempotent et un envoi unique avec résultat explicite, sans reprise automatique en cas d’issue incertaine. Aucun candidat réel ni automatisme de relance ne fait partie de ce test.
 
 Validation locale : 901 tests / 116 fichiers, TypeScript, lint et diff-check. Tests dédiés de normalisation, refus des destinataires ambigus, absence d’état envoyé et longueur du texte fixe.
 

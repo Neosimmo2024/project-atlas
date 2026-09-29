@@ -8,6 +8,9 @@ import { brevoContactCommandAvailability, isBrevoQaScope } from "@/repositories/
 
 import { BrevoSmsPilotPreview } from "@/components/brevo-sms-pilot-preview";
 
+import { BrevoSmsPilotSend } from "@/components/brevo-sms-pilot-send";
+import { getSmsPilotView } from "@/repositories/brevo-sms-pilot";
+
 export const dynamic = "force-dynamic";
 const reasons: Record<string, string> = {
   invalid_identity: "Identité à vérifier", tenant_mismatch: "Compte incompatible", missing_configuration: "Configuration incomplète",
@@ -35,6 +38,7 @@ export default async function BrevoContactsPage({ searchParams }: {
   const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
   const history = await listBrevoContactHistory({ page: first(params.page), status: first(params.status) });
   const commands = brevoContactCommandAvailability();
+  const smsView = history.state === "ready" && isBrevoQaScope() ? await getSmsPilotView() : { status: "disabled" as const };
   if (history.state === "forbidden") return <div className="page stack"><EmptyState title="Accès non autorisé" body="Le suivi Brevo est réservé aux propriétaires et administrateurs de votre espace." /></div>;
 
   return <div className={`page stack ${styles.page}`}>
@@ -44,9 +48,9 @@ export default async function BrevoContactsPage({ searchParams }: {
     <section className="card stack" aria-label="État de la synchronisation">
       <div><span className="status-badge subtle">Synchronisation inactive</span></div>
       <h2>Synchronisation automatique non activée</h2>
-      <p>Consultez l’historique et effectuez les vérifications manuelles disponibles. Le test manuel ci-dessous peut créer un seul contact fictif puis vérifier ses restrictions d’envoi. Aucun email ou SMS n’est déclenché par cette page.</p>
+      <p>Consultez l’historique et effectuez les vérifications manuelles disponibles. Le test manuel ci-dessous peut créer un seul contact fictif puis vérifier ses restrictions d’envoi. La création et la vérification du contact n’envoient aucun message. Le test SMS personnel dispose d’une confirmation séparée.</p>
     </section>
-    {history.state === "ready" && isBrevoQaScope() ? <><BrevoAccountDiagnostic /><BrevoContactPilot /><BrevoSmsPilotPreview /></> : null}
+    {history.state === "ready" && isBrevoQaScope() ? <><BrevoAccountDiagnostic /><BrevoContactPilot /><BrevoSmsPilotPreview /><BrevoSmsPilotSend view={smsView} /></> : null}
     {history.state !== "ready" ? <section className="card stack" role="status">
       <h2>{history.state === "not_installed" ? "Historique pas encore disponible" : "Historique temporairement indisponible"}</h2>
       <p>{history.state === "not_installed" ? "Le suivi doit encore être installé sur cet environnement. Aucune opération ne peut être confirmée depuis cet écran pour le moment." : "Les opérations n’ont pas pu être chargées. Réessayez dans quelques instants."}</p>

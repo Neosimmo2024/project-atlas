@@ -25,6 +25,6 @@ export function BrevoSmsPilotPreview() {
         <p>{preview.characterCount} caractères. Le format du numéro est reconnu ; sa capacité à recevoir un SMS reste à vérifier.</p>
       </> : null}
     </div>
-    <p className="muted">L’envoi réel reste désactivé. Il nécessitera la vérification du compte SMS et ton accord sur ce numéro et ce message.</p>
+    <p className="muted">Cet aperçu ne déclenche aucun envoi. L’envoi unique utilise uniquement le numéro autorisé dans la section dédiée, avec une confirmation séparée.</p>
   </section>;
 }

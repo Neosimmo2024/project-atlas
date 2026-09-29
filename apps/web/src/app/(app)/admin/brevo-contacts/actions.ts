@@ -44,3 +44,22 @@ export async function pilotContactAction(_previous: { message: string }, form: F
   if (result.status === "channels_unconfirmed") return { message: `Le contact créé est conservé, mais le contrôle de ses canaux n’est pas confirmé. Aucune nouvelle création ni aucun envoi ne sont lancés automatiquement. Référence du contrôle QA : ${"diagnostic" in result ? result.diagnostic : "indisponible"}.` };
   return { message: "Test non confirmé. Consultez l’historique ; aucune relance automatique n’est effectuée." };
 }
+
+export async function sendPersonalSmsAction(_previous: { message: string }, form: FormData) {
+  const { runSmsPersonalPilot } = await import("@/repositories/brevo-sms-pilot");
+  const confirmation = form.get("confirmation"), recipient = form.get("recipient"), message = form.get("message");
+  const result = await runSmsPersonalPilot(typeof confirmation === "string" ? confirmation : "", typeof recipient === "string" ? recipient : "", typeof message === "string" ? message : "");
+  revalidatePath("/admin/brevo-contacts");
+  const messages: Record<string, string> = {
+    accepted: "Brevo a accepté le SMS. Cela ne confirme pas sa réception sur ton téléphone. Tout nouvel envoi est bloqué.",
+    rejected: "Brevo a refusé le SMS. Aucun nouvel essai automatique ne sera effectué.",
+    unknown: "Résultat à vérifier : le SMS a peut-être été transmis. Aucun nouvel essai n’est autorisé.",
+    cancelled: "L’envoi a été annulé avant transmission. Tout nouvel essai reste bloqué.",
+    locked_or_unavailable: "Le test est déjà enregistré ou son journal est indisponible. Aucun nouvel envoi n’est lancé.",
+    disabled: "L’envoi réel n’est pas activé.",
+    confirmation_required: "Confirme l’envoi unique au numéro affiché.",
+    recipient_mismatch: "Le numéro confirmé ne correspond plus au numéro autorisé. Aucun envoi effectué.",
+    account_unverified: "Le compte Brevo n’a pas pu être confirmé. Aucun envoi effectué.",
+  };
+  return { message: messages[result.status] ?? "L’envoi ne peut pas être lancé. Vérifie la configuration et tes droits." };
+}
