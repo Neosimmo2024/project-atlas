@@ -47,9 +47,10 @@ export async function ensureBrevoPilotChannels(o: Options) {
   };
   const blocked = async (sender: string) => {
     phase = "transactional";
-    // Provider-filtered sender scope includes global blocks (nullable senderEmail).
+    // Include global blocks: a sender-filtered query can exclude null senderEmail.
+    // Only the exact fixture email and exact sender (or global null) count.
     for (let offset = 0; offset < 1000; offset += 100) {
-      const v = await json(`smtp/blockedContacts?senders=${encodeURIComponent(sender)}&limit=100&offset=${offset}`);
+      const v = await json(`smtp/blockedContacts?limit=100&offset=${offset}`);
       if (!Array.isArray(v.contacts)) throw new Error("contacts_missing");
       if (typeof v.count !== "number" || !Number.isSafeInteger(v.count) || v.count < 0) throw new Error("count_invalid");
       for (const c of v.contacts) {
