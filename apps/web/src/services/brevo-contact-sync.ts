@@ -3,6 +3,8 @@ import { planBrevoContactSync, type BrevoContactSnapshot, type ContactSyncInput,
 type Target = Pick<ContactSyncInput, "tenantId" | "personId">;
 type Options = {
   enabled?: boolean;
+  /** QA pilot: create with both delivery channels already blocked. */
+  createBlacklisted?: boolean;
   accountTenantId: string;
   apiKey?: string;
   /** Must read current permissions through an authorized server context. */
@@ -72,7 +74,9 @@ export async function syncBrevoContact(requestedTarget: Target, options: Options
   if (plan.action === "blocked") return { status: "blocked", reason: plan.reason };
   if (plan.action === "skip") return { status: "skipped", reason: plan.reason };
   try {
-    const response = await request(plan.request.path, plan.request.method, plan.request.body);
+    const body = plan.action === "create" && options.createBlacklisted === true
+      ? { ...plan.request.body, emailBlacklisted: true, smsBlacklisted: true } : plan.request.body;
+    const response = await request(plan.request.path, plan.request.method, body);
     if (plan.action === "suppress" && response.status === 204) return { status: "suppressed", contactId: existing!.id };
     if (plan.action === "create" && response.status === 201) {
       const body: unknown = await response.json();

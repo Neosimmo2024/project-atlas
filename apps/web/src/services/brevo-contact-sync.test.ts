@@ -49,6 +49,13 @@ describe("Brevo contact executor with mocked transport", () => {
     expect(init?.signal).toBeInstanceOf(AbortSignal);
     expect(JSON.parse(String(init?.body))).toEqual({ email: person.email, ext_id: externalId, updateEnabled: false, forceMerge: false });
   });
+  it("creates the QA pilot with both channels blocked in the initial POST", async () => {
+    transport.mockResolvedValueOnce(missing()).mockResolvedValueOnce(missing()).mockResolvedValueOnce(json(201, { id: 99 }));
+    await syncBrevoContact(target, { ...options(), createBlacklisted: true });
+    expect(writes()).toHaveLength(1);
+    expect(JSON.parse(String(writes()[0][1]?.body))).toEqual({ email: person.email, ext_id: externalId,
+      updateEnabled: false, forceMerge: false, emailBlacklisted: true, smsBlacklisted: true });
+  });
   it("does not adopt an existing contact found by email", async () => {
     transport.mockResolvedValueOnce(missing()).mockResolvedValueOnce(json(200, contact));
     expect(await syncBrevoContact(target, options())).toEqual({ status: "blocked", reason: "email_collision" }); expect(writes()).toEqual([]);

@@ -32,3 +32,13 @@ export async function contactCommandAction(_previous: { message: string }, form:
     return { message: messages[result.status] ?? "Contrôle enregistré : la situation demande une vérification. Nouvelle tentative bloquée." };
   } catch { return { message: "Opération indisponible. Aucun réessai automatique n’est lancé." }; }
 }
+
+export async function pilotContactAction(_previous: { message: string }, form: FormData) {
+  const { runBrevoContactPilot } = await import("@/repositories/brevo-contact-pilot");
+  const confirmation = form.get("confirmation");
+  const result = await runBrevoContactPilot(typeof confirmation === "string" ? confirmation : "");
+  revalidatePath("/admin/brevo-contacts");
+  if (result.status === "created_verified") return { message: `Contact fictif créé et vérifié dans Brevo : ${result.contactId}. Emails et SMS bloqués.` };
+  if (result.status === "existing_verified") return { message: `Contact fictif déjà présent : ${result.contactId}. Aucun nouveau contact créé. Emails et SMS bloqués.` };
+  return { message: "Test non confirmé. Consultez l’historique ; aucune relance automatique n’est effectuée." };
+}

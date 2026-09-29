@@ -3,7 +3,7 @@ import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { contactHistoryStatuses, listBrevoContactHistory } from "@/repositories/brevo-contact-history";
 import styles from "./page.module.css";
-import { BrevoAccountDiagnostic, BrevoContactControls } from "@/components/brevo-contact-controls";
+import { BrevoAccountDiagnostic, BrevoContactControls, BrevoContactPilot } from "@/components/brevo-contact-controls";
 import { brevoContactCommandAvailability, isBrevoQaScope } from "@/repositories/brevo-account-diagnostic";
 
 export const dynamic = "force-dynamic";
@@ -42,9 +42,9 @@ export default async function BrevoContactsPage({ searchParams }: {
     <section className="card stack" aria-label="État de la synchronisation">
       <div><span className="status-badge subtle">Synchronisation inactive</span></div>
       <h2>Synchronisation automatique non activée</h2>
-      <p>Consultez l’historique et effectuez les vérifications manuelles disponibles. Ces contrôles ne créent aucun contact et ne déclenchent aucun email ou SMS.</p>
+      <p>Consultez l’historique et effectuez les vérifications manuelles disponibles. Le test manuel ci-dessous peut créer un seul contact fictif avec les envois bloqués. Aucun email ou SMS n’est déclenché par cette page.</p>
     </section>
-    {history.state === "ready" && isBrevoQaScope() ? <BrevoAccountDiagnostic /> : null}
+    {history.state === "ready" && isBrevoQaScope() ? <><BrevoAccountDiagnostic /><BrevoContactPilot /></> : null}
     {history.state !== "ready" ? <section className="card stack" role="status">
       <h2>{history.state === "not_installed" ? "Historique pas encore disponible" : "Historique temporairement indisponible"}</h2>
       <p>{history.state === "not_installed" ? "Le suivi doit encore être installé sur cet environnement. Aucune opération ne peut être confirmée depuis cet écran pour le moment." : "Les opérations n’ont pas pu être chargées. Réessayez dans quelques instants."}</p>
