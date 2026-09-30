@@ -1,6 +1,14 @@
 # NEOS IMMO — Calendly gratuit et arrêt SMS
 
-État : worker préparé, non déployé, aucune planification active.
+État : diagnostic en lecture seule déployé sur la branche QA ; aucune planification active.
+
+Recette API réelle du 30 septembre 2026 : PASSED, 0 réservation et 0 modification.
+Compte Calendly, compte Brevo, liste 8 et URL de rendez-vous vérifiés.
+Le point POST `/api/internal/calendly/check` est limité à la branche et au projet QA,
+avec le vérificateur du secret ordonnanceur existant. Simulation imposée dans le code ;
+aucune valeur de requête ou variable ne peut activer les écritures.
+7 tests de frontière HTTP, 6 tests worker, typecheck et lint ciblé.
+Une recette avec réservation réelle reste nécessaire avant toute planification.
 
 Le worker `scripts/calendly-sms-stop.mjs` fonctionne avec l'API de lecture
 Calendly, disponible avec l'offre gratuite. Il n'envoie aucun message.
