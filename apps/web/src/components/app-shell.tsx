@@ -14,6 +14,7 @@ const navItems: Array<{ href: string; label: string; adminOnly?: boolean }> = [
   { href: "/admin/recruitment-email-template", label: "Modèle du premier email", adminOnly: true },
   { href: "/admin/brevo-contacts", label: "Suivi Brevo", adminOnly: true },
   { href: "/people", label: "Personnes" },
+  { href: "/prospects", label: "Recherche de prospects" },
   { href: "/organizations", label: "Organisations" },
   { href: "/relationships", label: "Relations" },
   { href: "/pipeline", label: "Pipeline" },
