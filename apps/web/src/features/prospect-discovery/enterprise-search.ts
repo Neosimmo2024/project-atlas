@@ -21,6 +21,9 @@ export type ProspectCandidate = {
   siren: string; siret: string; name: string; city: string; postalCode: string;
   kind: string; sourceUrl: string; checkedAt: string;
 };
+export const savedCandidateSchema = z.array(z.object({
+  siret: z.string().regex(/^\d{14}$/), name: z.string(), city: z.string(), postalCode: z.string().regex(/^\d{5}$/)
+})).max(2500);
 
 export function normalizeCandidates(payload: unknown, postalCode: string, checkedAt: string) {
   const data = responseSchema.parse(payload);

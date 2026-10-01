@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { searchEnterprises, searchInput } from "@/features/prospect-discovery/enterprise-search";
+import { searchEnterprises, searchInput, savedCandidateSchema } from "@/features/prospect-discovery/enterprise-search";
 import { getTenantContext } from "@/repositories/tenant-context";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { saveProspectList } from "./actions";
 
 export default async function ProspectsPage({ searchParams }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -10,6 +11,10 @@ export default async function ProspectsPage({ searchParams }: {
   const context = await getTenantContext();
   if (!context) redirect("/login");
   const params = await searchParams;
+  const database = await createSupabaseServerClient();
+  const { data: savedLists, error: listsError } = await database.from("prospect_lists")
+    .select("id,name,postal_code,source_page,created_at,candidates")
+    .eq("tenant_id", context.tenantId).order("created_at", { ascending: false }).limit(20);
   const postalCode = typeof params.postalCode === "string" ? params.postalCode : "";
   const parsed = searchInput.safeParse({ postalCode, page: params.page ?? 1 });
   let result: Awaited<ReturnType<typeof searchEnterprises>> | null = null;
@@ -48,8 +53,18 @@ export default async function ProspectsPage({ searchParams }: {
     </form>
     <p className="muted">Source : Annuaire des Entreprises, activité 68.31Z. Le statut de mandataire ou d’agence reste à confirmer. Les téléphones et emails ne sont pas fournis par cette source.</p>
     {error ? <p role="alert">{error}</p> : null}
+    {params.saved === "1" ? <p role="status">Liste enregistrée. Retrouvez-la ci-dessous.</p> : null}
+    {params.saved === "0" ? <p role="alert">La liste n’a pas été enregistrée : aucun résultat ou service indisponible.</p> : null}
     {result ? <section className="stack" aria-label="Résultats de prospection">
       <h2>{result.candidates.length} établissement(s) à examiner sur cette page</h2>
+      {result.candidates.length > 0 && ["owner", "admin", "recruiter", "manager"].includes(context.role) ? <form action={saveProspectList} className="card stack">
+        <input type="hidden" name="postalCode" value={postalCode} />
+        <input type="hidden" name="page" value={result.page} />
+        <label htmlFor="prospect-list-name">Nom de la liste</label>
+        <input id="prospect-list-name" name="name" maxLength={100} required defaultValue={`Immobilier ${postalCode} — page ${result.page}`} />
+        <p>Les résultats de cette page seront actualisés lors de l’enregistrement. Chaque liste reste à examiner.</p>
+        <button className="button" type="submit">Enregistrer cette page dans une liste</button>
+      </form> : null}
       <p>Page {result.page} sur {result.sourcePages || 1}. La source compte {result.sourceTotal} entreprises avant contrôle des établissements locaux. Cette liste n’est pas exhaustive.</p>
       {result.candidates.length === 0 ? <p>Aucun établissement local actif et diffusible retenu sur cette page. D’autres pages peuvent contenir des résultats.</p> : null}
       {result.candidates.map((item) => <article className="card stack" key={item.siret}>
@@ -66,5 +81,16 @@ export default async function ProspectsPage({ searchParams }: {
       </nav>
       <p>Aucun contact n’est créé ni inscrit à une campagne depuis cet écran.</p>
     </section> : null}
+    <section className="stack" aria-label="Listes enregistrées">
+      <h2>Mes dernières listes</h2>
+      {listsError ? <p>Les listes enregistrées sont momentanément indisponibles.</p> : null}
+      {!listsError && !savedLists?.length ? <p>Aucune liste enregistrée.</p> : null}
+      {(savedLists ?? []).map((list) => <details className="card" key={list.id}>
+        <summary>{list.name} — {list.postal_code} — à examiner</summary>
+        <p>Enregistrée le {new Date(list.created_at).toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" })}. Coordonnées et activité à compléter avant tout contact.</p>
+        {(savedCandidateSchema.safeParse(list.candidates).data ?? []).map((item) =>
+          <p key={item.siret}>{item.name} · {item.postalCode} {item.city} · <a href={`https://annuaire-entreprises.data.gouv.fr/etablissement/${item.siret}`} target="_blank" rel="noopener noreferrer">Fiche officielle</a></p>)}
+      </details>)}
+    </section>
   </div>;
 }

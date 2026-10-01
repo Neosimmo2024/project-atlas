@@ -27,7 +27,7 @@ au champ actuel `activite_principale`, pas au nouveau champ `activite_principale
 
 ## Étapes suivantes du parcours complet
 
-1. Listes persistantes de candidats, indépendantes des contacts validés.
+1. Listes persistantes ajoutées le 1 octobre : sauvegarde de la page après relecture de la source, 20 dernières listes consultables, isolation par tenant via RLS. Schéma installé sur QA seulement. Chaque liste demeure à examiner ; aucune validation ou transmission implicite.
 2. Collecte des fiches des réseaux et sites professionnels ; source et date par donnée.
 3. Enrichissement téléphone/email sans adresses inventées ; conflits à examiner.
 4. Qualification agence/mandataire, secteur et choix humain de retenir/écarter.
