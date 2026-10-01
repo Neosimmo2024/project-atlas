@@ -14,7 +14,7 @@ export default async function ProspectsPage({ searchParams }: {
   const params = await searchParams;
   const database = await createSupabaseServerClient();
   const { data: savedLists, error: listsError } = await database.from("prospect_lists")
-    .select("id,name,postal_code,source_page,created_at,candidates")
+    .select("id,name,postal_code,source_page,created_at,candidates,target_key")
     .eq("tenant_id", context.tenantId).order("created_at", { ascending: false }).limit(20);
   const listIds = (savedLists ?? []).map(list => list.id);
   const { data: reviews, error: reviewsError } = listIds.length ? await database.from("prospect_reviews")
@@ -22,11 +22,12 @@ export default async function ProspectsPage({ searchParams }: {
     .eq("tenant_id", context.tenantId).in("list_id", listIds) : { data: [], error: null };
   const reviewMap = new Map((reviews as ProspectReview[] ?? []).map(review => [`${review.list_id}:${review.siret}`, review]));
   const postalCode = typeof params.postalCode === "string" ? params.postalCode : "";
-  const parsed = searchInput.safeParse({ postalCode, page: params.page ?? 1 });
+  const target = typeof params.target === "string" ? params.target : postalCode ? "postal" : "saint_maur";
+  const parsed = searchInput.safeParse({ postalCode: postalCode || "94100", page: params.page ?? 1, target });
   let result: Awaited<ReturnType<typeof searchEnterprises>> | null = null;
   let error = "";
   let existing = new Set<string>();
-  if (postalCode) {
+  if (postalCode || params.target) {
     if (!parsed.success) error = "Saisissez un code postal valide et une page entre 1 et 100.";
     else {
       try {
@@ -45,16 +46,21 @@ export default async function ProspectsPage({ searchParams }: {
       }
     }
   }
-  const pageUrl = (page: number) => `/prospects?${new URLSearchParams({ postalCode, page: String(page) })}`;
+  const pageUrl = (page: number) => `/prospects?${new URLSearchParams({ postalCode: postalCode || "94100", target, page: String(page) })}`;
   return <div className="page stack">
     <header className="page-header"><div>
       <p className="muted">Prospection immobilière</p><h1>Rechercher des prospects</h1>
       <p>Retrouvez les établissements immobiliers actifs dans votre secteur, puis vérifiez les profils à contacter.</p>
     </div></header>
     <form className="card stack" action="/prospects" method="get">
-      <label htmlFor="prospect-postal">Code postal</label>
+      <label htmlFor="prospect-target">Cible de recherche</label>
+      <select id="prospect-target" name="target" defaultValue={target}>
+        <option value="saint_maur">Saint-Maur-des-Fossés uniquement — 94100 et 94210</option>
+        <option value="postal">Autre secteur : choisir un code postal</option>
+      </select>
+      <label htmlFor="prospect-postal">Code postal pour un autre secteur</label>
       <input id="prospect-postal" name="postalCode" defaultValue={postalCode || "94100"} pattern="[0-9]{5}" maxLength={5} required inputMode="numeric" />
-      <p className="muted">Saint-Maur-des-Fossés : recherchez 94100, puis 94210 pour La Varenne.</p>
+      <p className="muted">Première cible : mandataires et agences à vérifier dans Saint-Maur-des-Fossés, La Varenne comprise. Le choix Saint-Maur couvre les deux codes postaux et exclut les communes voisines. Le code saisi n’est utilisé que pour « Autre secteur ».</p>
       <button className="button" type="submit">Rechercher les établissements</button>
     </form>
     <p className="muted">Source : Annuaire des Entreprises, activité 68.31Z. Le statut de mandataire ou d’agence reste à confirmer. Les téléphones et emails ne sont pas fournis par cette source.</p>
@@ -67,10 +73,11 @@ export default async function ProspectsPage({ searchParams }: {
     {result ? <section className="stack" aria-label="Résultats de prospection">
       <h2>{result.candidates.length} établissement(s) à examiner sur cette page</h2>
       {result.candidates.length > 0 && ["owner", "admin", "recruiter", "manager"].includes(context.role) ? <form action={saveProspectList} className="card stack">
-        <input type="hidden" name="postalCode" value={postalCode} />
+        <input type="hidden" name="postalCode" value={postalCode || "94100"} />
+        <input type="hidden" name="target" value={target} />
         <input type="hidden" name="page" value={result.page} />
         <label htmlFor="prospect-list-name">Nom de la liste</label>
-        <input id="prospect-list-name" name="name" maxLength={100} required defaultValue={`Immobilier ${postalCode} — page ${result.page}`} />
+        <input id="prospect-list-name" name="name" maxLength={100} required defaultValue={`Immobilier ${target === "saint_maur" ? "Saint-Maur-des-Fossés" : postalCode} — page ${result.page}`} />
         <p>Les résultats de cette page seront actualisés lors de l’enregistrement. Chaque liste reste à examiner.</p>
         <button className="button" type="submit">Enregistrer cette page dans une liste</button>
       </form> : null}
@@ -96,7 +103,7 @@ export default async function ProspectsPage({ searchParams }: {
       {!listsError && !savedLists?.length ? <p>Aucune liste enregistrée.</p> : null}
       {reviewsError ? <p role="alert">Les vérifications sont momentanément indisponibles.</p> : null}
       {(savedLists ?? []).map((list) => <details className="card" key={list.id} id={`list-${list.id}`}>
-        <summary>{list.name} — {list.postal_code}</summary>
+        <summary>{list.name} — {list.target_key === "saint_maur" ? "Saint-Maur-des-Fossés (94100 et 94210)" : list.postal_code}</summary>
         <p>Enregistrée le {new Date(list.created_at).toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" })}. Coordonnées et activité à compléter avant tout contact.</p>
         {(savedCandidateSchema.safeParse(list.candidates).data ?? []).map((item) => {
           const review = reviewMap.get(`${list.id}:${item.siret}`);

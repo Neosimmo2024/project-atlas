@@ -34,3 +34,9 @@ it("ne sauvegarde pas une liste vide", async () => {
   await expect(saveProspectList(form())).rejects.toThrow("saved=0");
   expect(mocks.insert).not.toHaveBeenCalled();
 });
+it("conserve la cible Saint-Maur à la relecture et dans la liste", async () => {
+  const f = form(); f.set("target", "saint_maur");
+  await expect(saveProspectList(f)).rejects.toThrow("saved=1");
+  expect(mocks.search).toHaveBeenCalledWith(expect.objectContaining({ target: "saint_maur" }));
+  expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({ target_key: "saint_maur" }));
+});

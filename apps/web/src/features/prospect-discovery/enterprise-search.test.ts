@@ -8,6 +8,30 @@ const company = { siren: "123456789", nom_complet: "Agence test", etat_administr
 const payload = { results: [company], total_results: 1, total_pages: 1 };
 
 describe("Recherche de prospects", () => {
+  it("couvre Saint-Maur et La Varenne et exclut les communes voisines", () => {
+    const locations = [
+      { ...site, commune: "94068" },
+      { ...site, siret: "12345678900020", code_postal: "94210", commune: "94068" },
+      { ...site, siret: "12345678900038", code_postal: "94100", commune: "94069" },
+      { ...site, siret: "12345678900046", code_postal: "94370", commune: "94071" }
+    ];
+    const result = normalizeCandidates({ ...payload, results: [{ ...company, siege: locations[3], matching_etablissements: locations }] }, "94100", "today", "saint_maur");
+    expect(result.candidates.map(c => c.postalCode)).toEqual(["94100", "94210"]);
+  });
+  it("interroge la commune exacte pour la cible Saint-Maur", async () => {
+    const transport = vi.fn().mockResolvedValue(new Response(JSON.stringify(payload)));
+    await searchEnterprises({ postalCode: "75001", target: "saint_maur" }, transport);
+    const url = transport.mock.calls[0][0];
+    expect(url.searchParams.get("code_commune")).toBe("94068");
+    expect(url.searchParams.has("code_postal")).toBe(false);
+  });
+  it("conserve le choix d’un autre secteur", async () => {
+    const transport = vi.fn().mockResolvedValue(new Response(JSON.stringify(payload)));
+    await searchEnterprises({ postalCode: "69001", target: "postal" }, transport);
+    const url = transport.mock.calls[0][0];
+    expect(url.searchParams.get("code_postal")).toBe("69001");
+    expect(url.searchParams.has("code_commune")).toBe(false);
+  });
   it("déduplique les établissements et conserve une source déterministe", () => {
     const result = normalizeCandidates(payload, "94100", "2026-09-30");
     expect(result.candidates).toHaveLength(1);

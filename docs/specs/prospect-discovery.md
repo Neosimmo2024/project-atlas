@@ -1,5 +1,21 @@
 # Recherche et qualification des prospects
 
+## Première cible demandée : Saint-Maur-des-Fossés
+
+Le formulaire propose par défaut Saint-Maur-des-Fossés uniquement. Cette cible
+utilise `code_commune=94068` auprès de la source et contrôle aussi le champ
+`commune` de chaque établissement, ainsi que ses codes postaux 94100 ou 94210.
+La Varenne est incluse, les communes voisines sont exclues. Le choix « Autre
+secteur » permet de changer de code postal pour une recherche ultérieure.
+La cible est conservée dans la pagination, lors de la relecture et dans la liste
+enregistrée (`target_key`, schéma `prospect-target.sql`). Les anciens liens par
+code postal et les anciennes listes conservent leur périmètre initial.
+
+Contrôle réel de la source le 1 octobre : le filtre commune renvoie des
+établissements 94100 et 94210 avec `commune=94068`. Les totaux de la source ne sont
+pas des nombres de contacts qualifiés. La restriction concerne la collecte des
+prospects ; elle ne modifie pas les versions régionales des SMS déjà préparées.
+
 ## Première étape développée le 30 septembre 2026
 
 Page authentifiée `/prospects`, accessible dans la navigation. Recherche publique
