@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { ProspectImportSource } from "@/features/prospect-discovery/integration";
 import { Button } from "@/components/ui";
 import {
   CSV_IMPORT_FIELD_DEFINITIONS,
@@ -75,15 +76,17 @@ function defaultDecisions(preview: CsvImportPreviewResult) {
   ])) as Record<number, CsvImportDecision | "">;
 }
 
-export function CsvImportMapping() {
-  const [step, setStep] = useState<Step>("upload");
-  const [fileName, setFileName] = useState("");
-  const [content, setContent] = useState("");
-  const [preview, setPreview] = useState<CsvImportPreviewResult | null>(null);
-  const [mapping, setMapping] = useState<CsvImportMapping>({});
-  const [decisions, setDecisions] = useState<Record<number, CsvImportDecision | "">>({});
-  const [addToPipeline, setAddToPipeline] = useState(false);
-  const [idempotencyKey, setIdempotencyKey] = useState("");
+type InitialProspect = { source: ProspectImportSource; fileName: string; content: string; preview: CsvImportPreviewResult; idempotencyKey: string };
+export function CsvImportMapping({ initialProspect }: { initialProspect?: InitialProspect } = {}) {
+  const [step, setStep] = useState<Step>(initialProspect ? "review" : "upload");
+  const [fileName, setFileName] = useState(initialProspect?.fileName ?? "");
+  const [content, setContent] = useState(initialProspect?.content ?? "");
+  const [preview, setPreview] = useState<CsvImportPreviewResult | null>(initialProspect?.preview ?? null);
+  const [mapping, setMapping] = useState<CsvImportMapping>(initialProspect?.preview.proposedMapping ?? {});
+  const [decisions, setDecisions] = useState<Record<number, CsvImportDecision | "">>(() => initialProspect ? defaultDecisions(initialProspect.preview) : {});
+  const [addToPipeline, setAddToPipeline] = useState(Boolean(initialProspect));
+  const [idempotencyKey, setIdempotencyKey] = useState(initialProspect?.idempotencyKey ?? "");
+  const [personConfirmed, setPersonConfirmed] = useState(false);
   const [report, setReport] = useState<CsvImportExecutionReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -187,11 +190,12 @@ export function CsvImportMapping() {
 
   async function executeImport() {
     if (!preview || !content || !decisionValidation.valid || !idempotencyKey) return;
+    if (initialProspect && !personConfirmed) return;
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch("/api/imports/csv/execute", {
+      const response = await fetch(initialProspect ? "/api/prospects/integrate" : "/api/imports/csv/execute", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -202,6 +206,7 @@ export function CsvImportMapping() {
           idempotencyKey,
           sourceName: fileName,
           addToPipeline,
+          ...(initialProspect ? { source: initialProspect.source, personConfirmed } : {}),
           confirm: true
         })
       });
@@ -446,6 +451,7 @@ export function CsvImportMapping() {
               <p className="muted">
                 Pipeline: {addToPipeline ? "les contacts éligibles seront ajoutés en phase détection." : "aucune relation de recrutement ne sera créée."}
               </p>
+              {initialProspect ? <label><input type="checkbox" checked={personConfirmed} onChange={event => setPersonConfirmed(event.target.checked)} /> Je confirme l’identité de l’interlocuteur et que les coordonnées professionnelles indiquées permettent de le joindre. Aucun message ne sera envoyé par cette intégration.</label> : null}
             </section>
           ) : null}
 
@@ -475,15 +481,15 @@ export function CsvImportMapping() {
           {error ? <p className="form-error" role="alert">{error}</p> : null}
 
           <div className="import-actions">
-            <Button variant="subtle" type="button" onClick={step === "mapping" || step === "report" ? reset : () => setStep("mapping")}>
+            {initialProspect ? <a className="button subtle-button" href="/prospects">Retour aux prospects</a> : <Button variant="subtle" type="button" onClick={step === "mapping" || step === "report" ? reset : () => setStep("mapping")}>
               {step === "mapping" ? "Retour a la previsualisation" : step === "report" ? "Importer un autre fichier" : "Retour a la correspondance"}
-            </Button>
+            </Button>}
             {step === "mapping" ? (
               <Button disabled={!validation.valid || loading} type="button" onClick={() => void validateMapping()}>
                 {loading ? "Vérification..." : "Valider et vérifier"}
               </Button>
             ) : step === "ready" ? (
-              <Button disabled={!decisionValidation.valid || loading} type="button" onClick={() => void executeImport()}>
+              <Button disabled={!decisionValidation.valid || loading || Boolean(initialProspect && !personConfirmed)} type="button" onClick={() => void executeImport()}>
                 {loading ? "Import en cours..." : "Confirmer et lancer l'import"}
               </Button>
             ) : step === "report" ? null : (
