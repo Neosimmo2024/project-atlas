@@ -113,3 +113,29 @@ ESLint. Test QA transactionnel annulé : création personne/organisation/relatio
 phase détection, autorisation de contact laissée à false, répétition idempotente,
 aucune variation des journaux de séquences email ou de tentatives SMS.
 La recette interactive et la collecte automatique des coordonnées restent ouvertes.
+
+## Contrôle LinkedIn complémentaire — 1 octobre
+
+Rubrique déclarative dédiée : URL de profil `/in/`, résultat (non contrôlé,
+introuvable, inaccessible, cohérent, contradiction), activité, réseau, secteur,
+faits observés et date de consultation/tentative. Les résultats documentés exigent
+une date ; cohérent/contradiction exigent profil et faits. Cohérent exige aussi
+activité et secteur. Une contradiction empêche le statut retenu, y compris en
+base et lors de la préparation d'intégration. Un profil absent/inaccessible n'est
+pas un rejet automatique. Aucune recherche LinkedIn automatique ni score déduit.
+La mention Paris et périphérie ne confirme pas le secteur Saint-Maur.
+
+Les éléments du contrôle sont transmis dans les commentaires de l'import ; le
+moteur existant conserve les fiches déjà présentes sans écrasement implicite.
+Schéma QA additionnel : `supabase/cron/prospect-linkedin.sql`. Les RLS, la date
+serveur et l'auteur de la revue continuent de s'appliquer. Migration canonique CLI
+à préparer avant installation sur un autre environnement, comme les scripts précédents.
+Validation : 37 tests ciblés (incluant 5 nouveaux cas LinkedIn), TypeScript,
+ESLint et transaction QA annulée (insert/update, garde contradiction/preuves,
+isolation d'un non-membre). Pas de signalement prospect par l'advisor sécurité.
+La recette navigateur reste ouverte ; aucune qualification de profil réel revendiquée.
+
+Recherche réelle des 15 pages le 1 octobre à 07:56 UTC : total source 363 unités
+légales ; 252 établissements uniques retenus, 246 SIREN ; 167 en 94100, 85 en
+94210. Ce sont des pistes d'établissements, pas 252 personnes joignables.
+L'enregistrement multi-page et l'enrichissement automatique restent à développer.

@@ -18,7 +18,7 @@ export default async function ProspectsPage({ searchParams }: {
     .eq("tenant_id", context.tenantId).order("created_at", { ascending: false }).limit(20);
   const listIds = (savedLists ?? []).map(list => list.id);
   const { data: reviews, error: reviewsError } = listIds.length ? await database.from("prospect_reviews")
-    .select("list_id,siret,status,kind,email,phone,source_url,notes,reviewed_at,first_name,last_name")
+    .select("list_id,siret,status,kind,email,phone,source_url,notes,reviewed_at,first_name,last_name,linkedin_url,linkedin_status,linkedin_role,linkedin_network,linkedin_area,linkedin_evidence,linkedin_checked_on")
     .eq("tenant_id", context.tenantId).in("list_id", listIds) : { data: [], error: null };
   const reviewMap = new Map((reviews as ProspectReview[] ?? []).map(review => [`${review.list_id}:${review.siret}`, review]));
   const postalCode = typeof params.postalCode === "string" ? params.postalCode : "";
@@ -68,7 +68,7 @@ export default async function ProspectsPage({ searchParams }: {
     {params.saved === "1" ? <p role="status">Liste enregistrée. Retrouvez-la ci-dessous.</p> : null}
     {params.saved === "0" ? <p role="alert">La liste n’a pas été enregistrée : aucun résultat ou service indisponible.</p> : null}
     {params.review === "saved" ? <p role="status">Vérification enregistrée.</p> : null}
-    {params.review === "invalid" ? <p role="alert">Vérifiez les champs. Un profil retenu doit avoir une activité confirmée, au moins une coordonnée valide et sa page source.</p> : null}
+    {params.review === "invalid" ? <p role="alert">Vérifiez les champs. Un profil retenu doit avoir une activité confirmée, au moins une coordonnée valide et sa page source. Pour LinkedIn, renseignez la date, le profil et les faits selon le résultat choisi ; résolvez toute contradiction avant de retenir le prospect.</p> : null}
     {params.review === "failed" ? <p role="alert">La vérification n’a pas été enregistrée. Réessayez plus tard.</p> : null}
     {result ? <section className="stack" aria-label="Résultats de prospection">
       <h2>{result.candidates.length} établissement(s) à examiner sur cette page</h2>

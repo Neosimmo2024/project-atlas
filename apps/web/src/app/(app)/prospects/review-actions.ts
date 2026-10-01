@@ -19,6 +19,10 @@ export async function saveProspectReview(form: FormData) {
     tenant_id: context.tenantId, list_id: value.listId, siret: value.siret,
     status: value.status, kind: value.kind, email: value.email.toLowerCase(), phone: value.phone,
     first_name: value.firstName, last_name: value.lastName,
+    linkedin_url: value.linkedinUrl, linkedin_status: value.linkedinStatus,
+    linkedin_role: value.linkedinRole, linkedin_network: value.linkedinNetwork,
+    linkedin_area: value.linkedinArea, linkedin_evidence: value.linkedinEvidence,
+    linkedin_checked_on: value.linkedinCheckedOn || null,
     source_url: value.sourceUrl, notes: value.notes, reviewed_by: context.userId
   }, { onConflict: "list_id,siret" });
   redirect(`/prospects?review=${saveError ? "failed" : "saved"}#list-${value.listId}`);
