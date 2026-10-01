@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { attemptLogin } from "@/features/auth/login-result";
 
 export function LoginForm() {
   const router = useRouter();
@@ -39,10 +40,10 @@ export function LoginForm() {
     const form = new FormData(event.currentTarget);
     const email = String(form.get("email"));
     const password = String(form.get("password"));
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    const signInError = await attemptLogin(() => supabase.auth.signInWithPassword({ email, password }));
     setLoading(false);
     if (signInError) {
-      setError(signInError.message);
+      setError(signInError);
       return;
     }
     router.replace("/dashboard");
@@ -91,7 +92,7 @@ export function LoginForm() {
           </button>
         </span>
       </div>
-      {error ? <p className="error">{error}</p> : null}
+      {error ? <p className="error" role="alert">{error}</p> : null}
       <Button type="submit" disabled={loading}>{loading ? "Connexion..." : "Se connecter"}</Button>
     </form>
   );
@@ -116,4 +117,3 @@ function EyeOffIcon() {
     </svg>
   );
 }
-
