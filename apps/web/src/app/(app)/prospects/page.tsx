@@ -4,6 +4,7 @@ import { searchEnterprises, searchInput, savedCandidateSchema } from "@/features
 import { getTenantContext } from "@/repositories/tenant-context";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { saveProspectList } from "./actions";
+import { ProspectReviewForm, type ProspectReview } from "./review-form";
 
 export default async function ProspectsPage({ searchParams }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -15,6 +16,11 @@ export default async function ProspectsPage({ searchParams }: {
   const { data: savedLists, error: listsError } = await database.from("prospect_lists")
     .select("id,name,postal_code,source_page,created_at,candidates")
     .eq("tenant_id", context.tenantId).order("created_at", { ascending: false }).limit(20);
+  const listIds = (savedLists ?? []).map(list => list.id);
+  const { data: reviews, error: reviewsError } = listIds.length ? await database.from("prospect_reviews")
+    .select("list_id,siret,status,kind,email,phone,source_url,notes,reviewed_at")
+    .eq("tenant_id", context.tenantId).in("list_id", listIds) : { data: [], error: null };
+  const reviewMap = new Map((reviews as ProspectReview[] ?? []).map(review => [`${review.list_id}:${review.siret}`, review]));
   const postalCode = typeof params.postalCode === "string" ? params.postalCode : "";
   const parsed = searchInput.safeParse({ postalCode, page: params.page ?? 1 });
   let result: Awaited<ReturnType<typeof searchEnterprises>> | null = null;
@@ -55,6 +61,9 @@ export default async function ProspectsPage({ searchParams }: {
     {error ? <p role="alert">{error}</p> : null}
     {params.saved === "1" ? <p role="status">Liste enregistrée. Retrouvez-la ci-dessous.</p> : null}
     {params.saved === "0" ? <p role="alert">La liste n’a pas été enregistrée : aucun résultat ou service indisponible.</p> : null}
+    {params.review === "saved" ? <p role="status">Vérification enregistrée.</p> : null}
+    {params.review === "invalid" ? <p role="alert">Vérifiez les champs. Un profil retenu doit avoir une activité confirmée, au moins une coordonnée valide et sa page source.</p> : null}
+    {params.review === "failed" ? <p role="alert">La vérification n’a pas été enregistrée. Réessayez plus tard.</p> : null}
     {result ? <section className="stack" aria-label="Résultats de prospection">
       <h2>{result.candidates.length} établissement(s) à examiner sur cette page</h2>
       {result.candidates.length > 0 && ["owner", "admin", "recruiter", "manager"].includes(context.role) ? <form action={saveProspectList} className="card stack">
@@ -85,11 +94,20 @@ export default async function ProspectsPage({ searchParams }: {
       <h2>Mes dernières listes</h2>
       {listsError ? <p>Les listes enregistrées sont momentanément indisponibles.</p> : null}
       {!listsError && !savedLists?.length ? <p>Aucune liste enregistrée.</p> : null}
-      {(savedLists ?? []).map((list) => <details className="card" key={list.id}>
-        <summary>{list.name} — {list.postal_code} — à examiner</summary>
+      {reviewsError ? <p role="alert">Les vérifications sont momentanément indisponibles.</p> : null}
+      {(savedLists ?? []).map((list) => <details className="card" key={list.id} id={`list-${list.id}`}>
+        <summary>{list.name} — {list.postal_code}</summary>
         <p>Enregistrée le {new Date(list.created_at).toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" })}. Coordonnées et activité à compléter avant tout contact.</p>
-        {(savedCandidateSchema.safeParse(list.candidates).data ?? []).map((item) =>
-          <p key={item.siret}>{item.name} · {item.postalCode} {item.city} · <a href={`https://annuaire-entreprises.data.gouv.fr/etablissement/${item.siret}`} target="_blank" rel="noopener noreferrer">Fiche officielle</a></p>)}
+        {(savedCandidateSchema.safeParse(list.candidates).data ?? []).map((item) => {
+          const review = reviewMap.get(`${list.id}:${item.siret}`);
+          const label = review?.status === "qualified" ? "Retenu après vérification" : review?.status === "rejected" ? "Écarté" : "À vérifier";
+          return <details key={item.siret} className="card">
+            <summary>{item.name} · {reviewsError ? "Vérification indisponible" : label}</summary>
+            <p>{item.postalCode} {item.city} · <a href={`https://annuaire-entreprises.data.gouv.fr/etablissement/${item.siret}`} target="_blank" rel="noopener noreferrer">Fiche officielle</a></p>
+            {review ? <p>Dernière vérification : {new Date(review.reviewed_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}.</p> : null}
+            {!reviewsError && ["owner", "admin", "recruiter", "manager"].includes(context.role) ? <ProspectReviewForm listId={list.id} siret={item.siret} review={review} /> : null}
+          </details>;
+        })}
       </details>)}
     </section>
   </div>;

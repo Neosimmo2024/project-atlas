@@ -1,0 +1,30 @@
+name: Prospect discovery checks
+on:
+  push:
+    branches: [agent/prospect-discovery-2026-09-30]
+  pull_request:
+    branches: [main, agent/calendly-free-sms-stop-2026-09-30]
+    paths:
+      - 'apps/web/src/features/prospect-discovery/**'
+      - 'apps/web/src/app/(app)/prospects/**'
+      - 'apps/web/src/features/auth/login-result*'
+      - 'apps/web/src/app/login/login-form.tsx'
+      - '.github/workflows/prospect-discovery.yml'
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm exec -- eslint 'src/app/(app)/prospects' src/features/prospect-discovery src/features/auth/login-result.ts src/app/login/login-form.tsx
+        working-directory: apps/web
+      - run: npm exec -- vitest run src/features/prospect-discovery 'src/app/(app)/prospects' src/features/auth/login-result.test.ts src/features/auth/password-recovery.test.ts
+        working-directory: apps/web

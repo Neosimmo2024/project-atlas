@@ -30,7 +30,7 @@ au champ actuel `activite_principale`, pas au nouveau champ `activite_principale
 1. Listes persistantes ajoutées le 1 octobre : sauvegarde de la page après relecture de la source, 20 dernières listes consultables, isolation par tenant via RLS. Schéma installé sur QA seulement. Chaque liste demeure à examiner ; aucune validation ou transmission implicite.
 2. Collecte des fiches des réseaux et sites professionnels ; source et date par donnée.
 3. Enrichissement téléphone/email sans adresses inventées ; conflits à examiner.
-4. Qualification agence/mandataire, secteur et choix humain de retenir/écarter.
+4. Qualification manuelle ajoutée le 1 octobre : activité agence/mandataire, téléphone/email professionnels, URL source, notes et choix à vérifier/retenu/écarté. La qualification reste déclarative : aucun enrichissement automatique ni vérification automatique de la joignabilité.
 5. Déduplication personnes et organisations, intégration explicite au pipeline.
 6. Transmission à Brevo après validation ; exclusions réponse/RDV/STOP.
 
@@ -41,3 +41,27 @@ La mention Paris et périphérie ne permet pas d'inventer un département.
 
 L'intégration Calendly et les SMS restent sur leur branche dédiée ; la séquence
 Brevo 2 demeure inactive. Ce module ne modifie aucun réglage de campagne.
+
+## Vérification individuelle
+
+Chaque prospect d'une liste dispose d'une fiche de vérification. Les rôles owner,
+admin, recruiter et manager peuvent l'enregistrer. Le serveur vérifie le tenant et
+la présence du SIRET dans la liste ; les mêmes restrictions sont appliquées par RLS.
+Les identifiants de la revue sont immuables. La base date chaque enregistrement.
+Retenir un prospect exige une activité confirmée, au moins un téléphone/email et
+une source. Cela ne crée pas de personne, d'organisation ou de relation, et ne vaut
+pas autorisation d'envoi. La validation des coordonnées est syntaxique.
+
+Schémas QA : `supabase/cron/prospect-lists.sql`, puis `prospect-reviews.sql`.
+Le CLI Supabase n'étant pas installé dans cet environnement, ces scripts sont
+versionnés explicitement ; les migrations correspondantes ont été appliquées via
+le connecteur sur `mahgxumwucxehsooijag` uniquement. Les convertir en migrations
+canoniques avec le CLI avant une installation sur un autre environnement.
+
+Vérifications du 1 octobre : 28 tests ciblés (prospects et gestion réseau login),
+TypeScript, ESLint ; contrôles SQL annulés par ROLLBACK : écriture propriétaire,
+refus d'un SIRET hors liste, refus d'une qualification sans coordonnées et isolation
+lecture/écriture d'un non-membre. Aucun signalement prospect par l'advisor sécurité.
+Recette navigateur encore bloquée après la saisie sécurisée des identifiants.
+Le workflow `Prospect discovery checks` couvre cette PR empilée ; il ne remplace
+pas la CI Supabase complète ni la recette interactive avant fusion.
