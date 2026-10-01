@@ -138,4 +138,26 @@ La recette navigateur reste ouverte ; aucune qualification de profil réel reven
 Recherche réelle des 15 pages le 1 octobre à 07:56 UTC : total source 363 unités
 légales ; 252 établissements uniques retenus, 246 SIREN ; 167 en 94100, 85 en
 94210. Ce sont des pistes d'établissements, pas 252 personnes joignables.
-L'enregistrement multi-page et l'enrichissement automatique restent à développer.
+L'enregistrement multi-page était alors à développer (voir complément ci-dessous). L'enrichissement automatique reste à développer.
+
+## Collecte multi-page — 1 octobre, complément
+
+Le bouton « Enregistrer toutes les pages dans une liste » relit les résultats
+à partir de la page 1, avec au plus trois requêtes simultanées, déduplique par
+SIRET et écrit une seule liste après succès de toutes les pages. La collecte
+est limitée à 20 pages et 2 500 établissements ; au-delà, la sauvegarde par page
+reste disponible. Une panne ou une variation du nombre de pages/résultats
+interrompt la sauvegarde. Cela ne constitue pas un instantané transactionnel de
+la source externe ni une garantie d'exhaustivité.
+
+La route autorise 120 secondes, les appels source conservent leur timeout de
+12 secondes. Le formulaire signale l'attente et désactive les boutons pendant
+la soumission. La liste multi-page conserve `source_page=1` (page de départ).
+Aucun nouveau schéma ; droits et isolation tenant inchangés.
+
+Essai réel du nouveau collecteur : 15 pages, 252 SIRET uniques en 21,8 secondes,
+uniquement 94100/94210. Tests : 4 cas collecteur (pagination/doublons, panne ou
+variation, limite, concurrence) et 2 cas action (écriture unique / aucune écriture
+partielle), en plus des contrôles existants. TypeScript et ESLint OK.
+La sauvegarde dans le navigateur reste à recetter après résolution de la connexion.
+La recherche automatique web/LinkedIn et les coordonnées restent non implémentées.

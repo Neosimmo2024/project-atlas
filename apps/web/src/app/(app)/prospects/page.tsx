@@ -6,6 +6,10 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { saveProspectList } from "./actions";
 import { ProspectReviewForm, type ProspectReview } from "./review-form";
 
+import { SaveProspectButtons } from "./save-buttons";
+
+export const maxDuration = 120;
+
 export default async function ProspectsPage({ searchParams }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
@@ -66,7 +70,9 @@ export default async function ProspectsPage({ searchParams }: {
     <p className="muted">Source : Annuaire des Entreprises, activité 68.31Z. Le statut de mandataire ou d’agence reste à confirmer. Les téléphones et emails ne sont pas fournis par cette source.</p>
     {error ? <p role="alert">{error}</p> : null}
     {params.saved === "1" ? <p role="status">Liste enregistrée. Retrouvez-la ci-dessous.</p> : null}
-    {params.saved === "0" ? <p role="alert">La liste n’a pas été enregistrée : aucun résultat ou service indisponible.</p> : null}
+    {params.saved === "0" ? <p role="alert">La liste n’a pas été enregistrée : aucun résultat, collecte incomplète ou service indisponible.</p> : null}
+    {params.reason === "too_large" ? <p role="alert">Ce secteur dépasse la limite de collecte en une fois (20 pages ou 2 500 établissements). Enregistrez les pages séparément.</p> : null}
+    {params.reason === "changed" ? <p role="alert">Les résultats de la source ont changé pendant la collecte. Aucune liste partielle n’a été enregistrée. Relancez la recherche.</p> : null}
     {params.review === "saved" ? <p role="status">Vérification enregistrée.</p> : null}
     {params.review === "invalid" ? <p role="alert">Vérifiez les champs. Un profil retenu doit avoir une activité confirmée, au moins une coordonnée valide et sa page source. Pour LinkedIn, renseignez la date, le profil et les faits selon le résultat choisi ; résolvez toute contradiction avant de retenir le prospect.</p> : null}
     {params.review === "failed" ? <p role="alert">La vérification n’a pas été enregistrée. Réessayez plus tard.</p> : null}
@@ -77,9 +83,9 @@ export default async function ProspectsPage({ searchParams }: {
         <input type="hidden" name="target" value={target} />
         <input type="hidden" name="page" value={result.page} />
         <label htmlFor="prospect-list-name">Nom de la liste</label>
-        <input id="prospect-list-name" name="name" maxLength={100} required defaultValue={`Immobilier ${target === "saint_maur" ? "Saint-Maur-des-Fossés" : postalCode} — page ${result.page}`} />
-        <p>Les résultats de cette page seront actualisés lors de l’enregistrement. Chaque liste reste à examiner.</p>
-        <button className="button" type="submit">Enregistrer cette page dans une liste</button>
+        <input id="prospect-list-name" name="name" maxLength={100} required defaultValue={`Immobilier ${target === "saint_maur" ? "Saint-Maur-des-Fossés" : postalCode}`} />
+        <p>Les résultats seront relus à la source. Toutes les pages : une seule liste, sans doublon de SIRET, dans la limite de 20 pages. Chaque établissement reste à qualifier.</p>
+        <SaveProspectButtons />
       </form> : null}
       <p>Page {result.page} sur {result.sourcePages || 1}. La source compte {result.sourceTotal} entreprises avant contrôle des établissements locaux. Cette liste n’est pas exhaustive.</p>
       {result.candidates.length === 0 ? <p>Aucun établissement local actif et diffusible retenu sur cette page. D’autres pages peuvent contenir des résultats.</p> : null}

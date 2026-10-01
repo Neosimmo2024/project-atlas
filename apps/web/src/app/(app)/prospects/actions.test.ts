@@ -40,3 +40,17 @@ it("conserve la cible Saint-Maur à la relecture et dans la liste", async () => 
   expect(mocks.search).toHaveBeenCalledWith(expect.objectContaining({ target: "saint_maur" }));
   expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({ target_key: "saint_maur" }));
 });
+it("enregistre toutes les pages dédupliquées en une seule écriture", async () => {
+  mocks.search.mockImplementation(async ({ page }) => ({ candidates: [{ siret: "12345678900012", name: "Source candidate" }, ...(page === 2 ? [{ siret: "12345678900020", name: "Second" }] : [])], sourcePages: 2, sourceTotal: 30 }));
+  const f = form(); f.set("scope", "all"); f.set("page", "2");
+  await expect(saveProspectList(f)).rejects.toThrow("saved=1");
+  expect(mocks.search.mock.calls.map(([input]) => input.page)).toEqual([1, 2]);
+  expect(mocks.insert).toHaveBeenCalledTimes(1);
+  expect(mocks.insert.mock.calls[0][0].candidates).toHaveLength(2);
+});
+it("n’écrit aucune liste si une page de la collecte échoue", async () => {
+  mocks.search.mockImplementation(async ({ page }) => { if (page === 2) throw new Error("offline"); return { candidates: [], sourcePages: 2, sourceTotal: 30 }; });
+  const f = form(); f.set("scope", "all");
+  await expect(saveProspectList(f)).rejects.toThrow("saved=0");
+  expect(mocks.insert).not.toHaveBeenCalled();
+});
