@@ -9,6 +9,9 @@ on:
       - 'apps/web/src/app/(app)/prospects/**'
       - 'apps/web/src/features/auth/login-result*'
       - 'apps/web/src/app/login/login-form.tsx'
+      - 'apps/web/src/app/api/prospects/**'
+      - 'apps/web/src/repositories/prospect-integration*'
+      - 'apps/web/src/components/csv-import/csv-import-mapping.tsx'
       - '.github/workflows/prospect-discovery.yml'
 permissions:
   contents: read
@@ -24,7 +27,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
-      - run: npm exec -- eslint 'src/app/(app)/prospects' src/features/prospect-discovery src/features/auth/login-result.ts src/app/login/login-form.tsx
+      - run: npm exec -- eslint 'src/app/(app)/prospects' src/features/prospect-discovery src/features/auth/login-result.ts src/app/login/login-form.tsx src/app/api/prospects src/repositories/prospect-integration.ts src/components/csv-import/csv-import-mapping.tsx
         working-directory: apps/web
-      - run: npm exec -- vitest run src/features/prospect-discovery 'src/app/(app)/prospects' src/features/auth/login-result.test.ts src/features/auth/password-recovery.test.ts
+      - run: npm exec -- vitest run src/features/prospect-discovery 'src/app/(app)/prospects' src/app/api/prospects src/features/csv-import src/features/auth/login-result.test.ts src/features/auth/password-recovery.test.ts --exclude '**/*.integration.test.ts'
         working-directory: apps/web

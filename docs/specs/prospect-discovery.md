@@ -31,7 +31,7 @@ au champ actuel `activite_principale`, pas au nouveau champ `activite_principale
 2. Collecte des fiches des réseaux et sites professionnels ; source et date par donnée.
 3. Enrichissement téléphone/email sans adresses inventées ; conflits à examiner.
 4. Qualification manuelle ajoutée le 1 octobre : activité agence/mandataire, téléphone/email professionnels, URL source, notes et choix à vérifier/retenu/écarté. La qualification reste déclarative : aucun enrichissement automatique ni vérification automatique de la joignabilité.
-5. Déduplication personnes et organisations, intégration explicite au pipeline.
+5. Intégration ajoutée : interlocuteur identifié, aperçu du parcours d'import existant, contrôle des doublons, confirmation et option pipeline en détection. Historique et transaction réutilisés.
 6. Transmission à Brevo après validation ; exclusions réponse/RDV/STOP.
 
 Le fichier pilote fourni contient 20 profils LinkedIn distincts, 0 email et 1 téléphone.
@@ -49,10 +49,11 @@ admin, recruiter et manager peuvent l'enregistrer. Le serveur vérifie le tenant
 la présence du SIRET dans la liste ; les mêmes restrictions sont appliquées par RLS.
 Les identifiants de la revue sont immuables. La base date chaque enregistrement.
 Retenir un prospect exige une activité confirmée, au moins un téléphone/email et
-une source. Cela ne crée pas de personne, d'organisation ou de relation, et ne vaut
-pas autorisation d'envoi. La validation des coordonnées est syntaxique.
+une source. La simple décision ne crée pas de fiche et ne vaut pas autorisation
+d'envoi. La validation des coordonnées est syntaxique.
 
 Schémas QA : `supabase/cron/prospect-lists.sql`, puis `prospect-reviews.sql`.
+L'identité de l'interlocuteur est ajoutée par `prospect-contact-identity.sql`.
 Le CLI Supabase n'étant pas installé dans cet environnement, ces scripts sont
 versionnés explicitement ; les migrations correspondantes ont été appliquées via
 le connecteur sur `mahgxumwucxehsooijag` uniquement. Les convertir en migrations
@@ -65,3 +66,34 @@ lecture/écriture d'un non-membre. Aucun signalement prospect par l'advisor séc
 Recette navigateur encore bloquée après la saisie sécurisée des identifiants.
 Le workflow `Prospect discovery checks` couvre cette PR empilée ; il ne remplace
 pas la CI Supabase complète ni la recette interactive avant fusion.
+
+## Intégration au recrutement
+
+Un profil retenu avec un nom d'interlocuteur ouvre `/prospects/[listId]/[siret]/integrate`.
+Le serveur relit la liste et la revue dans le tenant connecté et prépare une seule
+ligne pour le parcours d'import existant. Le nom de société n'est jamais utilisé
+comme identité de personne. Le prénom peut rester vide. Les champs source et
+commentaires restent attachés aux fiches créées.
+
+L'utilisateur examine les doublons, choisit sa décision, l'option pipeline puis
+confirme l'identité et la joignabilité professionnelle de l'interlocuteur. L'API
+`/api/prospects/integrate` relit les données et ignore tout contenu de contact,
+tenant ou clé d'exécution fourni par le navigateur. Une revue modifiée invalide
+l'aperçu. Les correspondances marquées Ne plus contacter bloquent l'opération.
+
+Le moteur CSV existant effectue la transaction. Il conserve les fiches existantes,
+crée les fiches manquantes selon la décision choisie et rend un rapport détaillé
+dans l'historique des imports. Une ligne sans personne ou organisation éligible
+peut être ignorée pour le pipeline : lire le rapport, ne pas assimiler une réponse
+réussie à la création systématique d'une relation. Les nouvelles personnes restent
+avec `contact_allowed=false`. Aucun appel Brevo ni Calendly depuis ce parcours.
+
+La clé est stable pour la version de revue. Une reprise retourne le rapport
+existant ; une intégration faisant l'objet d'une annulation renvoie vers l'historique.
+Une nouvelle vérification crée une nouvelle version qui reste soumise aux doublons.
+
+Validation : 98 tests ciblés (prospects, API et régressions import), TypeScript et
+ESLint. Test QA transactionnel annulé : création personne/organisation/relation,
+phase détection, autorisation de contact laissée à false, répétition idempotente,
+aucune variation des journaux de séquences email ou de tentatives SMS.
+La recette interactive et la collecte automatique des coordonnées restent ouvertes.

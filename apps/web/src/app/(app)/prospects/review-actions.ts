@@ -18,6 +18,7 @@ export async function saveProspectReview(form: FormData) {
   const { error: saveError } = await db.from("prospect_reviews").upsert({
     tenant_id: context.tenantId, list_id: value.listId, siret: value.siret,
     status: value.status, kind: value.kind, email: value.email.toLowerCase(), phone: value.phone,
+    first_name: value.firstName, last_name: value.lastName,
     source_url: value.sourceUrl, notes: value.notes, reviewed_by: context.userId
   }, { onConflict: "list_id,siret" });
   redirect(`/prospects?review=${saveError ? "failed" : "saved"}#list-${value.listId}`);

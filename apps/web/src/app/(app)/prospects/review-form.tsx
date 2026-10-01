@@ -2,6 +2,7 @@ import { saveProspectReview } from "./review-actions";
 export type ProspectReview = {
   list_id: string; siret: string; status: string; kind: string; email: string;
   phone: string; source_url: string; notes: string; reviewed_at: string;
+  first_name: string; last_name: string;
 };
 export function ProspectReviewForm({ listId, siret, review }: { listId: string; siret: string; review?: ProspectReview }) {
   return <form action={saveProspectReview} className="stack">
@@ -10,6 +11,8 @@ export function ProspectReviewForm({ listId, siret, review }: { listId: string; 
     <label>Activité confirmée<select name="kind" defaultValue={review?.kind ?? "unknown"}>
       <option value="unknown">À confirmer</option><option value="mandataire">Mandataire</option><option value="agence">Agence immobilière</option>
     </select></label>
+    <label>Prénom de l’interlocuteur<input name="firstName" maxLength={80} defaultValue={review?.first_name ?? ""} /></label>
+    <label>Nom de l’interlocuteur<input name="lastName" maxLength={80} defaultValue={review?.last_name ?? ""} /></label>
     <label>Email professionnel<input name="email" type="email" maxLength={254} defaultValue={review?.email ?? ""} /></label>
     <label>Téléphone professionnel<input name="phone" type="tel" maxLength={30} defaultValue={review?.phone ?? ""} /></label>
     <label>Page source des coordonnées<input name="sourceUrl" type="url" maxLength={2000} defaultValue={review?.source_url ?? ""} placeholder="https://…" /></label>

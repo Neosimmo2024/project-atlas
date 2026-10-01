@@ -18,7 +18,7 @@ export default async function ProspectsPage({ searchParams }: {
     .eq("tenant_id", context.tenantId).order("created_at", { ascending: false }).limit(20);
   const listIds = (savedLists ?? []).map(list => list.id);
   const { data: reviews, error: reviewsError } = listIds.length ? await database.from("prospect_reviews")
-    .select("list_id,siret,status,kind,email,phone,source_url,notes,reviewed_at")
+    .select("list_id,siret,status,kind,email,phone,source_url,notes,reviewed_at,first_name,last_name")
     .eq("tenant_id", context.tenantId).in("list_id", listIds) : { data: [], error: null };
   const reviewMap = new Map((reviews as ProspectReview[] ?? []).map(review => [`${review.list_id}:${review.siret}`, review]));
   const postalCode = typeof params.postalCode === "string" ? params.postalCode : "";
@@ -106,6 +106,8 @@ export default async function ProspectsPage({ searchParams }: {
             <p>{item.postalCode} {item.city} · <a href={`https://annuaire-entreprises.data.gouv.fr/etablissement/${item.siret}`} target="_blank" rel="noopener noreferrer">Fiche officielle</a></p>
             {review ? <p>Dernière vérification : {new Date(review.reviewed_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}.</p> : null}
             {!reviewsError && ["owner", "admin", "recruiter", "manager"].includes(context.role) ? <ProspectReviewForm listId={list.id} siret={item.siret} review={review} /> : null}
+            {review?.status === "qualified" && review.last_name && context.role !== "reader" ? <Link prefetch={false} className="button" href={`/prospects/${list.id}/${item.siret}/integrate`}>Préparer l’intégration dans Atlas</Link> : null}
+            {review?.status === "qualified" && !review.last_name ? <p>Identifiez l’interlocuteur et enregistrez son nom pour préparer l’intégration.</p> : null}
           </details>;
         })}
       </details>)}

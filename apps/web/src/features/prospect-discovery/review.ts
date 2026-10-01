@@ -9,6 +9,8 @@ export const reviewSchema = z.object({
   listId: z.string().uuid(), siret: z.string().regex(/^\d{14}$/),
   status: z.enum(["pending", "qualified", "rejected"]),
   kind: z.enum(["unknown", "mandataire", "agence"]),
+  firstName: z.string().trim().max(80).default(""),
+  lastName: z.string().trim().max(80).default(""),
   email: z.string().trim().max(254).email().or(z.literal("")),
   phone: z.string().trim().transform(v => v.replace(/[\s().-]/g, ""))
     .refine(v => !v || /^(?:\+[1-9]\d{7,14}|0\d{9})$/.test(v), "Indiquez un numéro français ou international valide."),
