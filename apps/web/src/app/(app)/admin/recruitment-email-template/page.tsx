@@ -21,7 +21,7 @@ export default async function RecruitmentEmailTemplateAdminPage() {
       <PageHeader
         eyebrow={context.tenant.name}
         title="Modèle du premier email"
-        subtitle="Modifiez, prévisualisez, versionnez et synchronisez le modèle Brevo sans envoyer d’email."
+        subtitle="Modifiez, prévisualisez et versionnez le modèle. Envoyez un test individuel avant de l’activer."
       />
       <RecruitmentEmailTemplateManager initialVersions={versions} />
     </div>

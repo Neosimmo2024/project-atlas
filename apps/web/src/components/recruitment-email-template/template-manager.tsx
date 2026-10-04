@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import {
   templateInputFromVersion,
   type RecruitmentEmailTemplateInput
 } from "@/features/recruitment-email-template/model";
+import { personalizeTestTemplate } from "@/features/recruitment-email-template/test-email";
 import type { RecruitmentEmailTemplateVersionSummary } from "@/types/domain";
 
 type Message = { type: "success" | "error"; text: string } | null;
@@ -46,17 +47,52 @@ export function RecruitmentEmailTemplateManager({ initialVersions }: { initialVe
     initialVersions[0] ? templateInputFromVersion(initialVersions[0]) : DEFAULT_RECRUITMENT_EMAIL_TEMPLATE
   );
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
+  const [testRecipient, setTestRecipient] = useState("");
+  const [testFirstName, setTestFirstName] = useState("Camille");
+  const [sendingTest, setSendingTest] = useState(false);
+  const [testMessage, setTestMessage] = useState<Message>(null);
+  const testLock = useRef(false);
+  const testAttempt = useRef<{ payload: string; id: string } | null>(null);
+  const [sentPayload, setSentPayload] = useState<string | null>(null);
+  const testPayload = JSON.stringify({ template: form, recipient: testRecipient.trim(), firstName: testFirstName.trim() });
   const [saving, setSaving] = useState(false);
   const [activatingId, setActivatingId] = useState<string | null>(null);
   const [message, setMessage] = useState<Message>(null);
 
   const previewHtml = useMemo(
-    () => previewFragment(buildRecruitmentEmailHtml(form).replaceAll("{{ params.PRENOM }}", "Camille")),
-    [form]
+    () => previewFragment(buildRecruitmentEmailHtml(personalizeTestTemplate(form, testFirstName || "Camille"))),
+    [form, testFirstName]
   );
 
   function update<K extends keyof RecruitmentEmailTemplateInput>(field: K, value: RecruitmentEmailTemplateInput[K]) {
     setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function sendTest(event: React.FormEvent) {
+    event.preventDefault();
+    if (testLock.current || sentPayload === testPayload) return;
+    testLock.current = true;
+    setSendingTest(true);
+    setTestMessage(null);
+    if (testAttempt.current?.payload !== testPayload) {
+      testAttempt.current = { payload: testPayload, id: crypto.randomUUID() };
+    }
+    try {
+      const response = await fetch("/api/admin/recruitment-email-template/test", {
+        method: "POST",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({ ...JSON.parse(testPayload), requestId: testAttempt.current.id })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error ?? "L’envoi du test n’a pas été confirmé.");
+      setSentPayload(testPayload);
+      setTestMessage({ type: "success", text: `Test accepté par Brevo pour ${payload.data.recipient}. Aucune relance programmée. Référence : ${payload.data.messageId}` });
+    } catch (error) {
+      setTestMessage({ type: "error", text: error instanceof Error ? error.message : "Confirmation indisponible. Vérifiez Brevo avant de réessayer." });
+    } finally {
+      testLock.current = false;
+      setSendingTest(false);
+    }
   }
 
   async function reloadVersions() {
@@ -116,10 +152,10 @@ export function RecruitmentEmailTemplateManager({ initialVersions }: { initialVe
     <div className="template-manager">
       <Card className="template-safety-banner">
         <div>
-          <strong>Mode administration sans envoi</strong>
+          <strong>Gestion du modèle et test individuel</strong>
           <p>Enregistrer crée une version locale. Synchroniser crée uniquement le modèle dans Brevo.</p>
         </div>
-        <Badge tone="info">Aucun destinataire</Badge>
+        <Badge tone="info">Test sans relance</Badge>
       </Card>
 
       {message ? (
@@ -172,6 +208,19 @@ export function RecruitmentEmailTemplateManager({ initialVersions }: { initialVe
           </div>
         </section>
       </div>
+
+      <section className="card stack" aria-labelledby="test-email-title">
+        <h2 id="test-email-title">Envoyer un test</h2>
+        <p>Envoyez le contenu actuel de l’éditeur à une seule adresse, sans enregistrer ni activer le modèle et sans créer de séquence. L’objet sera précédé de [TEST].</p>
+        <p>Expéditeur : {form.senderName} — {form.senderEmail}. Réponses : {form.replyTo || form.senderEmail}.</p>
+        <form className="stack" onSubmit={sendTest}>
+          <label>Adresse destinataire du test<input className="input" type="email" value={testRecipient} onChange={event => setTestRecipient(event.target.value)} required maxLength={254} disabled={sendingTest} /></label>
+          <label>Prénom pour le test<input className="input" value={testFirstName} onChange={event => setTestFirstName(event.target.value)} required maxLength={80} disabled={sendingTest} /></label>
+          <p className="muted">Le prénom est également utilisé dans l’aperçu ci-dessus.</p>
+          <Button type="submit" disabled={sendingTest || sentPayload === testPayload}>{sendingTest ? "Envoi du test…" : sentPayload === testPayload ? "Test envoyé" : "Envoyer un test"}</Button>
+        </form>
+        {testMessage ? <p role={testMessage.type === "error" ? "alert" : "status"} className={testMessage.type === "error" ? "form-message error" : "form-message success"}>{testMessage.text}</p> : null}
+      </section>
 
       <section className="template-history stack" aria-labelledby="template-history-title">
         <div className="template-section-heading">
