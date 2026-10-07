@@ -7,7 +7,7 @@ vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: mocks.clie
 const context = { tenantId: "tenant-a" } as TenantContext;
 const first = "11111111-1111-4111-8111-111111111111";
 const second = "22222222-2222-4222-8222-222222222222";
-const project = (ids: unknown) => ({ tenant_id: "tenant-a", metadata: { lyon_development: { person_ids: ids } } }) as Project;
+const project = (ids: unknown) => ({ tenant_id: "tenant-a", metadata: { lyon_development: { person_ids: ids } } }) as unknown as Project;
 
 describe("project profiles", () => {
   beforeEach(() => {
