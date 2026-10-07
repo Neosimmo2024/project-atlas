@@ -30,7 +30,7 @@ export type TaskDetail = {
   project: Project | null;
 };
 
-export type TaskProjectOption = Pick<Project, "id" | "title" | "person_id" | "organization_id" | "relationship_id" | "status" | "archived_at">;
+export type TaskProjectOption = Pick<Project, "id" | "title" | "person_id" | "organization_id" | "relationship_id" | "status" | "archived_at"> & { metadata?: Record<string, unknown> };
 export type TaskRelationshipOption = Pick<Relationship, "id" | "relationship_type" | "pipeline_stage" | "person_id" | "organization_id">;
 
 type TaskJoinedRow = Task & {
@@ -127,7 +127,7 @@ export async function listTaskProjectOptions(context: TenantContext): Promise<Ta
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("projects")
-    .select("id, title, person_id, organization_id, relationship_id, status, archived_at")
+    .select("id, title, person_id, organization_id, relationship_id, status, archived_at, metadata")
     .eq("tenant_id", context.tenantId)
     .is("archived_at", null)
     .order("updated_at", { ascending: false })
