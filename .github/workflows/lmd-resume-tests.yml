@@ -15,5 +15,5 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run typecheck --workspace @project-atlas/web
       - run: npm exec --workspace @project-atlas/web -- vitest run src/services/lmd-single-send.test.ts
-        working-directory: .
