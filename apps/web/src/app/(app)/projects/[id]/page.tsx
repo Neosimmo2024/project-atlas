@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProjectActions } from "@/components/projects/project-actions";
+import { QualificationNotes } from "@/components/people/qualification-notes";
 import { ProjectForm } from "@/components/projects/project-form";
 import { ProjectNextAction } from "@/components/projects/project-next-action";
 import { ProjectTabs } from "@/components/projects/project-tabs";
@@ -82,7 +83,7 @@ export default async function ProjectDetailPage({ params, searchParams }: Projec
               return <tr key={person.id} style={{ verticalAlign: "top", borderTop: "1px solid #ddd" }}>
                 <td style={{ padding: "12px 8px" }}><Link href={`/people/${person.id}${personReturnQuery}`}>{index + 1}. {person.display_name}</Link></td>
                 <td style={{ padding: "12px 8px" }}>{person.city ?? "Ville à vérifier"}<br />{person.job_title ?? "Fonction à vérifier dans la qualification"}</td>
-                <td style={{ padding: "12px 8px" }}>{person.do_not_contact ? <strong>Ne pas contacter</strong> : null}{notes ? <details><summary>Lire les notes et les points à vérifier</summary><p style={{ whiteSpace: "pre-wrap", maxWidth: "650px" }}>{notes}</p></details> : "Qualification à compléter"}</td>
+                <td style={{ padding: "12px 8px", minWidth: "280px" }}>{person.do_not_contact ? <strong>Ne pas contacter</strong> : null}{notes ? <details><summary>Lire les notes et les points à vérifier</summary><div style={{ maxWidth: "850px", paddingTop: "16px" }}><QualificationNotes comments={notes} /></div></details> : "Qualification à compléter"}</td>
                 <td style={{ padding: "12px 8px" }}><Link href={`/people/${person.id}${personReturnQuery}`}>Ouvrir la fiche</Link><br /><Link href={`/tasks/new?sourceType=project&sourceId=${project.id}&projectId=${project.id}&personId=${person.id}`}>Créer une tâche</Link></td>
               </tr>;
             })}</tbody>

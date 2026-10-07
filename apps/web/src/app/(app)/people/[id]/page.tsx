@@ -4,6 +4,7 @@ import { DeletePersonButton } from "@/components/people/delete-person-button";
 import { SafeBackLink } from "@/components/navigation/safe-back-link";
 import { PersonForm } from "@/components/people/person-form";
 import { TalentQualificationForm } from "@/components/people/talent-qualification-form";
+import { QualificationNotes } from "@/components/people/qualification-notes";
 import { RecruitmentEmailSequenceCard } from "@/components/people/recruitment-email-sequence-card";
 import { ContextProjects } from "@/components/projects/context-projects";
 import { TaskCard } from "@/components/tasks/task-card";
@@ -65,6 +66,11 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
     getRecruitmentEmailSequence(context, person.id)
   ]);
   const visibleTasks = tasks.tasks.slice(0, 2);
+  const lyonMarker = "[projet-lyon-neos-20261007]";
+  const isLyonProfile = Boolean(person.comments?.includes(lyonMarker));
+  const readableNotes = isLyonProfile && qualification?.comments
+    ? `${person.comments?.split(lyonMarker)[0] ?? ""}${qualification.comments}`
+    : person.comments;
 
   return (
     <div className="page stack">
@@ -105,17 +111,17 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
         </section>
       </div>
 
-      <RecruitmentEmailSequenceCard
+      {!isLyonProfile ? <RecruitmentEmailSequenceCard
         personId={person.id}
         email={person.primary_email}
         canContact={person.contact_allowed && !person.do_not_contact}
         canEdit={context.role !== "reader"}
         sequence={recruitmentEmailSequence}
-      />
+      /> : null}
 
-      <details className="card stack qualification-summary">
+      <details className="card stack qualification-summary" open={isLyonProfile}>
         <summary>
-          <strong>Qualification structurée — {QUALIFICATION_STATE_LABELS[qualification?.state ?? "none"]}</strong>
+          <strong>{isLyonProfile ? "Qualification Lyon" : "Qualification structurée"} — {QUALIFICATION_STATE_LABELS[qualification?.state ?? "none"]}</strong>
           {qualification?.conclusion ? ` — ${QUALIFICATION_CONCLUSION_LABELS[qualification.conclusion]}` : ""}
         </summary>
         {qualification ? <div className="qualification-meta">
@@ -123,13 +129,24 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
           <span>Par : {qualification.updated_by_label}</span>
           {qualification.completed_at ? <span>Terminée le : {formatDate(qualification.completed_at)} par {qualification.completed_by_label}</span> : null}
         </div> : <p className="muted">Aucune qualification commencée.</p>}
-        <TalentQualificationForm personId={person.id} qualification={qualification} canEdit={context.role !== "reader"} />
+        {isLyonProfile ? <QualificationNotes comments={readableNotes} /> : qualification ? <dl style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))", gap: "16px" }}>
+          {Object.entries({ "Expérience": qualification.experience_level, "Statut professionnel": qualification.professional_status, "Ancienneté (années)": qualification.years_in_real_estate, "TVA": qualification.vat_situation, "Réseau": qualification.current_network, "Secteur": qualification.geographic_area, "Disponibilité": qualification.availability, "Projet": qualification.project_maturity, "Motivation": qualification.motivation, "Besoin principal": qualification.primary_need }).map(([label, value]) => <div key={label}><dt><strong>{label}</strong></dt><dd style={{ margin: "6px 0 0", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{value ?? "À confirmer"}</dd></div>)}
+        </dl> : null}
+        {!isLyonProfile && qualification?.comments ? <QualificationNotes comments={qualification.comments} /> : null}
+        <details>
+          <summary><strong>{context.role === "reader" ? "Voir les champs de qualification" : "Modifier la qualification"}</strong></summary>
+          <TalentQualificationForm personId={person.id} qualification={qualification} canEdit={context.role !== "reader"} />
+        </details>
       </details>
 
-      <details className="card stack">
+      {!isLyonProfile ? <details className="card stack">
         <summary><strong>Commentaires</strong> — {person.comments ? "Renseigné" : "Aucun"}</summary>
-        <p>{person.comments ?? "Aucun commentaire."}</p>
-      </details>
+        <QualificationNotes comments={person.comments} />
+      </details> : <details className="card stack">
+        <summary><strong>Suivi des prises de contact</strong></summary>
+        <p className="muted">Campagne Lyon : chaque invitation ou message doit être validé par Renato avant envoi.</p>
+        <RecruitmentEmailSequenceCard personId={person.id} email={person.primary_email} canContact={person.contact_allowed && !person.do_not_contact} canEdit={context.role !== "reader"} sequence={recruitmentEmailSequence} />
+      </details>}
 
       <details className="card stack">
         <summary><strong>Organisations liées</strong> — {countLabel(organizations.length, "organisation", "organisations")}</summary>
