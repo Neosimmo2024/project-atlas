@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { buildDuplicateOrFilter, canDeletePeople, findDuplicateMatches, normalizePeopleListParams, paginateSearchResults, personMatchesSearch, type DuplicateMatch, type PeopleSearchParams } from "@/features/people/search";
+import { buildDuplicateOrFilter, canDeletePeople, findDuplicateMatches, normalizePeopleListParams, type DuplicateMatch, type PeopleSearchParams } from "@/features/people/search";
 import type { Organization, Person, Relationship, TenantContext } from "@/types/domain";
 import type { PersonFormInput } from "@/features/people/validation";
 import { recordPersonCreated } from "@/services/timeline-service";
@@ -22,6 +22,28 @@ export async function listPeople(context: TenantContext, params: PeopleSearchPar
   const supabase = await createSupabaseServerClient();
   const normalized = normalizePeopleListParams(params);
 
+  if (normalized.query || normalized.qualificationState) {
+    const { data, error } = await supabase.rpc("atlas_search_people", {
+      p_tenant_id: context.tenantId,
+      p_query: normalized.query,
+      p_status: normalized.status,
+      p_priority: normalized.priority,
+      p_qualification_state: normalized.qualificationState,
+      p_talent_score: normalized.talentScore,
+      p_page: normalized.page,
+      p_page_size: normalized.pageSize
+    });
+    if (error) throw error;
+    const result = data as { people: Person[]; total: number };
+    return {
+      people: result.people,
+      total: result.total,
+      page: normalized.page,
+      pageSize: normalized.pageSize,
+      pageCount: Math.max(Math.ceil(result.total / normalized.pageSize), 1)
+    };
+  }
+
   let query = supabase
     .from("people")
     .select("*", { count: "exact" })
@@ -31,31 +53,10 @@ export async function listPeople(context: TenantContext, params: PeopleSearchPar
   if (normalized.priority) query = query.eq("priority", normalized.priority);
   if (normalized.talentScore === "unscored") query = query.is("talent_score", null);
   if (/^(?:10|[0-9])$/.test(normalized.talentScore)) query = query.eq("talent_score", Number(normalized.talentScore));
-  if (normalized.query || normalized.qualificationState) {
-    const { data, error } = await query.order("updated_at", { ascending: false });
-    if (error) throw error;
-    const people = (data ?? []) as Person[];
-    const { data: qualificationRows, error: qualificationError } = people.length
-      ? await supabase.from("talent_qualifications").select("person_id, state").eq("tenant_id", context.tenantId).in("person_id", people.map((person) => person.id))
-      : { data: [], error: null };
-    if (qualificationError) throw qualificationError;
-    const states = new Map((qualificationRows ?? []).map((row) => [row.person_id as string, row.state as "draft" | "completed"]));
-    const filtered = people
-      .map((person) => ({ ...person, qualification_state: states.get(person.id) ?? "none" } as Person))
-      .filter((person) => personMatchesSearch(person, normalized.query))
-      .filter((person) => !normalized.qualificationState || person.qualification_state === normalized.qualificationState);
-    const paged = paginateSearchResults(filtered, normalized.page, normalized.pageSize);
-    return {
-      people: paged.rows,
-      total: paged.total,
-      page: normalized.page,
-      pageSize: normalized.pageSize,
-      pageCount: paged.pageCount
-    };
-  }
 
   const { data, error, count } = await query
     .order("updated_at", { ascending: false })
+    .order("id", { ascending: true })
     .range(normalized.from, normalized.to);
 
   if (error) throw error;

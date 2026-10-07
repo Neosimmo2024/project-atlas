@@ -417,6 +417,7 @@ jobs:
           psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -q -f scripts/test-brevo-contact-review.sql
           psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -q -f scripts/test-security-hardening.sql
           psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -q -f scripts/test-sms-personal-pilot.sql
+          psql "$QA_DB_URL" -X -v ON_ERROR_STOP=1 -q -f scripts/test-atlas-search.sql
           supabase db advisors --local --type security --level error --fail-on none
 
       - name: Unit tests
