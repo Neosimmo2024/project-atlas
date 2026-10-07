@@ -5,6 +5,14 @@ const relationshipPath = "/relationships/4eb0fb47-9bea-4222-b5b5-a3896f9baa3b";
 const organizationPath = "/organizations/5658f19f-8941-4bfb-8dbd-ec710065e2a4";
 
 describe("safePersonReturnTo", () => {
+  it("returns to the originating project and drops extra navigation parameters", () => {
+    const projectPath = "/projects/1dddc08d-deaf-4da7-8129-7bdecf48ec16";
+    expect(safePersonReturnTo(projectPath)).toBe(projectPath);
+    expect(safePersonReturnTo(`${projectPath}?returnTo=https://example.com`)).toBe(projectPath);
+    expect(safePersonReturnTo(`https://example.com${projectPath}`)).toBe("/people");
+    expect(safePersonReturnTo("/projects/not-a-uuid")).toBe("/people");
+  });
+
   it("keeps a valid relationship return path", () => {
     expect(safePersonReturnTo(relationshipPath)).toBe(relationshipPath);
   });

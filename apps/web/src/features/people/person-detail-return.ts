@@ -1,5 +1,6 @@
 const UUID_SEGMENT = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}";
 const RELATIONSHIP_PATH = new RegExp(`^/relationships/${UUID_SEGMENT}$`);
+const PROJECT_PATH = new RegExp(`^/projects/${UUID_SEGMENT}$`);
 const ORGANIZATION_PATH = new RegExp(`^/organizations/${UUID_SEGMENT}$`);
 
 function safeRelationshipReturnTo(parsed: URL) {
@@ -19,6 +20,8 @@ export function safePersonReturnTo(value: string) {
 
   try {
     const parsed = new URL(value, "http://atlas.local");
+    if (parsed.origin === "http://atlas.local" && PROJECT_PATH.test(parsed.pathname)) return parsed.pathname;
+
     const relationshipReturnTo = safeRelationshipReturnTo(parsed);
     if (relationshipReturnTo) return relationshipReturnTo;
 

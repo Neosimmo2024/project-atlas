@@ -73,7 +73,9 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
           <p className="muted">Personnes</p>
           <h1>{person.display_name}</h1>
         </div>
-        <SafeBackLink fallbackHref={returnTo} useHistory={returnTo === "/people"} />
+        <SafeBackLink fallbackHref={returnTo} useHistory={returnTo === "/people"}>
+          {returnTo.startsWith("/projects/") ? "Retour au projet" : "Retour"}
+        </SafeBackLink>
       </header>
 
       <div className="grid">
