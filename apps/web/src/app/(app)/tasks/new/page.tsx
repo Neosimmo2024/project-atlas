@@ -31,7 +31,7 @@ export default async function NewTaskPage({ searchParams }: NewTaskPageProps) {
   const context = await getTenantContext();
   const [peopleOptions, organizationOptions, relationshipOptions, interactionOptions, projectOptions] = context
     ? await Promise.all([
-      listTaskPeopleOptions(context),
+      listTaskPeopleOptions(context, valueOf(params, "personId")),
       listTaskOrganizationOptions(context),
       listTaskRelationshipOptions(context),
       listTaskInteractionOptions(context),

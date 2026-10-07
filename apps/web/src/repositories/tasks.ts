@@ -63,7 +63,7 @@ function addDays(date: Date, days: number) {
   return next;
 }
 
-export async function listTaskPeopleOptions(context: TenantContext): Promise<Pick<Person, "id" | "display_name">[]> {
+export async function listTaskPeopleOptions(context: TenantContext, selectedPersonId?: string): Promise<Pick<Person, "id" | "display_name">[]> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("people")
@@ -73,7 +73,14 @@ export async function listTaskPeopleOptions(context: TenantContext): Promise<Pic
     .limit(200);
 
   if (error) throw error;
-  return (data ?? []) as Pick<Person, "id" | "display_name">[];
+  const options = (data ?? []) as Pick<Person, "id" | "display_name">[];
+  if (selectedPersonId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(selectedPersonId) && !options.some((person) => person.id === selectedPersonId)) {
+    const { data: selected, error: selectedError } = await supabase.from("people").select("id, display_name")
+      .eq("tenant_id", context.tenantId).eq("id", selectedPersonId).maybeSingle();
+    if (selectedError) throw selectedError;
+    if (selected) options.unshift(selected as Pick<Person, "id" | "display_name">);
+  }
+  return options;
 }
 
 export async function listTaskOrganizationOptions(context: TenantContext): Promise<Pick<Organization, "id" | "name">[]> {
