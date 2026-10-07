@@ -22,7 +22,7 @@ export async function POST(request: Request) {
  if(index<0||!m.recipient_email) return NextResponse.json({error:"Message incomplet."},{status:409});
  const subject=lines[index].slice(8).trim(),textContent=lines.slice(index+1).join("\n").trim();
  if(subject.includes("[TEST]")||textContent.includes("[TEST]")) return NextResponse.json({error:"Marqueur TEST interdit."},{status:409});
- const scheduledAt=m.batch==="B"?"2026-10-08T07:30:00.000Z":undefined;
+ const scheduledAt=m.batch==="B"?"2026-10-08T07:30:00.000Z":"2026-10-08T07:15:00.000Z";
  if(scheduledAt&&Date.parse(scheduledAt)<=Date.now()) return NextResponse.json({error:"Date de programmation passée : contrôle requis."},{status:409});
  const claimed={...m,status:"dispatching",dispatch_started_at:new Date().toISOString(),sender_email:"renato.ponzio@neos-immo.com"};
  const claim=await db.from("interactions").update({metadata:claimed}).eq("tenant_id",context.tenantId).eq("id",item.id).eq("metadata",item.metadata).select("id");
