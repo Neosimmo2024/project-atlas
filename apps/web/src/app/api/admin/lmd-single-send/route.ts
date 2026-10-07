@@ -18,7 +18,7 @@ export async function POST(request: Request) {
  const personResult=await db.from("people").select("display_name,contact_allowed,do_not_contact").eq("tenant_id",context.tenantId).eq("id",item.person_id).maybeSingle();
  const p=personResult.data;
  if(personResult.error||!p?.contact_allowed||p.do_not_contact) return NextResponse.json({error:"Contact interdit."},{status:409});
- const lines=item.summary.split("\n"),index=lines.findIndex(l=>l.startsWith("Objet : "));
+ const lines=item.summary.split("\n"),index=lines.findIndex((l:string)=>l.startsWith("Objet : "));
  if(index<0||!m.recipient_email) return NextResponse.json({error:"Message incomplet."},{status:409});
  const subject=lines[index].slice(8).trim(),textContent=lines.slice(index+1).join("\n").trim();
  if(subject.includes("[TEST]")||textContent.includes("[TEST]")) return NextResponse.json({error:"Marqueur TEST interdit."},{status:409});
