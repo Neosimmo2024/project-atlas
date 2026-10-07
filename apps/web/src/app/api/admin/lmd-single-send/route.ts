@@ -25,7 +25,7 @@ export async function POST(request: Request) {
  const scheduledAt=m.batch==="B"?"2026-10-08T07:30:00.000Z":"2026-10-08T07:15:00.000Z";
  if(scheduledAt&&Date.parse(scheduledAt)<=Date.now()) return NextResponse.json({error:"Date de programmation passée : contrôle requis."},{status:409});
  const claimed={...m,status:"dispatching",dispatch_started_at:new Date().toISOString(),sender_email:"renato.ponzio@neos-immo.com"};
- const claim=await db.from("interactions").update({metadata:claimed}).eq("tenant_id",context.tenantId).eq("id",item.id).eq("metadata",item.metadata).select("id");
+ const claim=await db.from("interactions").update({metadata:claimed}).eq("tenant_id",context.tenantId).eq("id",item.id).eq("metadata",JSON.stringify(item.metadata)).select("id");
  if(claim.error||claim.data?.length!==1) return NextResponse.json({error:"Opération concurrente ou verrou impossible."},{status:409});
  const sent=await sendLmdSingleEmail({requestId:["lmd-ab-20261004",m.batch,item.person_id].join(":"),recipient:m.recipient_email,recipientName:p.display_name,subject,textContent,scheduledAt});
  if(!sent.success) {
