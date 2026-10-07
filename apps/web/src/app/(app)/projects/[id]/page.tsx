@@ -57,6 +57,7 @@ export default async function ProjectDetailPage({ params, searchParams }: Projec
   ]);
   const project = detail.project;
   const profiles = await listProjectProfiles(context, project);
+  const personReturnQuery = `?returnTo=${encodeURIComponent(`/projects/${project.id}`)}`;
   const nextTask = detail.nextAction ? tasks.tasks.find((task) => task.id === detail.nextAction?.taskId) : undefined;
   const signals = projectSignals(project, Boolean(detail.nextAction), detail.nextAction?.reason);
   const ownerLabel = ownerOptions.find((owner) => owner.id === project.owner_user_id)?.name ?? "Utilisateur non identifié";
@@ -79,10 +80,10 @@ export default async function ProjectDetailPage({ params, searchParams }: Projec
               const marker = "[projet-lyon-neos-20261007]";
               const notes = project.metadata.lyon_development ? person.comments?.split(marker)[1]?.trim() : person.comments;
               return <tr key={person.id} style={{ verticalAlign: "top", borderTop: "1px solid #ddd" }}>
-                <td style={{ padding: "12px 8px" }}><Link href={`/people/${person.id}`}>{index + 1}. {person.display_name}</Link></td>
+                <td style={{ padding: "12px 8px" }}><Link href={`/people/${person.id}${personReturnQuery}`}>{index + 1}. {person.display_name}</Link></td>
                 <td style={{ padding: "12px 8px" }}>{person.city ?? "Ville à vérifier"}<br />{person.job_title ?? "Fonction à vérifier dans la qualification"}</td>
                 <td style={{ padding: "12px 8px" }}>{person.do_not_contact ? <strong>Ne pas contacter</strong> : null}{notes ? <details><summary>Lire les notes et les points à vérifier</summary><p style={{ whiteSpace: "pre-wrap", maxWidth: "650px" }}>{notes}</p></details> : "Qualification à compléter"}</td>
-                <td style={{ padding: "12px 8px" }}><Link href={`/people/${person.id}`}>Ouvrir la fiche</Link><br /><Link href={`/tasks/new?sourceType=project&sourceId=${project.id}&projectId=${project.id}&personId=${person.id}`}>Créer une tâche</Link></td>
+                <td style={{ padding: "12px 8px" }}><Link href={`/people/${person.id}${personReturnQuery}`}>Ouvrir la fiche</Link><br /><Link href={`/tasks/new?sourceType=project&sourceId=${project.id}&projectId=${project.id}&personId=${person.id}`}>Créer une tâche</Link></td>
               </tr>;
             })}</tbody>
           </table>
@@ -92,7 +93,7 @@ export default async function ProjectDetailPage({ params, searchParams }: Projec
       <PageSection>
         <EntitySummary>
           <p><strong>Responsable</strong><br />{ownerLabel}</p>
-          <p><strong>Personne</strong><br />{detail.person ? <Link href={`/people/${detail.person.id}`}>{detail.person.display_name}</Link> : "-"}</p>
+          <p><strong>Personne</strong><br />{detail.person ? <Link href={`/people/${detail.person.id}${personReturnQuery}`}>{detail.person.display_name}</Link> : "-"}</p>
           <p><strong>Organisation</strong><br />{detail.organization ? <Link href={`/organizations/${detail.organization.id}`}>{detail.organization.name}</Link> : "-"}</p>
           <p><strong>Clôture prévue</strong><br />{formatDate(project.expected_close_at)}</p>
         </EntitySummary>
