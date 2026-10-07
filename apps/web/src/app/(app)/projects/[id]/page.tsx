@@ -17,6 +17,7 @@ import { listProjectInteractions } from "@/repositories/interactions";
 import { listProjectTasks } from "@/repositories/tasks";
 import { getTenantContext } from "@/repositories/tenant-context";
 import { listTimelineEvents } from "@/repositories/timeline-events";
+import { listProjectProfiles } from "@/repositories/project-profiles";
 
 type ProjectDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -55,6 +56,7 @@ export default async function ProjectDetailPage({ params, searchParams }: Projec
     listProjectOwnerOptions(context)
   ]);
   const project = detail.project;
+  const profiles = await listProjectProfiles(context, project);
   const nextTask = detail.nextAction ? tasks.tasks.find((task) => task.id === detail.nextAction?.taskId) : undefined;
   const signals = projectSignals(project, Boolean(detail.nextAction), detail.nextAction?.reason);
   const ownerLabel = ownerOptions.find((owner) => owner.id === project.owner_user_id)?.name ?? "Utilisateur non identifié";
@@ -66,6 +68,26 @@ export default async function ProjectDetailPage({ params, searchParams }: Projec
       {valueOf(query, "toast") ? <p className="success" aria-live="polite">{valueOf(query, "toast")}</p> : null}
       {valueOf(query, "projectSaved") === "1" ? <p className="success" aria-live="polite">Projet enregistré.</p> : null}
       {signals.length > 0 ? <div className="tag-list">{signals.map((signal) => <span className="tag" key={signal}>{signal}</span>)}</div> : null}
+
+      {profiles.length > 0 ? <PageSection title={`Profils à étudier (${profiles.length})`}>
+        <p>Ouvrez une fiche pour consulter sa qualification et compléter vos notes. Vous pouvez aussi créer une tâche liée à cette personne et à ce projet.</p>
+        {project.metadata.lyon_development ? <p>Aucun contact pour Lyon sans validation du texte par Renato. Les relations LinkedIn restent à vérifier.</p> : null}
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead><tr><th scope="col">Profil</th><th scope="col">Ville / fonction</th><th scope="col">Qualification</th><th scope="col">Actions</th></tr></thead>
+            <tbody>{profiles.map((person, index) => {
+              const marker = "[projet-lyon-neos-20261007]";
+              const notes = project.metadata.lyon_development ? person.comments?.split(marker)[1]?.trim() : person.comments;
+              return <tr key={person.id} style={{ verticalAlign: "top", borderTop: "1px solid #ddd" }}>
+                <td style={{ padding: "12px 8px" }}><Link href={`/people/${person.id}`}>{index + 1}. {person.display_name}</Link></td>
+                <td style={{ padding: "12px 8px" }}>{person.city ?? "Ville à vérifier"}<br />{person.job_title ?? "Fonction à vérifier dans la qualification"}</td>
+                <td style={{ padding: "12px 8px" }}>{person.do_not_contact ? <strong>Ne pas contacter</strong> : null}{notes ? <details><summary>Lire les notes et les points à vérifier</summary><p style={{ whiteSpace: "pre-wrap", maxWidth: "650px" }}>{notes}</p></details> : "Qualification à compléter"}</td>
+                <td style={{ padding: "12px 8px" }}><Link href={`/people/${person.id}`}>Ouvrir la fiche</Link><br /><Link href={`/tasks/new?sourceType=project&sourceId=${project.id}&projectId=${project.id}&personId=${person.id}`}>Créer une tâche</Link></td>
+              </tr>;
+            })}</tbody>
+          </table>
+        </div>
+      </PageSection> : null}
 
       <PageSection>
         <EntitySummary>
