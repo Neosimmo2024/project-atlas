@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { NATIONAL_EMAIL_POLICY } from "./campaign-policy";
 
 const root = resolve(process.cwd(), "../..");
 const orchestrator = readFileSync(resolve(root, "apps/web/src/services/recruitment-email-orchestrator.ts"), "utf8");
@@ -12,8 +13,9 @@ const cron = readFileSync(resolve(root, "supabase/cron/recruitment-email-follow-
 
 describe("lot 9B native recruitment orchestration", () => {
   it("keeps Atlas as source of truth with J+3 and J+7 scheduling", () => {
-    expect(orchestrator).toContain("scheduledAt(sequence.sent_at!, 3)");
-    expect(orchestrator).toContain("scheduledAt(sequence.sent_at!, 7)");
+    expect(NATIONAL_EMAIL_POLICY.days).toEqual([0, 3, 7]);
+    expect(orchestrator).toContain("scheduledAt(sequence.sent_at!, days[1])");
+    expect(orchestrator).toContain("scheduledAt(sequence.sent_at!, days[2])");
     expect(orchestrator).toContain("claim_due_recruitment_email_steps");
     expect(orchestrator).toContain("complete_recruitment_email_step");
     expect(orchestrator).toContain("contact_allowed");

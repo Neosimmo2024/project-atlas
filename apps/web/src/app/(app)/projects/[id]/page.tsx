@@ -1,3 +1,5 @@
+import { LyonEmailPreparation } from "@/components/projects/lyon-email-preparation";
+import { lyonCampaignSchema } from "@/features/recruitment-email/lyon-campaign";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProjectActions } from "@/components/projects/project-actions";
@@ -57,6 +59,7 @@ export default async function ProjectDetailPage({ params, searchParams }: Projec
     listProjectOwnerOptions(context)
   ]);
   const project = detail.project;
+  const lyonCampaign = lyonCampaignSchema.safeParse(project.metadata.recruitment_email_campaign);
   const profiles = await listProjectProfiles(context, project);
   const personReturnQuery = `?returnTo=${encodeURIComponent(`/projects/${project.id}`)}`;
   const nextTask = detail.nextAction ? tasks.tasks.find((task) => task.id === detail.nextAction?.taskId) : undefined;
@@ -71,9 +74,11 @@ export default async function ProjectDetailPage({ params, searchParams }: Projec
       {valueOf(query, "projectSaved") === "1" ? <p className="success" aria-live="polite">Projet enregistré.</p> : null}
       {signals.length > 0 ? <div className="tag-list">{signals.map((signal) => <span className="tag" key={signal}>{signal}</span>)}</div> : null}
 
+      {project.metadata.lyon_development ? <LyonEmailPreparation projectId={id} campaign={lyonCampaign.success ? lyonCampaign.data : null} canPrepare={context.role === "owner" || context.role === "admin"} /> : null}
+
       {profiles.length > 0 ? <PageSection title={`Profils à étudier (${profiles.length})`}>
         <p>Ouvrez une fiche pour consulter sa qualification et compléter vos notes. Vous pouvez aussi créer une tâche liée à cette personne et à ce projet.</p>
-        {project.metadata.lyon_development ? <p>Aucun contact pour Lyon sans validation du texte par Renato. Les relations LinkedIn restent à vérifier.</p> : null}
+        {project.metadata.lyon_development ? <p>Les contrôles LinkedIn sont consignés dans le bilan du projet. Les profils incertains restent exclus de la liste email préparée. Aucun envoi n’est lancé.</p> : null}
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead><tr><th scope="col">Profil</th><th scope="col">Ville / fonction</th><th scope="col">Qualification</th><th scope="col">Actions</th></tr></thead>

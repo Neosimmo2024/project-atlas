@@ -1,3 +1,4 @@
+import { ApiError } from "@/lib/api-errors";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 
 type BrevoSendResult = { success: true; messageId: string } | { success: false; error: string };
@@ -144,10 +145,13 @@ export async function sendInitialRecruitmentEmail(input: {
 export async function sendRecruitmentFollowUpEmail(input: {
   stepId: string;
   stepIndex: 1 | 2;
+  templateId?: number;
   email: string;
   displayName: string;
 }): Promise<BrevoSendResult> {
-  const configuration = await brevoFollowUpConfiguration(input.stepIndex);
+  const configuration = input.templateId === undefined
+    ? await brevoFollowUpConfiguration(input.stepIndex)
+    : Number.isInteger(input.templateId) && input.templateId > 0 ? brevoConfiguration(input.templateId) : null;
   if (!configuration) return { success: false, error: `Configuration Brevo relance ${input.stepIndex} incomplète.` };
   return sendBrevoTemplateEmail({
     ...configuration,
@@ -156,4 +160,26 @@ export async function sendRecruitmentFollowUpEmail(input: {
     displayName: input.displayName,
     replyTo: await recruitmentReplyAddressForStep(input.stepId)
   });
+}
+
+
+export async function verifyBrevoSender(email: string) {
+  const apiKey = brevoApiKey();
+  if (!apiKey) throw new ApiError("Configuration Brevo incomplète.", 409, "BREVO_NOT_CONFIGURED");
+  const response = await fetch("https://api.brevo.com/v3/senders", { headers: { "api-key": apiKey, accept: "application/json" }, cache: "no-store" });
+  const body = await response.json() as { senders?: { email: string; active: boolean }[] };
+  if (!response.ok || !body.senders?.some(sender => sender.email.toLowerCase() === email.toLowerCase() && sender.active)) {
+    throw new ApiError("L’expéditeur Renato doit être vérifié dans Brevo.", 409, "BREVO_SENDER_UNVERIFIED");
+  }
+}
+
+export async function verifyBrevoTemplate(id: number, expected: { subject: string; sender_email: string; reply_to: string | null; html_content: string }) {
+  const apiKey = brevoApiKey();
+  if (!apiKey) throw new ApiError("Configuration Brevo incomplète.", 409, "BREVO_NOT_CONFIGURED");
+  const response = await fetch(`https://api.brevo.com/v3/smtp/templates/${id}`, { headers: { "api-key": apiKey, accept: "application/json" }, cache: "no-store" });
+  const body = await response.json() as { isActive?: boolean; subject?: string; sender?: { email?: string }; replyTo?: string; htmlContent?: string };
+  if (!response.ok || !body.isActive || body.subject !== expected.subject || body.sender?.email !== expected.sender_email
+    || body.replyTo !== expected.reply_to || body.htmlContent?.trim() !== expected.html_content.trim()) {
+    throw new ApiError("Le modèle Brevo ne correspond pas à la version Lyon validée.", 409, "BREVO_TEMPLATE_MISMATCH");
+  }
 }
