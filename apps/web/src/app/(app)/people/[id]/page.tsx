@@ -1,3 +1,6 @@
+import { getLyonCampaignForPerson } from "@/services/lyon-email-campaign";
+import { canLaunchLyon, isLyonCampaignReady } from "@/features/recruitment-email/lyon-campaign";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DeletePersonButton } from "@/components/people/delete-person-button";
@@ -69,6 +72,7 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
   const visibleTasks = tasks.tasks.slice(0, 2);
   const lyonMarker = LYON_CAMPAIGN_MARKER;
   const isLyonProfile = isLyonRecruitmentProfile(person.comments);
+  const lyonCampaign = isLyonProfile ? await getLyonCampaignForPerson(await createSupabaseServerClient(), context.tenantId, person.id) : null;
   const readableNotes = isLyonProfile && qualification?.comments
     ? `${person.comments?.split(lyonMarker)[0] ?? ""}${qualification.comments}`
     : person.comments;
@@ -150,7 +154,7 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
       </details> : <details className="card stack">
         <summary><strong>Suivi des prises de contact</strong></summary>
         <p className="muted">Campagne Lyon : chaque invitation ou message doit être validé par Renato avant envoi.</p>
-        <RecruitmentEmailSequenceCard campaign="lyon" personId={person.id} email={person.primary_email} canContact={person.contact_allowed && !person.do_not_contact} canEdit={context.role !== "reader"} sequence={recruitmentEmailSequence} />
+        <RecruitmentEmailSequenceCard campaign="lyon" campaignReady={isLyonCampaignReady(lyonCampaign?.campaign ?? null)} launchAllowed={canLaunchLyon(lyonCampaign?.campaign ?? null, person.id)} personId={person.id} email={person.primary_email} canContact={person.contact_allowed && !person.do_not_contact} canEdit={context.role !== "reader"} sequence={recruitmentEmailSequence} />
       </details>}
 
       <details className="card stack">
