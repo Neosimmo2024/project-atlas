@@ -1,3 +1,4 @@
+import { resolveLyonFollowUp } from "@/services/lyon-email-campaign";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 import { recruitmentEmailPolicy } from "@/features/recruitment-email/campaign-policy";
 import { sendRecruitmentFollowUpEmail } from "@/services/brevo";
@@ -10,6 +11,7 @@ type SequenceRow = {
   status: "pending" | "sent" | "error" | "stopped";
   lifecycle_status: "idle" | "scheduled" | "running" | "completed" | "stopped" | "error";
   sent_at: string | null;
+  campaign_snapshot?: unknown;
 };
 
 type StepRow = {
@@ -116,7 +118,7 @@ async function insertTimelineEvent(input: {
   if (error) throw error;
 }
 
-async function scheduleStep(sequence: SequenceRow, stepIndex: 1 | 2, dueAt: string) {
+async function scheduleStep(sequence: SequenceRow, stepIndex: 1 | 2, dueAt: string, days: number) {
   const supabase = createSupabaseServiceRoleClient();
   const stepKey = stepIndex === 1 ? "follow_up_1" : "follow_up_2";
   const idempotencyKey = `recruitment-email-step:${sequence.id}:${stepIndex}`;
@@ -159,7 +161,7 @@ async function scheduleStep(sequence: SequenceRow, stepIndex: 1 | 2, dueAt: stri
       sequence_id: sequence.id,
       step_index: stepIndex,
       scheduled_at: dueAt,
-      policy: stepIndex === 1 ? "J+3" : "J+7",
+      policy: `J+${days}`,
       source: "lot_9b_native_orchestrator"
     },
     idempotencyKey: `recruitment_email_scheduled:${sequence.id}:${stepIndex}`
@@ -171,7 +173,7 @@ async function prepareFollowUps(limit = 100) {
   const supabase = createSupabaseServiceRoleClient();
   const { data, error } = await supabase
     .from("recruitment_email_sequences")
-    .select("id,tenant_id,person_id,email,status,lifecycle_status,sent_at")
+    .select("id,tenant_id,person_id,email,status,lifecycle_status,sent_at,campaign_snapshot")
     .eq("status", "sent")
     .not("sent_at", "is", null)
     .neq("lifecycle_status", "stopped")
@@ -186,12 +188,15 @@ async function prepareFollowUps(limit = 100) {
     const { data: person, error: personError } = await supabase
       .from("people")
       .select("id,display_name,comments,contact_allowed,do_not_contact")
+      .eq("tenant_id", sequence.tenant_id)
       .eq("id", sequence.person_id)
       .maybeSingle();
     if (personError) throw personError;
     const typedPerson = person as PersonRow | null;
     const policy = recruitmentEmailPolicy(typedPerson?.comments);
-    if (typedPerson && !policy.sendingEnabled) continue;
+    const lyon = await resolveLyonFollowUp(supabase, sequence.tenant_id, sequence.person_id, typedPerson?.comments, sequence.campaign_snapshot);
+    if (lyon?.blocked) continue;
+    const days = lyon && !lyon.blocked ? lyon.snapshot.days : policy.days;
     if (!typedPerson || !typedPerson.contact_allowed || typedPerson.do_not_contact) {
       await stopSequenceForContactRestriction(sequence);
       await insertTimelineEvent({
@@ -217,11 +222,11 @@ async function prepareFollowUps(limit = 100) {
     const second = typedSteps.find((step) => step.step_index === 2);
 
     if (!first) {
-      if (await scheduleStep(sequence, 1, scheduledAt(sequence.sent_at!, policy.days[1]))) scheduled += 1;
+      if (await scheduleStep(sequence, 1, scheduledAt(sequence.sent_at!, days[1]), days[1])) scheduled += 1;
       continue;
     }
     if (first.status === "sent" && !second) {
-      if (await scheduleStep(sequence, 2, scheduledAt(sequence.sent_at!, policy.days[2]))) scheduled += 1;
+      if (await scheduleStep(sequence, 2, scheduledAt(sequence.sent_at!, days[2]), days[2])) scheduled += 1;
     }
   }
   return { scheduled, stopped };
@@ -254,12 +259,14 @@ async function processDueSteps(limit = 25) {
     const [{ data: sequence, error: sequenceError }, { data: person, error: personError }] = await Promise.all([
       supabase
         .from("recruitment_email_sequences")
-        .select("id,email,status,lifecycle_status")
+        .select("id,email,status,lifecycle_status,campaign_snapshot")
+        .eq("tenant_id", step.tenant_id)
         .eq("id", step.sequence_id)
         .maybeSingle(),
       supabase
         .from("people")
         .select("id,display_name,comments,contact_allowed,do_not_contact")
+        .eq("tenant_id", step.tenant_id)
         .eq("id", step.person_id)
         .maybeSingle()
     ]);
@@ -268,7 +275,7 @@ async function processDueSteps(limit = 25) {
 
     // The claim is a snapshot: a reply/refusal can stop the sequence before this read.
     // Do not complete a cancelled/deleted step or overwrite its terminal state.
-    const currentSequence = sequence as Pick<SequenceRow, "email" | "status" | "lifecycle_status"> | null;
+    const currentSequence = sequence as Pick<SequenceRow, "email" | "status" | "lifecycle_status" | "campaign_snapshot"> | null;
     if (!currentSequence || currentSequence.status !== "sent"
       || currentSequence.lifecycle_status === "stopped" || currentSequence.lifecycle_status === "completed") {
       skipped += 1;
@@ -278,7 +285,8 @@ async function processDueSteps(limit = 25) {
     const typedPerson = person as PersonRow | null;
     // A Lyon draft must never use a national follow-up, even if an old step
     // was queued before the draft guard was introduced.
-    if (typedPerson && !recruitmentEmailPolicy(typedPerson.comments).sendingEnabled) {
+    const lyon = await resolveLyonFollowUp(supabase, step.tenant_id, step.person_id, typedPerson?.comments, currentSequence.campaign_snapshot);
+    if (lyon?.blocked) {
       const { error: draftError } = await supabase.rpc("complete_recruitment_email_step", {
         p_step_id: step.id, p_success: false, p_provider_message_id: null,
         p_error: "Campagne Lyon en brouillon : relance bloquée, aucun email envoyé."
@@ -296,7 +304,8 @@ async function processDueSteps(limit = 25) {
         stepId: step.id,
         stepIndex: step.step_index,
         email,
-        displayName: typedPerson.display_name
+        displayName: typedPerson.display_name,
+        ...(lyon && !lyon.blocked ? { templateId: lyon.snapshot.template_ids[step.step_index] } : {})
       });
     }
 
