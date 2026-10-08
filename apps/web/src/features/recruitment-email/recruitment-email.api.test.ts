@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Person, RecruitmentEmailSequence, TenantContext } from "@/types/domain";
 
-const mocks = vi.hoisted(() => ({ context: vi.fn(), person: vi.fn(), get: vi.fn(), claim: vi.fn(), complete: vi.fn(), stop: vi.fn(), activeTemplate: vi.fn(), send: vi.fn() }));
+const mocks = vi.hoisted(() => ({ context: vi.fn(), person: vi.fn(), get: vi.fn(), claim: vi.fn(), complete: vi.fn(), stop: vi.fn(), activeTemplate: vi.fn(), send: vi.fn(), lyon: vi.fn(), service: vi.fn() }));
+vi.mock("@/services/lyon-email-campaign", () => ({ getLyonCampaignForPerson: mocks.lyon }));
+vi.mock("@/lib/supabase/service-role", () => ({ createSupabaseServiceRoleClient: mocks.service }));
 vi.mock("@/repositories/tenant-context", () => ({ getTenantContext: mocks.context }));
 vi.mock("@/repositories/people", () => ({ getPersonDetail: mocks.person }));
 vi.mock("@/repositories/recruitment-email-sequences", () => ({
@@ -21,6 +23,7 @@ const route = { params: Promise.resolve({ id: person.id }) };
 describe("recruitment email API", () => {
   beforeEach(() => {
     Object.values(mocks).forEach((mock) => mock.mockReset());
+    mocks.lyon.mockResolvedValue(null);
     mocks.context.mockResolvedValue(context);
     mocks.person.mockResolvedValue({ person, organizations: [], relationships: [] });
     mocks.claim.mockResolvedValue(sequence);
