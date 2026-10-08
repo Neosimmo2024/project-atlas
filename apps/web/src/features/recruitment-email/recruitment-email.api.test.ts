@@ -37,6 +37,16 @@ describe("recruitment email API", () => {
     expect(mocks.complete).toHaveBeenCalledWith(context, "sequence-a", { success: true, providerMessageId: "brevo-1" });
   });
 
+  it("blocks a Lyon draft before claiming a sequence or loading a national template", async () => {
+    const { POST } = await import("../../app/api/people/[id]/recruitment-email/route");
+    mocks.person.mockResolvedValue({ person: { ...person, comments: "[projet-lyon-neos-20261007]" } });
+    const response = await POST(new Request("http://localhost", { method: "POST" }), route);
+    expect(response.status).toBe(409);
+    expect(mocks.claim).not.toHaveBeenCalled();
+    expect(mocks.activeTemplate).not.toHaveBeenCalled();
+    expect(mocks.send).not.toHaveBeenCalled();
+  });
+
   it("does not call Brevo again when the sequence is already sent", async () => {
     const { POST } = await import("../../app/api/people/[id]/recruitment-email/route");
     mocks.claim.mockResolvedValue({ ...sequence, status: "sent" });
