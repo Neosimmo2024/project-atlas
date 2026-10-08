@@ -13,6 +13,8 @@ type Props = {
   canEdit: boolean;
   sequence: RecruitmentEmailSequenceWithSteps | null;
   campaign?: "lyon" | "national";
+  campaignReady?: boolean;
+  launchAllowed?: boolean;
 };
 
 const lifecycleLabels = {
@@ -58,8 +60,8 @@ function stopReasonLabel(reason: string | null) {
   return reason.replaceAll("_", " ");
 }
 
-export function RecruitmentEmailSequenceCard({ personId, email, canContact, canEdit, sequence, campaign = "national" }: Props) {
-  const policy = campaign === "lyon" ? LYON_EMAIL_POLICY : NATIONAL_EMAIL_POLICY;
+export function RecruitmentEmailSequenceCard({ personId, email, canContact, canEdit, sequence, campaign = "national", campaignReady = false, launchAllowed = false }: Props) {
+  const policy = campaign === "lyon" ? { ...LYON_EMAIL_POLICY, sendingEnabled: launchAllowed } : NATIONAL_EMAIL_POLICY;
   const stepLabels = policy.labels;
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -146,7 +148,7 @@ export function RecruitmentEmailSequenceCard({ personId, email, canContact, canE
     <section className="card stack recruitment-email-card">
       <div className="page-header">
         <div><p className="muted">{campaign === "lyon" ? "Développement du secteur Lyon" : "Séquence de recrutement"}</p><h2>Email initial + relances</h2></div>
-        <span className="status-pill">{!policy.sendingEnabled ? "Brouillon Lyon" : lifecycle ? lifecycleLabels[lifecycle] : "Inactive"}</span>
+        <span className="status-pill">{!policy.sendingEnabled ? campaignReady ? "Prête — non lancée" : "Brouillon Lyon" : lifecycle ? lifecycleLabels[lifecycle] : "Inactive"}</span>
       </div>
 
       <div className="grid">
@@ -157,7 +159,7 @@ export function RecruitmentEmailSequenceCard({ personId, email, canContact, canE
 
       {stopReason ? <p className="warning"><strong>Raison de l’arrêt :</strong> {stopReason}</p> : null}
       {displayedSequence?.last_error ? <p className="error">Dernière erreur : {displayedSequence.last_error}</p> : null}
-      {!policy.sendingEnabled ? <p className="warning">{policy.blockedReason} Délais prévus depuis le premier email réellement envoyé : 17 et 32 jours. Arrêt des suivis en cas de réponse, rendez-vous, refus ou désinscription.</p> : null}
+      {!policy.sendingEnabled ? <p className="warning">{campaignReady ? "Les modèles Lyon sont prêts. Le lancement reste désactivé." : policy.blockedReason} Délais prévus depuis le premier email réellement envoyé : 17 et 32 jours. Arrêt des suivis en cas de réponse, rendez-vous, refus ou désinscription.</p> : null}
 
       <div className="stack" aria-label="Étapes de la séquence email">
         {stepLabels.map((label, index) => {
