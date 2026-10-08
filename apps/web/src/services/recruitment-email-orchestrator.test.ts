@@ -83,3 +83,29 @@ describe("recruitment follow-up checks after claim", () => {
     expect(mocks.send).not.toHaveBeenCalled();
   });
 });
+
+describe("Lyon pinned delays and models", () => {
+  const projectId = "11111111-1111-4111-8111-111111111111";
+  const personId = "22222222-2222-4222-8222-222222222222";
+  const versionIds = [3,4,5].map(i => `${String(i).repeat(8)}-${String(i).repeat(4)}-4${String(i).repeat(3)}-8${String(i).repeat(3)}-${String(i).repeat(12)}`);
+  const campaign = { state: "ready", launch_enabled: true, sender_verified: true, version_ids: versionIds, recipient_ids: [personId], template_ids: [71,72,73] };
+  const snapshot = { key: "lyon-development", project_id: projectId, version_ids: versionIds, template_ids: [71,72,73], days: [0,17,32] };
+  it.each([[1,"2026-10-18T10:00:00.000Z",72],[2,"2026-11-02T10:00:00.000Z",73]])("schedules step %s from J0 and selects its Lyon template", async (index, dueAt, templateId) => {
+    vi.resetAllMocks();
+    const queued: Record<string, unknown>[] = [];
+    const sequence = { ...activeSequence, tenant_id: "tenant", person_id: personId, sent_at: "2026-10-01T10:00:00.000Z", campaign_snapshot: snapshot };
+    mocks.from.mockImplementation((table: string) => {
+      const row = table === "people" ? { ...person, id: personId, comments: "[projet-lyon-neos-20261007]" } : table === "projects" ? { metadata: { recruitment_email_campaign: campaign } } : sequence;
+      const data = table === "recruitment_email_sequence_steps" ? index === 1 ? [] : [{ step_index: 1, status: "sent" }] : row;
+      const query = { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), not: vi.fn().mockReturnThis(), neq: vi.fn().mockReturnThis(), order: vi.fn().mockReturnThis(), in: vi.fn().mockReturnThis(),
+        insert: vi.fn((value: Record<string, unknown>) => { queued.push(value); return query; }), update: vi.fn().mockReturnThis(), upsert: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn(async () => ({ data: row, error: null })), limit: vi.fn(async () => ({ data: [sequence], error: null })), then: (resolve: (value: unknown) => unknown) => Promise.resolve({ data, error: null }).then(resolve) };
+      return query;
+    });
+    mocks.rpc.mockImplementation(async (name: string) => ({ data: name === "claim_due_recruitment_email_steps" ? [{ ...step, tenant_id: "tenant", person_id: personId, step_index: index }] : null, error: null }));
+    mocks.send.mockResolvedValue({ success: true, messageId: "lyon" });
+    expect(await runRecruitmentEmailOrchestration()).toMatchObject({ scheduled: 1, sent: 1 });
+    expect(queued[0]).toMatchObject({ step_index: index, scheduled_at: dueAt });
+    expect(mocks.send).toHaveBeenCalledWith(expect.objectContaining({ templateId }));
+  });
+});
