@@ -13,7 +13,7 @@ export async function getLyonCampaignForPerson(db: SupabaseClient, tenantId: str
   return data && parsed.success ? { projectId: data.id as string, campaign: parsed.data } : null;
 }
 
-export async function prepareLyonEmailCampaign(db: SupabaseClient, tenantId: string, projectId: string) {
+export async function prepareLyonEmailCampaign(db: SupabaseClient, tenantId: string, projectId: string, versionDb: SupabaseClient = db) {
   const { data: project, error } = await db.from("projects").select("id,metadata")
     .eq("tenant_id", tenantId).eq("id", projectId).maybeSingle();
   if (error) throw error;
@@ -21,7 +21,7 @@ export async function prepareLyonEmailCampaign(db: SupabaseClient, tenantId: str
   if (!project?.metadata?.lyon_development || !parsed.success) throw new ApiError("Configuration Lyon à compléter.", 409, "CAMPAIGN_NOT_READY");
   const campaign = parsed.data;
   if (campaign.launch_enabled) throw new ApiError("Arrêtez le lancement avant de préparer d’autres modèles.", 409, "CAMPAIGN_RUNNING");
-  const { data: versions, error: versionError } = await db.from("recruitment_email_template_versions").select("*")
+  const { data: versions, error: versionError } = await versionDb.from("recruitment_email_template_versions").select("*")
     .eq("tenant_id", tenantId).in("id", campaign.version_ids);
   if (versionError) throw versionError;
   const ordered = campaign.version_ids.map(id => (versions as RecruitmentEmailTemplateVersion[] | null)?.find(v => v.id === id));
