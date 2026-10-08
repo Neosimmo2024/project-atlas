@@ -22,6 +22,7 @@ export async function POST(_request: Request, route: RouteContext) {
     const { versionId } = await route.params;
     const version = await getRecruitmentEmailTemplateVersion(context, versionId);
     if (!version) return NextResponse.json({ error: "Version introuvable." }, { status: 404 });
+    if (version.template_name.startsWith("Lyon")) return NextResponse.json({ error: "Les modèles Lyon se préparent depuis le projet Lyon et ne remplacent pas la campagne nationale." }, { status: 409 });
     if (version.status === "active" && version.brevo_template_id) {
       return NextResponse.json({ data: version, alreadyActive: true });
     }
