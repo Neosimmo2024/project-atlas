@@ -14,8 +14,8 @@ const cron = readFileSync(resolve(root, "supabase/cron/recruitment-email-follow-
 describe("lot 9B native recruitment orchestration", () => {
   it("keeps Atlas as source of truth with J+3 and J+7 scheduling", () => {
     expect(NATIONAL_EMAIL_POLICY.days).toEqual([0, 3, 7]);
-    expect(orchestrator).toContain("scheduledAt(sequence.sent_at!, policy.days[1])");
-    expect(orchestrator).toContain("scheduledAt(sequence.sent_at!, policy.days[2])");
+    expect(orchestrator).toContain("scheduledAt(sequence.sent_at!, days[1])");
+    expect(orchestrator).toContain("scheduledAt(sequence.sent_at!, days[2])");
     expect(orchestrator).toContain("claim_due_recruitment_email_steps");
     expect(orchestrator).toContain("complete_recruitment_email_step");
     expect(orchestrator).toContain("contact_allowed");
