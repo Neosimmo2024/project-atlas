@@ -5,6 +5,7 @@ import { SafeBackLink } from "@/components/navigation/safe-back-link";
 import { PersonForm } from "@/components/people/person-form";
 import { TalentQualificationForm } from "@/components/people/talent-qualification-form";
 import { QualificationNotes } from "@/components/people/qualification-notes";
+import { LYON_CAMPAIGN_MARKER, isLyonRecruitmentProfile } from "@/features/recruitment-email/campaign-policy";
 import { RecruitmentEmailSequenceCard } from "@/components/people/recruitment-email-sequence-card";
 import { ContextProjects } from "@/components/projects/context-projects";
 import { TaskCard } from "@/components/tasks/task-card";
@@ -66,8 +67,8 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
     getRecruitmentEmailSequence(context, person.id)
   ]);
   const visibleTasks = tasks.tasks.slice(0, 2);
-  const lyonMarker = "[projet-lyon-neos-20261007]";
-  const isLyonProfile = Boolean(person.comments?.includes(lyonMarker));
+  const lyonMarker = LYON_CAMPAIGN_MARKER;
+  const isLyonProfile = isLyonRecruitmentProfile(person.comments);
   const readableNotes = isLyonProfile && qualification?.comments
     ? `${person.comments?.split(lyonMarker)[0] ?? ""}${qualification.comments}`
     : person.comments;
@@ -149,7 +150,7 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
       </details> : <details className="card stack">
         <summary><strong>Suivi des prises de contact</strong></summary>
         <p className="muted">Campagne Lyon : chaque invitation ou message doit être validé par Renato avant envoi.</p>
-        <RecruitmentEmailSequenceCard personId={person.id} email={person.primary_email} canContact={person.contact_allowed && !person.do_not_contact} canEdit={context.role !== "reader"} sequence={recruitmentEmailSequence} />
+        <RecruitmentEmailSequenceCard campaign="lyon" personId={person.id} email={person.primary_email} canContact={person.contact_allowed && !person.do_not_contact} canEdit={context.role !== "reader"} sequence={recruitmentEmailSequence} />
       </details>}
 
       <details className="card stack">
