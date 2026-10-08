@@ -33,6 +33,12 @@ describe("dedicated Lyon preparation", () => {
     expect(from.mock.calls.every(([table]) => ["projects", "people", "recruitment_email_template_versions"].includes(table))).toBe(true);
     expect(updates.at(-1)).toMatchObject({ metadata: { unrelated: "preserved", lyon_development: { no_outreach: true }, recruitment_email_campaign: { launch_enabled: false } } });
   });
+  it("reads template versions through the authenticated client without broadening service grants", async () => {
+    const service = database(); const authenticated = database();
+    await prepareLyonEmailCampaign(service.db, "tenant", projectId, authenticated.db);
+    expect(service.from.mock.calls.some(([table]) => table === "recruitment_email_template_versions")).toBe(false);
+    expect(authenticated.from).toHaveBeenCalledExactlyOnceWith("recruitment_email_template_versions");
+  });
   it("reuses persisted templates on retry", async () => {
     const { db } = database({ ...config, pending_template_ids: [81,82,83] });
     await prepareLyonEmailCampaign(db, "tenant", projectId);
