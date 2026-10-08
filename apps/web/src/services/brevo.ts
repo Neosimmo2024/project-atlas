@@ -141,6 +141,23 @@ export async function sendInitialRecruitmentEmail(input: {
   });
 }
 
+/** Sends one isolated QA email to Renato using the active template. It does not create a CRM contact or sequence. */
+export async function sendRecruitmentEmailTest(input: {
+  templateId: number;
+  replyTo?: string | null;
+  requestId: string;
+}): Promise<BrevoSendResult> {
+  const configuration = brevoConfiguration(input.templateId);
+  if (!configuration) return { success: false, error: "Configuration Brevo incomplète." };
+  return sendBrevoTemplateEmail({
+    ...configuration,
+    idempotencyKey: `atlas-recruitment-template-test:${input.requestId}`,
+    email: "renato.ponzio@neos-immo.com",
+    displayName: "Renato Ponzio",
+    replyTo: input.replyTo
+  });
+}
+
 export async function sendRecruitmentFollowUpEmail(input: {
   stepId: string;
   stepIndex: 1 | 2;

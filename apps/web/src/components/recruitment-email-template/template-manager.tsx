@@ -48,6 +48,7 @@ export function RecruitmentEmailTemplateManager({ initialVersions }: { initialVe
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
   const [saving, setSaving] = useState(false);
   const [activatingId, setActivatingId] = useState<string | null>(null);
+  const [sendingTest, setSendingTest] = useState(false);
   const [message, setMessage] = useState<Message>(null);
 
   const previewHtml = useMemo(
@@ -107,6 +108,28 @@ export function RecruitmentEmailTemplateManager({ initialVersions }: { initialVe
     }
   }
 
+  async function sendTestEmail() {
+    setSendingTest(true);
+    setMessage(null);
+    try {
+      const response = await fetch("/api/admin/recruitment-email-template/test-send", {
+        method: "POST",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId: crypto.randomUUID() })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error ?? "L’envoi du test a échoué.");
+      setMessage({
+        type: "success",
+        text: `Email test accepté par Brevo pour ${payload.data.recipient}. Identifiant : ${payload.data.messageId}. Vérifie maintenant ta boîte NEOS.`
+      });
+    } catch (error) {
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "L’envoi du test a échoué." });
+    } finally {
+      setSendingTest(false);
+    }
+  }
+
   function loadVersion(version: RecruitmentEmailTemplateVersionSummary) {
     setForm(templateInputFromVersion(version));
     setMessage({ type: "success", text: `Version ${version.version_number} chargée dans l’éditeur. Enregistrez pour créer une nouvelle version.` });
@@ -116,10 +139,10 @@ export function RecruitmentEmailTemplateManager({ initialVersions }: { initialVe
     <div className="template-manager">
       <Card className="template-safety-banner">
         <div>
-          <strong>Mode administration sans envoi</strong>
-          <p>Enregistrer crée une version locale. Synchroniser crée uniquement le modèle dans Brevo.</p>
+          <strong>Envoi limité au test personnel</strong>
+          <p>Enregistrer et synchroniser ne contactent personne. Le bouton de test envoie un seul email à Renato, sans créer de fiche ni de relance.</p>
         </div>
-        <Badge tone="info">Aucun destinataire</Badge>
+        <Badge tone="info">Destinataire fixe : Renato</Badge>
       </Card>
 
       {message ? (
@@ -157,6 +180,16 @@ export function RecruitmentEmailTemplateManager({ initialVersions }: { initialVe
             <Button type="submit" disabled={saving}>{saving ? "Enregistrement…" : "Enregistrer une nouvelle version"}</Button>
             <span>Aucune synchronisation et aucun envoi à cette étape.</span>
           </div>
+
+          <Card className="template-safety-banner">
+            <div>
+              <strong>Tester le modèle actif</strong>
+              <p>Envoie le modèle Brevo actif depuis l’adresse NEOS enregistrée, uniquement à renato.ponzio@neos-immo.com. Le prénom transmis est « Renato ». Aucun contact Atlas, prospect ou suivi automatique n’est créé.</p>
+            </div>
+            <Button type="button" onClick={sendTestEmail} disabled={sendingTest || saving || activatingId !== null}>
+              {sendingTest ? "Envoi du test…" : "M’envoyer un email test"}
+            </Button>
+          </Card>
         </form>
 
         <section className="template-preview-panel" aria-label="Aperçu du modèle">
