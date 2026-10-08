@@ -37,7 +37,8 @@ export const EXPECTED_MIGRATIONS = [
       "20260928120500_brevo_contact_service_lock_grants.sql",
       "20260929082400_sms_personal_pilot_journal.sql",
     "20261007100332_atlas_database_search.sql",
-    "20261007101406_atlas_search_storage_indexed.sql"
+    "20261007101406_atlas_search_storage_indexed.sql",
+    "20261008155331_lyon_campaign_snapshot.sql"
 ];
 export const EXPECTED_COUNTS = Object.freeze({
   "auth.users": 1,
