@@ -8,7 +8,7 @@ vi.mock("@/lib/supabase/service-role", () => ({
 vi.mock("@/services/brevo", () => ({ sendRecruitmentFollowUpEmail: mocks.send }));
 
 const activeSequence = { id: "sequence", email: "candidate@example.test", status: "sent", lifecycle_status: "running" };
-const person = { id: "person", display_name: "Candidate", contact_allowed: true, do_not_contact: false };
+const person = { id: "person", display_name: "Candidate", contact_allowed: true, do_not_contact: false, comments: null as string | null };
 const step = { id: "step", sequence_id: "sequence", person_id: "person", step_index: 1 };
 
 function setup(sequence: typeof activeSequence | null = activeSequence, contact = person, lookupError: Error | null = null) {
@@ -42,6 +42,15 @@ describe("recruitment follow-up checks after claim", () => {
     expect(mocks.rpc).toHaveBeenCalledWith("complete_recruitment_email_step", {
       p_step_id: "step", p_success: true, p_provider_message_id: "message", p_error: null
     });
+  });
+
+  it("never sends a previously queued national follow-up for a Lyon draft", async () => {
+    setup(activeSequence, { ...person, comments: "[projet-lyon-neos-20261007]" });
+    expect(await runRecruitmentEmailOrchestration()).toMatchObject({ sent: 0, errors: 1 });
+    expect(mocks.send).not.toHaveBeenCalled();
+    expect(mocks.rpc).toHaveBeenCalledWith("complete_recruitment_email_step", expect.objectContaining({
+      p_success: false, p_provider_message_id: null, p_error: expect.stringContaining("Campagne Lyon en brouillon")
+    }));
   });
 
   it.each<[string, typeof activeSequence | null]>([
