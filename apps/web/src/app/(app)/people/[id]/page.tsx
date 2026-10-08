@@ -79,9 +79,12 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
           <p className="muted">Personnes</p>
           <h1>{person.display_name}</h1>
         </div>
-        <SafeBackLink fallbackHref={returnTo} useHistory={returnTo === "/people"}>
-          {returnTo.startsWith("/projects/") ? "Retour au projet" : "Retour"}
-        </SafeBackLink>
+        <div className="actions">
+          {person.linkedin_url ? <a className="button subtle-button" href={person.linkedin_url} target="_blank" rel="noopener noreferrer">Ouvrir le profil LinkedIn</a> : null}
+          <SafeBackLink fallbackHref={returnTo} useHistory={returnTo === "/people"}>
+            {returnTo.startsWith("/projects/") ? "Retour au projet" : "Retour"}
+          </SafeBackLink>
+        </div>
       </header>
 
       <div className="grid">
@@ -94,6 +97,7 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
           <p><strong>Ville</strong><br />{person.city ?? "-"} {person.postal_code ? `(${person.postal_code})` : ""}</p>
           <p><strong>Département</strong><br />{person.department ?? "-"}</p>
           <p><strong>Fonction</strong><br />{person.job_title ?? "-"}</p>
+          <p><strong>LinkedIn</strong><br />{person.linkedin_url ? <a href={person.linkedin_url} target="_blank" rel="noopener noreferrer">Ouvrir le profil</a> : "Lien à renseigner"}</p>
         </section>
         <section className="card stack">
           <h2>Qualification</h2>

@@ -44,6 +44,15 @@ describe("people validation", () => {
     expect(result.data?.primary_email).toBeNull();
     expect(result.data?.talent_score).toBeNull();
   });
+
+  it("accepts LinkedIn profile links and rejects links to other sites", () => {
+    const valid = parsePersonInput({ display_name: "Ada Martin", linkedin_url: "https://www.linkedin.com/in/ada-martin", status: "qualified", priority: "high", talent_score: "" });
+    const invalid = parsePersonInput({ display_name: "Ada Martin", linkedin_url: "https://example.com/ada", status: "qualified", priority: "high", talent_score: "" });
+
+    expect(valid.success).toBe(true);
+    expect(valid.data?.linkedin_url).toBe("https://www.linkedin.com/in/ada-martin");
+    expect(invalid.success).toBe(false);
+  });
 });
 
 describe("people search", () => {

@@ -20,6 +20,21 @@ export const personInputSchema = z.object({
     .transform((value) => value || null)
     .optional(),
   primary_phone: optionalNullableText,
+  linkedin_url: z
+    .string()
+    .trim()
+    .url("L’adresse LinkedIn est invalide.")
+    .refine((value) => {
+      try {
+        const url = new URL(value);
+        return url.protocol === "https:" && (url.hostname === "linkedin.com" || url.hostname.endsWith(".linkedin.com"));
+      } catch {
+        return false;
+      }
+    }, "Utilisez une adresse HTTPS de LinkedIn.")
+    .or(z.literal(""))
+    .transform((value) => value || null)
+    .optional(),
   city: optionalNullableText,
   postal_code: optionalNullableText,
   department: optionalNullableText,
