@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import type { RecruitmentEmailSequenceStep, RecruitmentEmailSequenceWithSteps } from "@/repositories/recruitment-email-sequences";
+import { LYON_EMAIL_POLICY, NATIONAL_EMAIL_POLICY } from "@/features/recruitment-email/campaign-policy";
 
 type Props = {
   personId: string;
@@ -11,6 +12,7 @@ type Props = {
   canContact: boolean;
   canEdit: boolean;
   sequence: RecruitmentEmailSequenceWithSteps | null;
+  campaign?: "lyon" | "national";
 };
 
 const lifecycleLabels = {
@@ -22,7 +24,6 @@ const lifecycleLabels = {
   error: "Erreur"
 } as const;
 
-const stepLabels = ["Email initial", "Relance J+3", "Relance J+7"] as const;
 const stepStatusLabels = {
   scheduled: "Programmée",
   processing: "En cours",
@@ -57,7 +58,9 @@ function stopReasonLabel(reason: string | null) {
   return reason.replaceAll("_", " ");
 }
 
-export function RecruitmentEmailSequenceCard({ personId, email, canContact, canEdit, sequence }: Props) {
+export function RecruitmentEmailSequenceCard({ personId, email, canContact, canEdit, sequence, campaign = "national" }: Props) {
+  const policy = campaign === "lyon" ? LYON_EMAIL_POLICY : NATIONAL_EMAIL_POLICY;
+  const stepLabels = policy.labels;
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -133,7 +136,7 @@ export function RecruitmentEmailSequenceCard({ personId, email, canContact, canE
   }
 
   const lifecycle = displayedSequence?.lifecycle_status ?? null;
-  const canStart = canEdit && Boolean(email) && canContact && (!displayedSequence || displayedSequence.status === "error");
+  const canStart = policy.sendingEnabled && canEdit && Boolean(email) && canContact && (!displayedSequence || displayedSequence.status === "error");
   const canStop = canEdit && Boolean(displayedSequence) && lifecycle !== "stopped" && lifecycle !== "completed";
   const sentSteps = displayedSequence?.steps.filter((step) => step.status === "sent").sort((a, b) => b.step_index - a.step_index) ?? [];
   const lastSent = sentSteps[0] ?? null;
@@ -142,18 +145,19 @@ export function RecruitmentEmailSequenceCard({ personId, email, canContact, canE
   return (
     <section className="card stack recruitment-email-card">
       <div className="page-header">
-        <div><p className="muted">Séquence de recrutement</p><h2>Email initial + relances</h2></div>
-        <span className="status-pill">{lifecycle ? lifecycleLabels[lifecycle] : "Inactive"}</span>
+        <div><p className="muted">{campaign === "lyon" ? "Développement du secteur Lyon" : "Séquence de recrutement"}</p><h2>Email initial + relances</h2></div>
+        <span className="status-pill">{!policy.sendingEnabled ? "Brouillon Lyon" : lifecycle ? lifecycleLabels[lifecycle] : "Inactive"}</span>
       </div>
 
       <div className="grid">
         <p><strong>Adresse utilisée</strong><br />{displayedSequence?.email ?? email ?? "Aucune adresse email principale"}</p>
         <p><strong>Dernier email envoyé</strong><br />{lastSent?.sent_at ? `${stepLabels[lastSent.step_index]} · ${formatDate(lastSent.sent_at)}` : displayedSequence?.sent_at ? `Email initial · ${formatDate(displayedSequence.sent_at)}` : "Aucun"}</p>
-        <p><strong>Prochaine action</strong><br />{displayedSequence?.next_action_at ? `${displayedSequence.current_step === 1 ? "Relance J+3" : displayedSequence.current_step === 2 ? "Relance J+7" : "Action programmée"} · ${formatDate(displayedSequence.next_action_at)}` : "Aucune action programmée"}</p>
+        <p><strong>Prochaine action</strong><br />{displayedSequence?.next_action_at ? `${!policy.sendingEnabled ? "Ancienne programmation à vérifier" : stepLabels[displayedSequence.current_step] ?? "Action programmée"} · ${formatDate(displayedSequence.next_action_at)}` : "Aucune action programmée"}</p>
       </div>
 
       {stopReason ? <p className="warning"><strong>Raison de l’arrêt :</strong> {stopReason}</p> : null}
       {displayedSequence?.last_error ? <p className="error">Dernière erreur : {displayedSequence.last_error}</p> : null}
+      {!policy.sendingEnabled ? <p className="warning">{policy.blockedReason} Délais prévus depuis le premier email réellement envoyé : 17 et 32 jours. Arrêt des suivis en cas de réponse, rendez-vous, refus ou désinscription.</p> : null}
 
       <div className="stack" aria-label="Étapes de la séquence email">
         {stepLabels.map((label, index) => {
