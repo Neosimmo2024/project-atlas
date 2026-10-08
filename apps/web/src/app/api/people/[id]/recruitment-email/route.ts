@@ -10,6 +10,7 @@ import {
 import { getActiveRecruitmentEmailTemplate } from "@/repositories/recruitment-email-template-versions";
 import { getTenantContext } from "@/repositories/tenant-context";
 import { sendInitialRecruitmentEmail } from "@/services/brevo";
+import { recruitmentEmailPolicy } from "@/features/recruitment-email/campaign-policy";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -32,6 +33,10 @@ export async function POST(_request: Request, route: RouteContext) {
     const { id } = await route.params;
     const detail = await getPersonDetail(context, id);
     if (!detail) return NextResponse.json({ error: "Personne introuvable." }, { status: 404 });
+    const policy = recruitmentEmailPolicy(detail.person.comments);
+    if (!policy.sendingEnabled) {
+      return NextResponse.json({ error: policy.blockedReason }, { status: 409 });
+    }
     if (!detail.person.primary_email) return NextResponse.json({ error: "Une adresse email principale est nécessaire." }, { status: 400 });
     if (!detail.person.contact_allowed || detail.person.do_not_contact) {
       return NextResponse.json({ error: "Cette personne ne peut pas être contactée." }, { status: 409 });
