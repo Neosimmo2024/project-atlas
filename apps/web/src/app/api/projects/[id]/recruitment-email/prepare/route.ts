@@ -1,3 +1,4 @@
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { getTenantContext } from "@/repositories/tenant-context";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
@@ -12,7 +13,7 @@ export async function POST(_request: Request, route: { params: Promise<{ id: str
     if (!context) return NextResponse.json({ error: "Connexion requise." }, { status: 401 });
     if (context.role !== "owner" && context.role !== "admin") return NextResponse.json({ error: "Administration requise." }, { status: 403 });
     const { id } = await route.params;
-    const data = await prepareLyonEmailCampaign(createSupabaseServiceRoleClient(), context.tenantId, id);
+    const data = await prepareLyonEmailCampaign(createSupabaseServiceRoleClient(), context.tenantId, id, await createSupabaseServerClient());
     return NextResponse.json({ data, emailsSent: 0, stepsScheduled: 0 });
   } catch (error) { return apiErrorResponse(error, 500); }
 }
