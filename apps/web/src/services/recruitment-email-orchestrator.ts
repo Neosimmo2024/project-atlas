@@ -1,4 +1,5 @@
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
+import { recruitmentEmailPolicy } from "@/features/recruitment-email/campaign-policy";
 import { sendRecruitmentFollowUpEmail } from "@/services/brevo";
 
 type SequenceRow = {
@@ -25,6 +26,7 @@ type StepRow = {
 type PersonRow = {
   id: string;
   display_name: string;
+  comments?: string | null;
   contact_allowed: boolean;
   do_not_contact: boolean;
 };
@@ -183,11 +185,13 @@ async function prepareFollowUps(limit = 100) {
   for (const sequence of (data ?? []) as SequenceRow[]) {
     const { data: person, error: personError } = await supabase
       .from("people")
-      .select("id,display_name,contact_allowed,do_not_contact")
+      .select("id,display_name,comments,contact_allowed,do_not_contact")
       .eq("id", sequence.person_id)
       .maybeSingle();
     if (personError) throw personError;
     const typedPerson = person as PersonRow | null;
+    const policy = recruitmentEmailPolicy(typedPerson?.comments);
+    if (typedPerson && !policy.sendingEnabled) continue;
     if (!typedPerson || !typedPerson.contact_allowed || typedPerson.do_not_contact) {
       await stopSequenceForContactRestriction(sequence);
       await insertTimelineEvent({
@@ -213,11 +217,11 @@ async function prepareFollowUps(limit = 100) {
     const second = typedSteps.find((step) => step.step_index === 2);
 
     if (!first) {
-      if (await scheduleStep(sequence, 1, scheduledAt(sequence.sent_at!, 3))) scheduled += 1;
+      if (await scheduleStep(sequence, 1, scheduledAt(sequence.sent_at!, policy.days[1]))) scheduled += 1;
       continue;
     }
     if (first.status === "sent" && !second) {
-      if (await scheduleStep(sequence, 2, scheduledAt(sequence.sent_at!, 7))) scheduled += 1;
+      if (await scheduleStep(sequence, 2, scheduledAt(sequence.sent_at!, policy.days[2]))) scheduled += 1;
     }
   }
   return { scheduled, stopped };
@@ -255,7 +259,7 @@ async function processDueSteps(limit = 25) {
         .maybeSingle(),
       supabase
         .from("people")
-        .select("id,display_name,contact_allowed,do_not_contact")
+        .select("id,display_name,comments,contact_allowed,do_not_contact")
         .eq("id", step.person_id)
         .maybeSingle()
     ]);
@@ -272,6 +276,17 @@ async function processDueSteps(limit = 25) {
     }
 
     const typedPerson = person as PersonRow | null;
+    // A Lyon draft must never use a national follow-up, even if an old step
+    // was queued before the draft guard was introduced.
+    if (typedPerson && !recruitmentEmailPolicy(typedPerson.comments).sendingEnabled) {
+      const { error: draftError } = await supabase.rpc("complete_recruitment_email_step", {
+        p_step_id: step.id, p_success: false, p_provider_message_id: null,
+        p_error: "Campagne Lyon en brouillon : relance bloquée, aucun email envoyé."
+      });
+      if (draftError) throw draftError;
+      errors += 1;
+      continue;
+    }
     const email = currentSequence.email;
     let result: Awaited<ReturnType<typeof sendRecruitmentFollowUpEmail>>;
     if (!typedPerson || !typedPerson.contact_allowed || typedPerson.do_not_contact || !email) {
