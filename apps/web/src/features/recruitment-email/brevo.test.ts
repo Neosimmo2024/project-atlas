@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createBrevoRecruitmentTemplate, sendInitialRecruitmentEmail } from "@/services/brevo";
+import { createBrevoRecruitmentTemplate, sendInitialRecruitmentEmail, sendRecruitmentEmailTest } from "@/services/brevo";
 
 describe("Brevo initial recruitment email", () => {
   afterEach(() => { vi.unstubAllGlobals(); delete process.env.BREVO_API_KEY; delete process.env.BREVO_INITIAL_RECRUITMENT_TEMPLATE_ID; });
@@ -30,6 +30,22 @@ describe("Brevo initial recruitment email", () => {
     await sendInitialRecruitmentEmail({ sequenceId: "sequence-b", email: "alice@example.fr", displayName: "Alice Martin", templateId: 88 });
     const options = fetchMock.mock.calls[0][1] as RequestInit;
     expect(JSON.parse(String(options.body))).toMatchObject({ templateId: 88 });
+  });
+
+  it("sends an isolated template test only to Renato with the expected personalization", async () => {
+    process.env.BREVO_API_KEY = "secret";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ messageId: "test-message-1" }), { status: 201, headers: { "content-type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await sendRecruitmentEmailTest({ templateId: 14, replyTo: "renato.ponzio@neos-immo.com", requestId: "11111111-1111-4111-8111-111111111111" });
+    expect(result).toEqual({ success: true, messageId: "test-message-1" });
+    const options = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(JSON.parse(String(options.body))).toMatchObject({
+      templateId: 14,
+      to: [{ email: "renato.ponzio@neos-immo.com", name: "Renato Ponzio" }],
+      params: { PRENOM: "Renato" },
+      replyTo: { email: "renato.ponzio@neos-immo.com", name: "NEOS IMMO" },
+      headers: { "Idempotency-Key": "atlas-recruitment-template-test:11111111-1111-4111-8111-111111111111" }
+    });
   });
 
   it("creates and activates a Brevo template without calling the email endpoint", async () => {
