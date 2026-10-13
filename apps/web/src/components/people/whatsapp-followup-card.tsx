@@ -3,12 +3,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { whatsappLink, type WhatsAppEvent } from "@/features/whatsapp/manual";
+import { personalizeWhatsAppMessage, type WhatsAppTemplate } from "@/features/whatsapp/templates";
 import type { Interaction } from "@/types/domain";
 
-type Props = { personId: string; name: string; phone: string | null; canContact: boolean; canEdit: boolean; consent: boolean; history: Interaction[] };
-export function WhatsAppFollowupCard({ personId, name, phone, canContact, canEdit, consent, history }: Props) {
+type Props = { personId: string; name: string; phone: string | null; canContact: boolean; canEdit: boolean; consent: boolean; history: Interaction[]; templates: WhatsAppTemplate[] };
+export function WhatsAppFollowupCard({ personId, name, phone, canContact, canEdit, consent, history, templates }: Props) {
   const router = useRouter();
-  const [message, setMessage] = useState(`Bonjour ${name}, je reviens vers vous à la suite de notre échange. Seriez-vous disponible pour en discuter ?`);
+  const [selectedTemplate, setSelectedTemplate] = useState(templates[0]?.id ?? "custom");
+  const [message, setMessage] = useState(() => personalizeWhatsAppMessage(templates[0]?.body ?? "Bonjour [Prénom],", name));
   const [evidence, setEvidence] = useState("");
   const [response, setResponse] = useState("");
   const [busy, setBusy] = useState(false);
@@ -34,7 +36,15 @@ export function WhatsAppFollowupCard({ personId, name, phone, canContact, canEdi
       <label>Preuve de l’accord (date et contexte)<textarea className="input textarea" value={evidence} onChange={(event) => setEvidence(event.target.value)} maxLength={4000} /></label>
       <button className="button subtle-button" disabled={busy || !evidence.trim()} onClick={() => record("consent_granted", evidence)}>Enregistrer l’accord reçu</button>
     </div> : null}
-    <label>Message préparé<textarea className="input textarea" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={4000} readOnly={!canEdit} /></label>
+    <label>Choisir un message<select className="input" value={selectedTemplate} disabled={!canEdit || busy} onChange={(event) => {
+      const template = templates.find((item) => item.id === event.target.value);
+      setSelectedTemplate(event.target.value);
+      if (template) setMessage(personalizeWhatsAppMessage(template.body, name));
+    }}>
+      {templates.map((template) => <option key={template.id} value={template.id}>{template.label}</option>)}
+      <option value="custom">Message libre</option>
+    </select></label>
+    <label>Message préparé<textarea className="input textarea" value={message} onChange={(event) => { setMessage(event.target.value); setSelectedTemplate("custom"); }} maxLength={4000} readOnly={!canEdit} /></label>
     <div className="actions">
       {canEdit && canContact && consent && link ? <a className="button" href={link} target="_blank" rel="noopener noreferrer">Ouvrir WhatsApp</a> : <span className="muted">Ouverture disponible avec un numéro international valide et l’accord du contact.</span>}
       {canEdit ? <button className="button subtle-button" disabled={busy || !canContact || !consent || !message.trim()} onClick={() => record("sent", message)}>Confirmer : j’ai envoyé ce message</button> : null}

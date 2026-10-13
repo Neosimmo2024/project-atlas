@@ -1,3 +1,4 @@
+import { availableWhatsAppTemplates } from "@/features/whatsapp/templates";
 import { WhatsAppFollowupCard } from "@/components/people/whatsapp-followup-card";
 import { getWhatsAppFollowup } from "@/repositories/whatsapp-followup";
 import { getLyonCampaignForPerson } from "@/services/lyon-email-campaign";
@@ -123,7 +124,7 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
         </section>
       </div>
 
-      <WhatsAppFollowupCard personId={person.id} name={person.first_name ?? person.display_name} phone={person.primary_phone} canContact={person.contact_allowed && !person.do_not_contact} canEdit={context.role !== "reader"} consent={whatsappFollowup.consent} history={whatsappFollowup.history} />
+      <WhatsAppFollowupCard personId={person.id} name={person.first_name ?? ""} phone={person.primary_phone} canContact={person.contact_allowed && !person.do_not_contact} canEdit={context.role !== "reader"} consent={whatsappFollowup.consent} history={whatsappFollowup.history} templates={availableWhatsAppTemplates(Date.now())} />
 
       {!isLyonProfile ? <RecruitmentEmailSequenceCard
         personId={person.id}
