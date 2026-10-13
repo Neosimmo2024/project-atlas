@@ -43,7 +43,9 @@ export const EXPECTED_MIGRATIONS = [
     "20261009062829_recruitment_campaign_claim_retry.sql",
     "20261013132000_people_directory_whatsapp.sql",
     "20261013133000_people_directory_custom_query_plan.sql",
-    "20261013134000_people_directory_city_index.sql"
+    "20261013134000_people_directory_city_index.sql",
+    "20261013135000_people_directory_affiliations.sql",
+    "20261013140000_people_affiliations_city_filter_index.sql"
 ];
 export const EXPECTED_COUNTS = Object.freeze({
   "auth.users": 1,

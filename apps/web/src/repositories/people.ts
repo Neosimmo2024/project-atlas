@@ -5,8 +5,10 @@ import type { PersonFormInput } from "@/features/people/validation";
 import { recordPersonCreated } from "@/services/timeline-service";
 
 export type PeopleListResult = {
-  people: (Person & { whatsapp_ready?: boolean; whatsapp_invited?: boolean })[];
+  people: (Person & { whatsapp_ready?: boolean; whatsapp_invited?: boolean; affiliations?: { name: string; type: string; from_source: boolean }[] })[];
   total: number;
+  organizations: { name: string; count: number }[];
+  unknownAffiliations: number;
   whatsappReady: number;
   whatsappRemaining: number;
   page: number;
@@ -24,7 +26,7 @@ export async function listPeople(context: TenantContext, params: PeopleSearchPar
   const supabase = await createSupabaseServerClient();
   const normalized = normalizePeopleListParams(params);
 
-  const { data, error } = await supabase.rpc("atlas_people_directory", {
+  const { data, error } = await supabase.rpc("atlas_people_directory_affiliations", {
     p_tenant_id: context.tenantId,
     p_query: normalized.query,
     p_status: normalized.status,
@@ -32,10 +34,11 @@ export async function listPeople(context: TenantContext, params: PeopleSearchPar
     p_qualification_state: normalized.qualificationState,
     p_talent_score: normalized.talentScore,
     p_page: normalized.page,
-    p_page_size: normalized.pageSize
+    p_page_size: normalized.pageSize,
+    p_affiliation: normalized.affiliation
   });
   if (error) throw error;
-  const result = data as Pick<PeopleListResult, "people" | "total" | "whatsappReady" | "whatsappRemaining">;
+  const result = data as Pick<PeopleListResult, "people" | "total" | "whatsappReady" | "whatsappRemaining" | "organizations" | "unknownAffiliations">;
   return {
     ...result,
     page: normalized.page,
