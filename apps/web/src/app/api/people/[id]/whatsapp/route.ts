@@ -21,7 +21,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!detail) return NextResponse.json({ error: "Contact introuvable." }, { status: 404 });
     const { event, summary } = parsed.data;
     if (event === "sent" || event === "consent_granted") {
-      if (!detail.person.contact_allowed || detail.person.do_not_contact) return NextResponse.json({ error: "Le contact n'est pas autorisé sur cette fiche." }, { status: 409 });
+      if (detail.person.do_not_contact) return NextResponse.json({ error: "Le contact n'est pas autorisé sur cette fiche." }, { status: 409 });
     }
     if (event === "sent" && !(await getWhatsAppFollowup(context, id)).consent) return NextResponse.json({ error: "L'accord WhatsApp doit être enregistré." }, { status: 409 });
     const type = (await listInteractionTypes(context)).find((item) => item.slug === "whatsapp");

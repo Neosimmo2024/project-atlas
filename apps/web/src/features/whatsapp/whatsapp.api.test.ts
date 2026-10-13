@@ -32,3 +32,8 @@ it("permits recording a withdrawal even when contact is blocked", async () => {
   mocks.person.mockResolvedValue({ person: { contact_allowed: false, do_not_contact: true } });
   expect((await call("consent_revoked")).status).toBe(201);
 });
+
+it("permits WhatsApp-only consent without enabling email contact", async () => {
+ mocks.person.mockResolvedValue({ person: { contact_allowed: false, do_not_contact: false } });
+ expect((await call()).status).toBe(201);
+});
