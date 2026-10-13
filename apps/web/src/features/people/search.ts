@@ -3,6 +3,7 @@ import type { PersonFormInput } from "./validation";
 
 export type PeopleSearchParams = {
   query?: string;
+  affiliation?: string;
   status?: string;
   priority?: string;
   qualificationState?: string;
@@ -128,6 +129,7 @@ export function normalizePeopleListParams(params: PeopleSearchParams) {
 
   return {
     query: params.query?.trim() || "",
+    affiliation: params.affiliation?.trim() || "",
     status: params.status?.trim() || "",
     priority: params.priority?.trim() || "",
     qualificationState: params.qualificationState?.trim() || "",

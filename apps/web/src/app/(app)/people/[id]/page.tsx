@@ -1,3 +1,6 @@
+import { availableWhatsAppTemplates } from "@/features/whatsapp/templates";
+import { WhatsAppFollowupCard } from "@/components/people/whatsapp-followup-card";
+import { getWhatsAppFollowup } from "@/repositories/whatsapp-followup";
 import { getLyonCampaignForPerson } from "@/services/lyon-email-campaign";
 import { canLaunchLyon, isLyonCampaignReady } from "@/features/recruitment-email/lyon-campaign";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -62,12 +65,13 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
     : `/people/${person.id}?returnTo=${encodeURIComponent(returnTo)}`;
   const timelineCategory = normalizeTimelineCategory(valueOf(query, "timelineCategory"));
   const timelinePage = Number(valueOf(query, "timelinePage") || 1);
-  const [chronology, tasks, projects, qualification, recruitmentEmailSequence] = await Promise.all([
+  const [chronology, tasks, projects, qualification, recruitmentEmailSequence, whatsappFollowup] = await Promise.all([
     listTimelineEvents(context, { personId: person.id, category: timelineCategory, page: timelinePage, pageSize: 3 }),
     listPersonTasks(context, person.id),
     listContextProjects(context, { personId: person.id }),
     getTalentQualification(context, person.id),
-    getRecruitmentEmailSequence(context, person.id)
+    getRecruitmentEmailSequence(context, person.id),
+    getWhatsAppFollowup(context, person.id)
   ]);
   const visibleTasks = tasks.tasks.slice(0, 2);
   const lyonMarker = LYON_CAMPAIGN_MARKER;
@@ -119,6 +123,8 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
           <p><strong>Dernière modification de la fiche</strong><br />{formatDate(person.updated_at)}</p>
         </section>
       </div>
+
+      <WhatsAppFollowupCard personId={person.id} name={person.first_name ?? ""} phone={person.primary_phone} canContact={!person.do_not_contact && (person.contact_allowed || whatsappFollowup.consent)} canEdit={context.role !== "reader"} consent={whatsappFollowup.consent} history={whatsappFollowup.history} sent={whatsappFollowup.sent} templates={availableWhatsAppTemplates(Date.now())} />
 
       {!isLyonProfile ? <RecruitmentEmailSequenceCard
         personId={person.id}

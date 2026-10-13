@@ -130,7 +130,13 @@ describe("Supabase test reset workflow", () => {
     "20261007101406_atlas_search_storage_indexed.sql",
     "20261008155331_lyon_campaign_snapshot.sql",
     "20261009062247_recruitment_campaign_overlap_guard.sql",
-    "20261009062829_recruitment_campaign_claim_retry.sql"
+    "20261009062829_recruitment_campaign_claim_retry.sql",
+    "20261013132000_people_directory_whatsapp.sql",
+    "20261013133000_people_directory_custom_query_plan.sql",
+    "20261013134000_people_directory_city_index.sql",
+    "20261013135000_people_directory_affiliations.sql",
+    "20261013140000_people_affiliations_city_filter_index.sql",
+    "20261013141000_people_affiliations_tenant_read_optimized.sql"
     ]);
     expect(workflow).toContain("Refusing reset: migration set is not exactly 0001 through 0019.");
     expect(workflow).not.toContain("Refusing reset: migration set is not exactly 0001 through 0021.");

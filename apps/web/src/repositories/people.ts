@@ -5,8 +5,12 @@ import type { PersonFormInput } from "@/features/people/validation";
 import { recordPersonCreated } from "@/services/timeline-service";
 
 export type PeopleListResult = {
-  people: Person[];
+  people: (Person & { whatsapp_ready?: boolean; whatsapp_invited?: boolean; affiliations?: { name: string; type: string; from_source: boolean }[] })[];
   total: number;
+  organizations: { name: string; count: number }[];
+  unknownAffiliations: number;
+  whatsappReady: number;
+  whatsappRemaining: number;
   page: number;
   pageSize: number;
   pageCount: number;
@@ -22,58 +26,24 @@ export async function listPeople(context: TenantContext, params: PeopleSearchPar
   const supabase = await createSupabaseServerClient();
   const normalized = normalizePeopleListParams(params);
 
-  if (normalized.query || normalized.qualificationState) {
-    const { data, error } = await supabase.rpc("atlas_search_people", {
-      p_tenant_id: context.tenantId,
-      p_query: normalized.query,
-      p_status: normalized.status,
-      p_priority: normalized.priority,
-      p_qualification_state: normalized.qualificationState,
-      p_talent_score: normalized.talentScore,
-      p_page: normalized.page,
-      p_page_size: normalized.pageSize
-    });
-    if (error) throw error;
-    const result = data as { people: Person[]; total: number };
-    return {
-      people: result.people,
-      total: result.total,
-      page: normalized.page,
-      pageSize: normalized.pageSize,
-      pageCount: Math.max(Math.ceil(result.total / normalized.pageSize), 1)
-    };
-  }
-
-  let query = supabase
-    .from("people")
-    .select("*", { count: "exact" })
-    .eq("tenant_id", context.tenantId);
-
-  if (normalized.status) query = query.eq("status", normalized.status);
-  if (normalized.priority) query = query.eq("priority", normalized.priority);
-  if (normalized.talentScore === "unscored") query = query.is("talent_score", null);
-  if (/^(?:10|[0-9])$/.test(normalized.talentScore)) query = query.eq("talent_score", Number(normalized.talentScore));
-
-  const { data, error, count } = await query
-    .order("updated_at", { ascending: false })
-    .order("id", { ascending: true })
-    .range(normalized.from, normalized.to);
-
+  const { data, error } = await supabase.rpc("atlas_people_directory_affiliations", {
+    p_tenant_id: context.tenantId,
+    p_query: normalized.query,
+    p_status: normalized.status,
+    p_priority: normalized.priority,
+    p_qualification_state: normalized.qualificationState,
+    p_talent_score: normalized.talentScore,
+    p_page: normalized.page,
+    p_page_size: normalized.pageSize,
+    p_affiliation: normalized.affiliation
+  });
   if (error) throw error;
-
-  const total = count ?? 0;
-  const people = (data ?? []) as Person[];
-  const { data: qualificationRows, error: qualificationError } = people.length
-    ? await supabase.from("talent_qualifications").select("person_id, state").eq("tenant_id", context.tenantId).in("person_id", people.map((person) => person.id))
-    : { data: [], error: null };
-  if (qualificationError) throw qualificationError;
-  const states = new Map((qualificationRows ?? []).map((row) => [row.person_id as string, row.state as "draft" | "completed"]));
+  const result = data as Pick<PeopleListResult, "people" | "total" | "whatsappReady" | "whatsappRemaining" | "organizations" | "unknownAffiliations">;
   return {
-    people: people.map((person) => ({ ...person, qualification_state: states.get(person.id) ?? "none" })),
-    total,
+    ...result,
     page: normalized.page,
     pageSize: normalized.pageSize,
-    pageCount: Math.max(Math.ceil(total / normalized.pageSize), 1)
+    pageCount: Math.max(Math.ceil(result.total / normalized.pageSize), 1)
   };
 }
 
