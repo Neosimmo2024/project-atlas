@@ -13,7 +13,7 @@ describe("people search repository", () => {
   });
   it("filters and pages on the database, without an unbounded qualification ID request", async () => {
     const result = await listPeople(context, { query: " Lyon ", page: 2, status: "to_qualify", qualificationState: "none", talentScore: "unscored" });
-    expect(mocks.rpc).toHaveBeenCalledWith("atlas_search_people", { p_tenant_id: "tenant-a", p_query: "Lyon", p_status: "to_qualify", p_priority: "", p_qualification_state: "none", p_talent_score: "unscored", p_page: 2, p_page_size: 10 });
+    expect(mocks.rpc).toHaveBeenCalledWith("atlas_people_directory", { p_tenant_id: "tenant-a", p_query: "Lyon", p_status: "to_qualify", p_priority: "", p_qualification_state: "none", p_talent_score: "unscored", p_page: 2, p_page_size: 10 });
     expect(result).toMatchObject({ total: 354, page: 2, pageSize: 10, pageCount: 36, people: [{ id: "match" }] });
     expect(mocks.from).not.toHaveBeenCalledWith("talent_qualifications");
   });
@@ -24,6 +24,6 @@ describe("people search repository", () => {
   });
   it("uses database filtering for qualification alone", async () => {
     await listPeople(context, { qualificationState: "completed" });
-    expect(mocks.rpc).toHaveBeenCalledWith("atlas_search_people", expect.objectContaining({ p_qualification_state: "completed", p_query: "" }));
+    expect(mocks.rpc).toHaveBeenCalledWith("atlas_people_directory", expect.objectContaining({ p_qualification_state: "completed", p_query: "" }));
   });
 });

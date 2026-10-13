@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import type { InputHTMLAttributes } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { PERSON_STATUS_LABELS, PERSON_STATUSES, PRIORITIES, PRIORITY_LABELS } from "@/features/people/options";
@@ -37,7 +37,7 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
   if (qualificationState) currentParams.set("qualificationState", qualificationState);
   if (talentScore) currentParams.set("talentScore", talentScore);
 
-  const result = context ? await listPeople(context, { query, status, priority, qualificationState, talentScore, page, pageSize: 10 }) : { people: [], total: 0, page: 1, pageSize: 10, pageCount: 1 };
+  const result = context ? await listPeople(context, { query, status, priority, qualificationState, talentScore, page, pageSize: 10 }) : { people: [], total: 0, whatsappReady: 0, whatsappRemaining: 0, page: 1, pageSize: 10, pageCount: 1 };
 
   return (
     <div className="page stack">
@@ -83,6 +83,12 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
         <button className="button" type="submit">Filtrer</button>
       </form>
 
+      <div className="card" role="status" aria-label="Compteurs des contacts">
+        <strong>{result.total} personnes trouvées</strong>
+        <p>{result.whatsappReady} contacts prêts pour WhatsApp · {result.whatsappRemaining} restant à inviter à l’afterwork.</p>
+        <p className="muted">En premier : téléphone valide et accord WhatsApp enregistré, invitation non confirmée. La présence sur WhatsApp reste à vérifier à l’ouverture.</p>
+      </div>
+
       {result.people.length === 0 ? <EmptyState title="Aucune personne" body="Les talents importés ou créés apparaîtront ici." /> : (
         <div className="data-table people-table">
           <div className="table-head">
@@ -93,7 +99,7 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
               <span>{person.last_name ?? "-"}</span>
               <span>{person.first_name ?? "-"}</span>
               <span className="cell-email">{person.primary_email ?? "-"}</span>
-              <span className="cell-phone">{person.primary_phone ?? "-"}</span>
+              <span className="cell-phone">{person.primary_phone ?? "-"}<br /><small>{person.whatsapp_invited ? "Invitation confirmée" : person.whatsapp_ready ? "Prêt pour WhatsApp" : ""}</small></span>
               <span className="cell-city">{person.city ?? "-"}</span>
               <span>{PERSON_STATUS_LABELS[person.status]}</span>
               <span>{PRIORITY_LABELS[person.priority]}</span>
