@@ -45,7 +45,8 @@ export const EXPECTED_MIGRATIONS = [
     "20261013133000_people_directory_custom_query_plan.sql",
     "20261013134000_people_directory_city_index.sql",
     "20261013135000_people_directory_affiliations.sql",
-    "20261013140000_people_affiliations_city_filter_index.sql"
+    "20261013140000_people_affiliations_city_filter_index.sql",
+    "20261013141000_people_affiliations_tenant_read_optimized.sql"
 ];
 export const EXPECTED_COUNTS = Object.freeze({
   "auth.users": 1,
