@@ -2,12 +2,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { whatsappLink, type WhatsAppEvent } from "@/features/whatsapp/manual";
+import { whatsappLink, whatsappConfirmationKey, type WhatsAppEvent } from "@/features/whatsapp/manual";
 import { personalizeWhatsAppMessage, type WhatsAppTemplate } from "@/features/whatsapp/templates";
 import type { Interaction } from "@/types/domain";
 
-type Props = { personId: string; name: string; phone: string | null; canContact: boolean; canEdit: boolean; consent: boolean; history: Interaction[]; templates: WhatsAppTemplate[] };
-export function WhatsAppFollowupCard({ personId, name, phone, canContact, canEdit, consent, history, templates }: Props) {
+type Props = { personId: string; name: string; phone: string | null; canContact: boolean; canEdit: boolean; consent: boolean; history: Interaction[]; sent: Interaction[]; templates: WhatsAppTemplate[] };
+export function WhatsAppFollowupCard({ personId, name, phone, canContact, canEdit, consent, history, sent, templates }: Props) {
   const router = useRouter();
   const [selectedTemplate, setSelectedTemplate] = useState(templates[0]?.id ?? "custom");
   const [message, setMessage] = useState(() => personalizeWhatsAppMessage(templates[0]?.body ?? "Bonjour [Prénom],", name));
@@ -15,14 +15,19 @@ export function WhatsAppFollowupCard({ personId, name, phone, canContact, canEdi
   const [response, setResponse] = useState("");
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const [confirmedMessages, setConfirmedMessages] = useState<string[]>([]);
+  const currentKey = whatsappConfirmationKey(message);
+  const previousConfirmation = sent.find((item) => whatsappConfirmationKey(item.summary ?? "") === currentKey);
+  const confirmed = Boolean(previousConfirmation) || confirmedMessages.includes(currentKey);
   const link = whatsappLink(phone, message);
   async function record(event: WhatsAppEvent, summary: string) {
-    if (busy) return;
+    if (busy || (event === "sent" && confirmed)) return;
     setBusy(true); setFeedback("");
     try {
       const result = await fetch(`/api/people/${personId}/whatsapp`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ event, summary }) });
       const body = await result.json();
       if (!result.ok) throw new Error(body.error ?? "Impossible d'enregistrer.");
+      if (event === "sent") setConfirmedMessages((items) => [...items, whatsappConfirmationKey(summary)]);
       setFeedback("Suivi enregistré. Aucun message n'a été envoyé par Atlas."); router.refresh();
     } catch (error) { setFeedback(error instanceof Error ? error.message : "Erreur réseau."); }
     finally { setBusy(false); }
@@ -45,9 +50,10 @@ export function WhatsAppFollowupCard({ personId, name, phone, canContact, canEdi
       <option value="custom">Message libre</option>
     </select></label>
     <label>Message préparé<textarea className="input textarea" value={message} onChange={(event) => { setMessage(event.target.value); setSelectedTemplate("custom"); }} maxLength={4000} readOnly={!canEdit} /></label>
+    {confirmed ? <p className="success" role="status"><strong>Envoi confirmé pour ce message.</strong>{previousConfirmation ? ` Le ${new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Paris" }).format(new Date(previousConfirmation.interaction_date))}` : ""}</p> : null}
     <div className="actions">
-      {canEdit && canContact && consent && link ? <a className="button" href={link} target="_blank" rel="noopener noreferrer">Ouvrir WhatsApp</a> : <span className="muted">Ouverture disponible avec un numéro international valide et l’accord du contact.</span>}
-      {canEdit ? <button className="button subtle-button" disabled={busy || !canContact || !consent || !message.trim()} onClick={() => record("sent", message)}>Confirmer : j’ai envoyé ce message</button> : null}
+      {canEdit && canContact && consent && link && !confirmed ? <a className="button" href={link} target="_blank" rel="noopener noreferrer">Ouvrir WhatsApp</a> : <span className="muted">Ouverture disponible avec un numéro international valide et l’accord du contact.</span>}
+      {canEdit ? <button className="button subtle-button" disabled={busy || confirmed || !canContact || !consent || !message.trim()} onClick={() => record("sent", message)}>{confirmed ? "Envoi déjà confirmé" : "Confirmer : j’ai envoyé ce message"}</button> : null}
     </div>
     {canEdit ? <>
       <label>Réponse reçue / note de suivi<textarea className="input textarea" value={response} onChange={(event) => setResponse(event.target.value)} maxLength={4000} /></label>

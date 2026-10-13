@@ -16,3 +16,8 @@ export function whatsappLink(phone: string | null, message: string) {
   const number = normalizeWhatsAppPhone(phone);
   return number && message.trim() ? `https://wa.me/${number}?text=${encodeURIComponent(message.trim())}` : null;
 }
+
+export function whatsappConfirmationKey(message: string) {
+  if (message.includes("Petits Génies de l’Immobilier") && message.includes("15 octobre") && message.includes("https://event.lpgi.club/afterwork")) return "lpgi-ormesson-20261015";
+  return message.trim().replace(/\s+/g, " ");
+}

@@ -37,3 +37,14 @@ it("permits WhatsApp-only consent without enabling email contact", async () => {
  mocks.person.mockResolvedValue({ person: { contact_allowed: false, do_not_contact: false } });
  expect((await call()).status).toBe(201);
 });
+it("returns the existing confirmation without another write", async () => {
+ mocks.followup.mockResolvedValue({ consent: true, sent: [{ id: "existing", summary: "Message vérifié" }] });
+ const response = await call(); expect(response.status).toBe(200);
+ expect((await response.json()).alreadyConfirmed).toBe(true); expect(mocks.create).not.toHaveBeenCalled();
+});
+it("uses the same identifier for concurrent confirmations and accepts a duplicate key", async () => {
+ await call(); const first = mocks.create.mock.calls[0][1].id;
+ mocks.create.mockRejectedValueOnce({ code: "23505" });
+ const response = await call(); expect(response.status).toBe(200);
+ expect(mocks.create.mock.calls[1][1].id).toBe(first);
+});

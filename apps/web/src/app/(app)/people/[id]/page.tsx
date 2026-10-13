@@ -124,7 +124,7 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
         </section>
       </div>
 
-      <WhatsAppFollowupCard personId={person.id} name={person.first_name ?? ""} phone={person.primary_phone} canContact={!person.do_not_contact && (person.contact_allowed || whatsappFollowup.consent)} canEdit={context.role !== "reader"} consent={whatsappFollowup.consent} history={whatsappFollowup.history} templates={availableWhatsAppTemplates(Date.now())} />
+      <WhatsAppFollowupCard personId={person.id} name={person.first_name ?? ""} phone={person.primary_phone} canContact={!person.do_not_contact && (person.contact_allowed || whatsappFollowup.consent)} canEdit={context.role !== "reader"} consent={whatsappFollowup.consent} history={whatsappFollowup.history} sent={whatsappFollowup.sent} templates={availableWhatsAppTemplates(Date.now())} />
 
       {!isLyonProfile ? <RecruitmentEmailSequenceCard
         personId={person.id}
