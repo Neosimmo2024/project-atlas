@@ -8,11 +8,13 @@ export const WHATSAPP_TEMPLATES: WhatsAppTemplate[] = [
 
 L’occasion de faire connaissance, d’échanger sur nos métiers et de créer des liens entre professionnels de l’immobilier, dans une ambiance conviviale.
 
-Ce serait un plaisir de vous y retrouver 😊
+Ce serait un plaisir de vous y retrouver !
 
-👉 Inscription : https://event.lpgi.club/afterwork
+Inscription : https://event.lpgi.club/afterwork
 
-Vous serez des nôtres ?`
+Vous serez des nôtres ?
+
+Renato Ponzio`
   },
   { id: "followup", label: "Suivi d’un échange", body: "Bonjour [Prénom], je reviens vers vous à la suite de notre échange. Seriez-vous disponible pour en discuter ?" }
 ];
