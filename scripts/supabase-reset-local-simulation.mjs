@@ -41,7 +41,9 @@ export const EXPECTED_MIGRATIONS = [
     "20261008155331_lyon_campaign_snapshot.sql",
     "20261009062247_recruitment_campaign_overlap_guard.sql",
     "20261009062829_recruitment_campaign_claim_retry.sql",
-    "20261013132000_people_directory_whatsapp.sql"
+    "20261013132000_people_directory_whatsapp.sql",
+    "20261013133000_people_directory_custom_query_plan.sql",
+    "20261013134000_people_directory_city_index.sql"
 ];
 export const EXPECTED_COUNTS = Object.freeze({
   "auth.users": 1,
