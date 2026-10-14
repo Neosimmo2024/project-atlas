@@ -199,6 +199,7 @@ async function ensureCandidateReplyFollowUpTask(sequence: SequenceRow, item: Bre
       metadata: {
         ...metadataKey,
         sequence_id: sequence.id,
+        sms_alert_status: "pending",
         subject: item.Subject ?? null,
         sent_at: item.SentAtDate ?? null,
         suggested_actions: ["call", "reply_email", "schedule_meeting", "qualify"]

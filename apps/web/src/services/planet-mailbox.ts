@@ -1,4 +1,5 @@
 import "server-only";
+import { dispatchReplySmsAlerts } from "./reply-sms-alerts";
 import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
@@ -117,6 +118,7 @@ export async function syncConfiguredMailboxes() {
   const { data, error } = await db.from("tenants").select("id");
   if (error) throw new Error("MAILBOX_TENANTS_UNAVAILABLE");
   for (const tenant of data ?? []) {
+    await dispatchReplySmsAlerts(tenant.id);
     // Fail closed: no follow-up is sent if replies could not be checked.
     const result = await syncMailbox(tenant.id);
     if ("remaining" in result && result.remaining) throw new Error("MAILBOX_BACKLOG_PENDING");
