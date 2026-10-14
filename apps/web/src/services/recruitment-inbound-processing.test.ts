@@ -43,7 +43,7 @@ beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn(() => { throw new Error("Network forbidden in simulated reply tests"); }));
   db.from.mockImplementation((table: string) => {
     const query: Record<string, unknown> = {};
-    for (const method of ["select", "eq", "neq", "in", "limit", "is", "contains", "order", "insert", "update", "upsert"]) {
+    for (const method of ["select", "eq", "neq", "not", "in", "limit", "is", "contains", "order", "insert", "update", "upsert"]) {
       query[method] = (...args: unknown[]) => { calls.push({ table, method, args }); return query; };
     }
     const resolve = () => {
@@ -126,9 +126,19 @@ describe("Brevo inbound reply processing with a simulated database", () => {
     expect(db.from).not.toHaveBeenCalled();
   });
   it("leaves unmatched replies untouched", async () => {
-    result("recruitment_email_sequences"); result("recruitment_email_sequence_steps"); result("tasks");
+    result("recruitment_email_sequences"); result("recruitment_email_sequence_steps"); result("tasks"); result("timeline_events");
     expect(await processBrevoInboundReplies({ items: [item] })).toMatchObject({ unmatched: 1, stopped: 0 });
     expect(writes()).toEqual([]);
+  });
+  it("links a confirmed external LMD email, stops existing follow-ups, and creates a manual draft", async () => {
+    result("recruitment_email_sequences"); result("recruitment_email_sequence_steps"); result("tasks");
+    result("timeline_events", { id: "outbound-event", tenant_id: sequence.tenant_id, person_id: sequence.person_id,
+      metadata: { recipient_email: sequence.email, provider_message_id: item.InReplyTo, campaign_name: "LMD" } });
+    result("timeline_events"); result("recruitment_email_sequences", [{ id: sequence.id }]);
+    result("tasks"); result("relationships", relationship); result("tasks", { id: "task-new" }); result("timeline_events");
+    expect(await processBrevoInboundReplies({ items: [item] }, sequence.tenant_id)).toMatchObject({ processed: 1, stopped: 1 });
+    expect(write("tasks", "insert")).toMatchObject({ metadata: { sequence_id: null, external_outbound_event_id: "outbound-event", campaign_name: "LMD", reply_status: "draft" } });
+    expect(calls).toContainEqual({ table: "recruitment_email_sequences", method: "eq", args: ["tenant_id", sequence.tenant_id] });
   });
   it("recognizes a reply to a manually approved email without restarting the stopped campaign", async () => {
     result("recruitment_email_sequences"); result("recruitment_email_sequence_steps");

@@ -1,14 +1,15 @@
+import { isAuthorizedRecruitmentOrchestrator } from "@/services/recruitment-email-orchestrator";
+import { syncBrevoOutboundHistory } from "@/services/brevo-outbound-history";
+import { replayMailboxHistory } from "@/services/planet-mailbox";
 import { NextResponse } from "next/server";
 import { getTenantContext } from "@/repositories/tenant-context";
 import { verifyBrevoAccountBinding } from "@/services/brevo-account-binding";
 export const runtime = "nodejs";
 export const maxDuration = 120;
-export async function GET() {
-  const ctx = await getTenantContext();
-  if (!ctx || !["owner", "admin"].includes(ctx.role) || ctx.tenantId !== "8e27b0ff-3f1a-41fa-8390-628c718723a2") return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
+async function inspectHistory(tenantId: string) {
   try {
     const apiKey = process.env.BREVO_API_KEY;
-    const binding = await verifyBrevoAccountBinding(ctx.tenantId, { enabled: true, accountTenantId: ctx.tenantId, expectedOrganizationId: "69aae9fea303e8f4220b4e98", apiKey });
+    const binding = await verifyBrevoAccountBinding(tenantId, { enabled: true, accountTenantId: tenantId, expectedOrganizationId: "69aae9fea303e8f4220b4e98", apiKey });
     if (binding.status !== "verified") throw new Error("binding");
     const read = async (path: string) => {
       const response = await fetch(`https://api.brevo.com/v3/${path}`, { headers: { "api-key": apiKey!, accept: "application/json" }, cache: "no-store", redirect: "error", signal: AbortSignal.timeout(15000) });
@@ -23,4 +24,22 @@ export async function GET() {
       campaigns: (campaigns.campaigns ?? []).map((row: Record<string, unknown>) => ({ id: row.id, name: row.name, status: row.status, subject: row.subject,
         sentDate: row.sentDate, replyTo: row.replyTo, sender: row.sender, recipients: row.recipients, statistics: row.statistics })) }, { headers: { "Cache-Control": "no-store" } });
   } catch { return NextResponse.json({ error: "Historique Brevo indisponible" }, { status: 503 }); }
+}
+
+export async function GET() {
+  const ctx = await getTenantContext();
+  if (!ctx || !["owner", "admin"].includes(ctx.role) || ctx.tenantId !== "8e27b0ff-3f1a-41fa-8390-628c718723a2") return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
+  return inspectHistory(ctx.tenantId);
+}
+export async function POST(request: Request) {
+  if (!(await isAuthorizedRecruitmentOrchestrator(request))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const body = await request.json().catch(() => ({}));
+  const tenantId = "8e27b0ff-3f1a-41fa-8390-628c718723a2";
+  if (body.action === "inspect") return inspectHistory(tenantId);
+  if (body.action !== "sync") return NextResponse.json({ error: "Action invalide" }, { status: 400 });
+  try {
+    const result = await syncBrevoOutboundHistory(tenantId);
+    if (body.replay === true) await replayMailboxHistory(tenantId);
+    return NextResponse.json(result);
+  } catch { return NextResponse.json({ error: "Import Brevo incomplet" }, { status: 503 }); }
 }

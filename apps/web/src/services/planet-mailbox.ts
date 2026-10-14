@@ -1,5 +1,6 @@
 import "server-only";
 import { dispatchReplySmsAlerts } from "./reply-sms-alerts";
+import { syncBrevoOutboundHistory } from "./brevo-outbound-history";
 import { ImapFlow, type FetchMessageObject } from "imapflow";
 import { simpleParser } from "mailparser";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
@@ -47,6 +48,12 @@ export async function pauseMailbox(tenantId: string) {
   if (config) await save(tenantId, { ...config, enabled: false });
 }
 
+export async function replayMailboxHistory(tenantId: string) {
+  const config = await configuration(tenantId);
+  if (!config?.enabled) throw new Error("MAILBOX_PAUSED");
+  await save(tenantId, { ...config, cursor: 0, remaining: undefined });
+}
+
 async function trackedMessageIds(tenantId: string) {
   const db = createSupabaseServiceRoleClient();
   const ids = new Set<string>();
@@ -68,6 +75,16 @@ async function trackedMessageIds(tenantId: string) {
       if ((data?.length ?? 0) < 1000) break;
     }
   }
+  for (let offset = 0; ; offset += 1000) {
+    const rows = await db.from("timeline_events").select("metadata").eq("tenant_id", tenantId)
+      .contains("metadata", { source: "brevo_outbound_journal" }).order("id").range(offset, offset + 999);
+    if (rows.error) throw new Error("MAILBOX_LOOKUP_FAILED");
+    for (const row of rows.data ?? []) {
+      const value = row.metadata?.provider_message_id;
+      if (typeof value === "string") for (const variant of messageIdVariants(value)) ids.add(variant);
+    }
+    if ((rows.data?.length ?? 0) < 1000) break;
+  }
   return ids;
 }
 
@@ -84,14 +101,16 @@ export async function syncMailbox(tenantId: string) {
     const since = new Date(Date.now() - 90 * 86400000);
     const found = await imap.search({ since, ...(cursor ? { uid: `${cursor + 1}:*` } : {}) }, { uid: true });
     const { uids, historyIds } = mailboxUidBatch(found || [], cursor);
+    const recentFound = await imap.search({ since: new Date(Date.now() - 24 * 3600000) }, { uid: true });
+    const inspectionUids = [...new Set([...(recentFound || []).slice(-500), ...uids])];
     const trackedIds = await trackedMessageIds(tenantId);
     const messages = new Map<number, FetchMessageObject>();
     // Finish the header stream before fetching any message bodies (no nested IMAP commands).
-    if (uids.length) for await (const message of imap.fetch(uids, { envelope: true, size: true,
+    if (inspectionUids.length) for await (const message of imap.fetch(inspectionUids, { envelope: true, size: true,
       headers: ["Message-ID", "In-Reply-To", "References", "Auto-Submitted", "Precedence"] }, { uid: true })) {
       messages.set(message.uid, message);
     }
-    for (const uid of uids) {
+    for (const uid of inspectionUids) {
       const item = messages.get(uid);
       if (!item) { if (historyIds.has(uid)) cursor = uid; continue; }
       const header = await simpleParser(item.headers ?? Buffer.alloc(0));
@@ -132,6 +151,7 @@ export async function syncConfiguredMailboxes() {
   const { data, error } = await db.from("tenants").select("id");
   if (error) throw new Error("MAILBOX_TENANTS_UNAVAILABLE");
   for (const tenant of data ?? []) {
+    await syncBrevoOutboundHistory(tenant.id);
     // Fail closed: no follow-up is sent if replies could not be checked.
     const result = await syncMailbox(tenant.id);
     await dispatchReplySmsAlerts(tenant.id);

@@ -29,6 +29,8 @@ type SequenceRow = {
   status: "pending" | "sent" | "error" | "stopped";
   lifecycle_status: "idle" | "scheduled" | "running" | "completed" | "stopped" | "error";
   provider_message_id: string | null;
+  external?: boolean;
+  campaign_name?: string | null;
 };
 
 type RecruitingRelationshipRow = {
@@ -94,6 +96,14 @@ async function getSequenceById(id: string): Promise<SequenceRow | null> {
   return data as SequenceRow | null;
 }
 
+function externalSequence(event: { id: string; tenant_id: string; person_id: string | null; metadata: Record<string, unknown> } | null): SequenceRow | null {
+  return event?.person_id && typeof event.metadata.recipient_email === "string" ? {
+    id: event.id, tenant_id: event.tenant_id, person_id: event.person_id, email: event.metadata.recipient_email,
+    status: "sent", lifecycle_status: "completed", provider_message_id: String(event.metadata.provider_message_id),
+    external: true, campaign_name: typeof event.metadata.campaign_name === "string" ? event.metadata.campaign_name : null
+  } : null;
+}
+
 async function findSequence(item: BrevoInboundEmail): Promise<SequenceRow | null> {
   const supabase = createSupabaseServiceRoleClient();
   const variants = messageIdVariants(item.InReplyTo);
@@ -121,10 +131,22 @@ async function findSequence(item: BrevoInboundEmail): Promise<SequenceRow | null
       .in("metadata->>reply_provider_message_id", variants).limit(1).maybeSingle();
     if (reviewedError) throw reviewedError;
     if (reviewed?.metadata?.sequence_id) return getSequenceById(String(reviewed.metadata.sequence_id));
+    if (typeof reviewed?.metadata?.external_outbound_event_id === "string") {
+      const original = await supabase.from("timeline_events").select("id,tenant_id,person_id,metadata")
+        .eq("id", reviewed.metadata.external_outbound_event_id).contains("metadata", { source: "brevo_outbound_journal" }).maybeSingle();
+      if (original.error) throw original.error;
+      return externalSequence(original.data);
+    }
   }
 
   const sequenceId = sequenceIdFromRecipients(item);
-  return sequenceId ? getSequenceById(sequenceId) : null;
+  if (sequenceId) return getSequenceById(sequenceId);
+  if (!variants.length || !item.From?.Address) return null;
+  const { data: external, error } = await supabase.from("timeline_events").select("id,tenant_id,person_id,metadata")
+    .contains("metadata", { source: "brevo_outbound_journal", recipient_email: item.From.Address.trim().toLowerCase() })
+    .in("metadata->>provider_message_id", variants).limit(1).maybeSingle();
+  if (error) throw error;
+  return externalSequence(external);
 }
 
 function eventKey(messageId: string) {
@@ -205,7 +227,9 @@ async function ensureCandidateReplyFollowUpTask(sequence: SequenceRow, item: Bre
       reason: "candidate_reply",
       metadata: {
         ...metadataKey,
-        sequence_id: sequence.id,
+        sequence_id: sequence.external ? null : sequence.id,
+        external_outbound_event_id: sequence.external ? sequence.id : null,
+        campaign_name: sequence.campaign_name ?? null,
         sms_alert_status: "pending",
         reply_status: "draft",
         reply_revision: 0,
@@ -260,7 +284,9 @@ async function insertReplyEvent(input: {
     source_type: "person",
     source_id: input.sequence.person_id,
     metadata: {
-      sequence_id: input.sequence.id,
+      sequence_id: input.sequence.external ? null : input.sequence.id,
+      external_outbound_event_id: input.sequence.external ? input.sequence.id : null,
+      campaign_name: input.sequence.campaign_name ?? null,
       reason: input.reason,
       inbound_message_id: messageId,
       in_reply_to: input.item.InReplyTo ?? null,
@@ -279,6 +305,15 @@ async function insertReplyEvent(input: {
 }
 
 async function stopSequenceForCandidateReply(sequence: SequenceRow) {
+  if (sequence.external) {
+    const { data, error } = await createSupabaseServiceRoleClient().from("recruitment_email_sequences")
+      .update({ status: "stopped", lifecycle_status: "stopped", next_action_at: null,
+        stopped_at: new Date().toISOString(), stop_reason: "candidate_reply" })
+      .eq("tenant_id", sequence.tenant_id).eq("email", sequence.email)
+      .not("lifecycle_status", "in", "(stopped,completed)").select("id");
+    if (error) throw error;
+    return Boolean(data?.length);
+  }
   if (sequence.lifecycle_status === "stopped" || sequence.lifecycle_status === "completed") return false;
   const supabase = createSupabaseServiceRoleClient();
   const now = new Date().toISOString();

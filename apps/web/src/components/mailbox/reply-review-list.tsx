@@ -10,11 +10,15 @@ export async function ReplyReviewList({ tenantId, personId }: { tenantId: string
   if (!data?.length) return null;
   const sequences = await db.from("recruitment_email_sequences").select("id,email").eq("tenant_id", tenantId).eq("person_id", personId);
   if (sequences.error) return <p>Destinataires indisponibles.</p>;
+  const originals = await db.from("timeline_events").select("id,metadata").eq("tenant_id", tenantId).eq("person_id", personId)
+    .contains("metadata", { source: "brevo_outbound_journal" });
   return <section className="stack" id="replies"><h2>Réponses reçues et brouillons</h2>
     <p>Les relances de ce contact sont arrêtées. Chaque réponse nécessite votre validation.</p>
     {data.map(task => {
       const meta = task.metadata as Record<string, unknown>;
-      const email = sequences.data?.find(sequence => sequence.id === meta.sequence_id)?.email;
+      const email = typeof meta.external_outbound_event_id === "string"
+        ? originals.data?.find(event => event.id === meta.external_outbound_event_id)?.metadata?.recipient_email
+        : sequences.data?.find(sequence => sequence.id === meta.sequence_id)?.email;
       if (!email) return null;
       const incoming = task.description?.replace(/^Réponse reçue\s*:\s*/, "") ?? "Message reçu sans contenu.";
       return <ReplyReview key={task.id} taskId={task.id} email={email} incoming={incoming}

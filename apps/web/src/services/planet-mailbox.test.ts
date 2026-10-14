@@ -26,7 +26,7 @@ beforeEach(() => {
 });
 describe("mailbox backfill batching", () => {
   it("reads 520 headers in one command and preserves unprocessed history", async () => {
-    m.search.mockResolvedValue(Array.from({ length: 700 }, (_, i) => i + 1));
+    m.search.mockResolvedValueOnce(Array.from({ length: 700 }, (_, i) => i + 1)).mockResolvedValueOnce([]);
     m.fetchHeaders.mockImplementation(async function* (uids: number[]) {
       for (const uid of [...uids].sort((a, b) => a - b)) yield { uid, headers: Buffer.from(`Message-ID: <${uid}@example.org>\r\n\r\n`), size: 50 };
     });

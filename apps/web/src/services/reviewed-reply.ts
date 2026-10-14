@@ -23,10 +23,19 @@ export async function reviewReply(ctx: TenantContext, taskId: string, input: Inp
   const subject = `Re: ${String(meta.subject ?? "NEOS IMMO").replace(/^(Re:\s*)+/i, "").replace(/[\r\n]/g, " ").slice(0, 200)}`;
 
   // Resolve the recipient from the verified inbound sequence, never from client input.
-  const sequence = await db.from("recruitment_email_sequences").select("email,lifecycle_status")
-    .eq("tenant_id", ctx.tenantId).eq("id", String(meta.sequence_id)).eq("person_id", task.person_id).maybeSingle();
-  if (sequence.error || !sequence.data || ! ["stopped", "completed"].includes(sequence.data.lifecycle_status)) throw new Error("REPLY_SEQUENCE_NOT_STOPPED");
-  const to = sequence.data.email;
+  let to: string;
+  if (typeof meta.external_outbound_event_id === "string") {
+    const evidence = await db.from("timeline_events").select("metadata").eq("tenant_id", ctx.tenantId)
+      .eq("id", meta.external_outbound_event_id).eq("person_id", task.person_id)
+      .contains("metadata", { source: "brevo_outbound_journal" }).maybeSingle();
+    if (evidence.error || typeof evidence.data?.metadata?.recipient_email !== "string") throw new Error("REPLY_INVALID_RECIPIENT");
+    to = evidence.data.metadata.recipient_email;
+  } else {
+    const sequence = await db.from("recruitment_email_sequences").select("email,lifecycle_status")
+      .eq("tenant_id", ctx.tenantId).eq("id", String(meta.sequence_id)).eq("person_id", task.person_id).maybeSingle();
+    if (sequence.error || !sequence.data || ! ["stopped", "completed"].includes(sequence.data.lifecycle_status)) throw new Error("REPLY_SEQUENCE_NOT_STOPPED");
+    to = sequence.data.email;
+  }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) throw new Error("REPLY_INVALID_RECIPIENT");
   if (input.action === "send") {
     const person = await db.from("people").select("contact_allowed,do_not_contact").eq("tenant_id", ctx.tenantId).eq("id", task.person_id).maybeSingle();
