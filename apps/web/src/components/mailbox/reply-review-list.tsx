@@ -22,6 +22,7 @@ export async function ReplyReviewList({ tenantId, personId }: { tenantId: string
       if (!email) return null;
       const incoming = task.description?.replace(/^Réponse reçue\s*:\s*/, "") ?? "Message reçu sans contenu.";
       return <ReplyReview key={task.id} taskId={task.id} email={email} incoming={incoming}
+        verifyCampaign={meta.match_confidence === "recipient_subject_review"} campaignName={typeof meta.campaign_name === "string" ? meta.campaign_name : undefined}
         initialDraft={typeof meta.suggested_reply === "string" ? meta.suggested_reply : suggestReply(incoming)}
         initialRevision={Number(meta.reply_revision ?? 0)} initialStatus={String(meta.reply_status ?? "draft")} />;
     })}

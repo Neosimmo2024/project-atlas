@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BrevoCoverage } from "@/components/mailbox/brevo-coverage";
 import { getTenantContext } from "@/repositories/tenant-context";
 import { mailboxStatus } from "@/services/planet-mailbox";
 import { MailboxConnection } from "@/components/mailbox-connection";
@@ -13,6 +14,7 @@ export default async function MailboxPage() {
     .contains("metadata", { reason: "candidate_reply" }).order("occurred_at", { ascending: false }).limit(30);
   return <div className="page stack"><h1>Réponses aux campagnes email</h1>
     <MailboxConnection initial={status} />
+    <BrevoCoverage tenantId={ctx.tenantId} />
     <section className="card stack"><h2>Dernières réponses reçues</h2>
       {!(data?.length) && <p>Aucune réponse enregistrée pour le moment.</p>}
       {data?.map(event => <article key={event.id}>

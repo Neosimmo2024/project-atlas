@@ -8,6 +8,7 @@ type Recipient = Mailbox | string;
 
 export type BrevoInboundEmail = {
   Source?: "planethoster_imap";
+  OutboundEvidenceId?: string;
   Headers?: unknown;
   MessageId?: string | null;
   InReplyTo?: string | null;
@@ -31,6 +32,7 @@ type SequenceRow = {
   provider_message_id: string | null;
   external?: boolean;
   campaign_name?: string | null;
+  match_confidence?: string | null;
 };
 
 type RecruitingRelationshipRow = {
@@ -100,12 +102,19 @@ function externalSequence(event: { id: string; tenant_id: string; person_id: str
   return event?.person_id && typeof event.metadata.recipient_email === "string" ? {
     id: event.id, tenant_id: event.tenant_id, person_id: event.person_id, email: event.metadata.recipient_email,
     status: "sent", lifecycle_status: "completed", provider_message_id: String(event.metadata.provider_message_id),
-    external: true, campaign_name: typeof event.metadata.campaign_name === "string" ? event.metadata.campaign_name : null
+    external: true, campaign_name: typeof event.metadata.campaign_name === "string" ? event.metadata.campaign_name : null,
+    match_confidence: typeof event.metadata.match_confidence === "string" ? event.metadata.match_confidence : null
   } : null;
 }
 
 async function findSequence(item: BrevoInboundEmail): Promise<SequenceRow | null> {
   const supabase = createSupabaseServiceRoleClient();
+  if (item.Source === "planethoster_imap" && item.OutboundEvidenceId) {
+    const evidence = await supabase.from("timeline_events").select("id,tenant_id,person_id,metadata")
+      .eq("id", item.OutboundEvidenceId).contains("metadata", { source: "brevo_outbound_journal" }).maybeSingle();
+    if (evidence.error) throw evidence.error;
+    return externalSequence(evidence.data);
+  }
   const variants = messageIdVariants(item.InReplyTo);
   if (variants.length > 0) {
     const { data: direct, error: directError } = await supabase
@@ -230,10 +239,11 @@ async function ensureCandidateReplyFollowUpTask(sequence: SequenceRow, item: Bre
         sequence_id: sequence.external ? null : sequence.id,
         external_outbound_event_id: sequence.external ? sequence.id : null,
         campaign_name: sequence.campaign_name ?? null,
-        sms_alert_status: "pending",
+        match_confidence: sequence.match_confidence ?? "message_id",
+        sms_alert_status: item.Source === "planethoster_imap" && item.SentAtDate && Date.parse(item.SentAtDate) < Date.now() - 86400000 ? "historical_review" : "pending",
         reply_status: "draft",
         reply_revision: 0,
-        suggested_reply: suggestReply(excerpt ?? ""),
+        suggested_reply: suggestReply(excerpt ?? "", sequence.campaign_name ?? ""),
         subject: item.Subject ?? null,
         sent_at: item.SentAtDate ?? null,
         suggested_actions: ["call", "reply_email", "schedule_meeting", "qualify"]
@@ -287,6 +297,7 @@ async function insertReplyEvent(input: {
       sequence_id: input.sequence.external ? null : input.sequence.id,
       external_outbound_event_id: input.sequence.external ? input.sequence.id : null,
       campaign_name: input.sequence.campaign_name ?? null,
+      match_confidence: input.sequence.match_confidence ?? "message_id",
       reason: input.reason,
       inbound_message_id: messageId,
       in_reply_to: input.item.InReplyTo ?? null,

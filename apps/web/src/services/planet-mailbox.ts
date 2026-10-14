@@ -5,7 +5,8 @@ import { ImapFlow, type FetchMessageObject } from "imapflow";
 import { simpleParser } from "mailparser";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 import { processBrevoInboundReplies } from "./recruitment-inbound-replies";
-import { mailboxUidBatch, messageIdVariants, replyReferences, trackedReplyReference } from "@/features/mailbox/reply-policy";
+import { isHumanReply, mailboxUidBatch, messageIdVariants, replyReferences, trackedReplyReference } from "@/features/mailbox/reply-policy";
+import { campaignCandidateForReply, type CampaignReplyCandidate } from "@/features/mailbox/brevo-history";
 
 const host = "mail.neos-immo.com";
 const email = "renato.ponzio@neos-immo.com";
@@ -104,6 +105,17 @@ export async function syncMailbox(tenantId: string) {
     const recentFound = await imap.search({ since: new Date(Date.now() - 24 * 3600000) }, { uid: true });
     const inspectionUids = [...new Set([...(recentFound || []).slice(-500), ...uids])];
     const trackedIds = await trackedMessageIds(tenantId);
+    const campaignCandidates: CampaignReplyCandidate[] = [];
+    for (let offset = 0; ; offset += 1000) {
+      const report = await createSupabaseServiceRoleClient().from("timeline_events").select("id,occurred_at,metadata")
+        .eq("tenant_id", tenantId).contains("metadata", { source: "brevo_outbound_journal", channel: "brevo_marketing" })
+        .order("id").range(offset, offset + 999);
+      if (report.error) throw new Error("MAILBOX_MARKETING_LOOKUP_FAILED");
+      for (const row of report.data ?? []) if (typeof row.metadata?.subject === "string" && typeof row.metadata?.recipient_email === "string") {
+        campaignCandidates.push({ id: row.id, email: row.metadata.recipient_email, subject: row.metadata.subject, sentAt: row.occurred_at });
+      }
+      if ((report.data?.length ?? 0) < 1000) break;
+    }
     const messages = new Map<number, FetchMessageObject>();
     // Finish the header stream before fetching any message bodies (no nested IMAP commands).
     if (inspectionUids.length) for await (const message of imap.fetch(inspectionUids, { envelope: true, size: true,
@@ -115,7 +127,9 @@ export async function syncMailbox(tenantId: string) {
       if (!item) { if (historyIds.has(uid)) cursor = uid; continue; }
       const header = await simpleParser(item.headers ?? Buffer.alloc(0));
       const reference = trackedReplyReference(replyReferences(header), trackedIds);
-      if (reference && header.messageId) {
+      const externalId = !reference && isHumanReply(header) ? campaignCandidateForReply(campaignCandidates,
+        item.envelope?.from?.[0]?.address ?? "", item.envelope?.subject ?? "", item.envelope?.date ? new Date(item.envelope.date).toISOString() : "") : null;
+      if ((reference || externalId) && header.messageId) {
         let text = "Contenu non importé (message volumineux). Consultez votre messagerie.";
         if ((item.size ?? Infinity) <= 2 * 1024 * 1024) {
           const source = await imap.fetchOne(uid, { source: true }, { uid: true });
@@ -127,7 +141,7 @@ export async function syncMailbox(tenantId: string) {
         const result = await processBrevoInboundReplies({ items: [{ MessageId: header.messageId,
           InReplyTo: reference, From: { Address: item.envelope?.from?.[0]?.address },
           Subject: item.envelope?.subject, SentAtDate: item.envelope?.date ? new Date(item.envelope.date).toISOString() : null,
-          Source: "planethoster_imap", ExtractedMarkdownMessage: text }] }, tenantId);
+          Source: "planethoster_imap", ...(externalId ? { OutboundEvidenceId: externalId } : {}), ExtractedMarkdownMessage: text }] }, tenantId);
         processed += result.processed; stopped += result.stopped;
       }
       if (historyIds.has(uid)) cursor = uid;

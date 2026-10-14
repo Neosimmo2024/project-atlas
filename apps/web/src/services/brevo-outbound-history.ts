@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 import { verifyBrevoAccountBinding } from "./brevo-account-binding";
 import { sentEvidence, uniquePersonForEmail } from "@/features/mailbox/brevo-history";
+import { syncMarketingHistory } from "./brevo-marketing-history";
 const tenant = "8e27b0ff-3f1a-41fa-8390-628c718723a2";
 export async function syncBrevoOutboundHistory(tenantId: string) {
   if (tenantId !== tenant) return { imported: 0, unmatched: 0 };
@@ -13,7 +14,7 @@ export async function syncBrevoOutboundHistory(tenantId: string) {
   if (binding.status !== "verified") throw new Error("BREVO_HISTORY_ACCOUNT_UNVERIFIED");
   const index = new Map<string, string[]>();
   for (let offset = 0; ; offset += 1000) {
-    const people = await db.from("people").select("id,primary_email").eq("tenant_id", tenantId).is("deleted_at", null)
+    const people = await db.from("people").select("id,primary_email").eq("tenant_id", tenantId)
       .not("primary_email", "is", null).order("id").range(offset, offset + 999);
     if (people.error) throw new Error("BREVO_HISTORY_PEOPLE_FAILED");
     for (const person of people.data ?? []) {
@@ -49,5 +50,10 @@ export async function syncBrevoOutboundHistory(tenantId: string) {
     }
     if (report.events.length < 1000) break;
   }
-  return { imported, unmatched };
+  const marketing = await syncMarketingHistory(tenantId, index, apiKey!);
+  const summary = await db.rpc("set_vault_secret_value", { p_name: `atlas_brevo_history_summary_${tenantId}`,
+    p_value: JSON.stringify({ checked_at: new Date().toISOString(), unmatched_smtp_events: unmatched, marketing_pending: !marketing.done }),
+    p_description: "Brevo reply coverage summary — no credentials" });
+  if (summary.error) throw new Error("BREVO_HISTORY_SUMMARY_FAILED");
+  return { imported, unmatched, marketing };
 }

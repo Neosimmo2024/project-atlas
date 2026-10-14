@@ -4,12 +4,14 @@ export function incomingReplyText(text: string) {
     .split(/\n>/)[0].trim().slice(0, 4000);
 }
 
-export function suggestReply(text: string) {
+export function suggestReply(text: string, campaignName = "") {
   const incoming = incomingReplyText(text);
   const normalized = incoming.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   let body: string;
   if (/pas interesse|ne suis pas interesse|ne me contactez|ne plus.{0,20}(contacter|recevoir)|retir.{0,20}(liste|fichier)|desinscri/.test(normalized)) {
     body = "Merci pour votre retour. Je prends note de votre souhait et mets fin à cette démarche de recrutement.\n\nJe vous souhaite une bonne continuation.";
+  } else if (/caf[eé]|afterwork|lpgi/i.test(campaignName)) {
+    body = "Merci pour votre retour au sujet de notre rencontre.\n\nCe sera un plaisir d’échanger avec vous. Dites-moi vos disponibilités ou vos questions, afin que nous organisions la suite ensemble.";
   } else if (/commission|remuneration|pourcentage|retrocession/.test(normalized)) {
     body = "Merci pour votre retour et votre question sur la rémunération. Chez NEOS IMMO, la rémunération sur vos ventes va de 75 % à 100 % de la commission, selon les paliers et les conditions applicables.\n\nJe vous propose un échange pour détailler ces conditions et voir si notre fonctionnement correspond à votre projet : https://calendly.com/renato-ponzio/30min";
   } else if (/plus tard|pas pour le moment|pas actuellement|pas maintenant/.test(normalized)) {
