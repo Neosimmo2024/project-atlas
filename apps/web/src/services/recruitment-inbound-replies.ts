@@ -115,6 +115,12 @@ async function findSequence(item: BrevoInboundEmail): Promise<SequenceRow | null
       .maybeSingle();
     if (stepError) throw stepError;
     if (step?.sequence_id) return getSequenceById(step.sequence_id as string);
+
+    const { data: reviewed, error: reviewedError } = await supabase.from("tasks").select("metadata")
+      .contains("metadata", { source: "recruitment_candidate_reply" })
+      .in("metadata->>reply_provider_message_id", variants).limit(1).maybeSingle();
+    if (reviewedError) throw reviewedError;
+    if (reviewed?.metadata?.sequence_id) return getSequenceById(String(reviewed.metadata.sequence_id));
   }
 
   const sequenceId = sequenceIdFromRecipients(item);

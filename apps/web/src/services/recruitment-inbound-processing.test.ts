@@ -126,9 +126,17 @@ describe("Brevo inbound reply processing with a simulated database", () => {
     expect(db.from).not.toHaveBeenCalled();
   });
   it("leaves unmatched replies untouched", async () => {
-    result("recruitment_email_sequences"); result("recruitment_email_sequence_steps");
+    result("recruitment_email_sequences"); result("recruitment_email_sequence_steps"); result("tasks");
     expect(await processBrevoInboundReplies({ items: [item] })).toMatchObject({ unmatched: 1, stopped: 0 });
     expect(writes()).toEqual([]);
+  });
+  it("recognizes a reply to a manually approved email without restarting the stopped campaign", async () => {
+    result("recruitment_email_sequences"); result("recruitment_email_sequence_steps");
+    result("tasks", { metadata: { sequence_id: sequence.id } });
+    matchingReply({ terminal: "stopped" });
+    expect(await processBrevoInboundReplies({ items: [{ ...item, InReplyTo: "<manual-reply@example.invalid>" }] })).toMatchObject({ processed: 1, stopped: 0 });
+    expect(write("recruitment_email_sequences", "update")).toBeUndefined();
+    expect(write("tasks", "insert")).toMatchObject({ metadata: { reply_status: "draft", sms_alert_status: "pending" } });
   });
   it("matches a reply to a follow-up message, including message-id bracket variants", async () => {
     result("recruitment_email_sequences"); result("recruitment_email_sequence_steps", { sequence_id: sequence.id });

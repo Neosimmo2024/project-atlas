@@ -7,7 +7,7 @@ type Input = { action: "save" | "send"; body: string; revision: number; confirma
 const senderEmail = "renato.ponzio@neos-immo.com";
 
 export async function reviewReply(ctx: TenantContext, taskId: string, input: Input) {
-  if (!["owner", "admin"].includes(ctx.role)) throw new Error("REPLY_FORBIDDEN");
+  if (!["owner", "admin"].includes(ctx.role) || ctx.tenantId !== "8e27b0ff-3f1a-41fa-8390-628c718723a2") throw new Error("REPLY_FORBIDDEN");
   if (!input.body.trim() || input.body.length > 10000 || !Number.isSafeInteger(input.revision) || input.revision < 0) throw new Error("REPLY_INVALID");
   const db = createSupabaseServiceRoleClient();
   const found = await db.from("tasks").select("id,person_id,metadata")

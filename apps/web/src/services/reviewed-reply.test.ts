@@ -4,7 +4,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase/service-role", () => ({ createSupabaseServiceRoleClient: () => ({ from: mocks.from }) }));
 import { reviewReply } from "./reviewed-reply";
 import type { TenantContext } from "@/types/domain";
-const ctx = { role: "owner", tenantId: "tenant", userId: "owner" } as TenantContext;
+const ctx = { role: "owner", tenantId: "8e27b0ff-3f1a-41fa-8390-628c718723a2", userId: "owner" } as TenantContext;
 const task = { id: "task", person_id: "person", metadata: { source: "recruitment_candidate_reply", sequence_id: "sequence", reply_status: "draft", reply_revision: 0, subject: "Re: Lyon" } };
 function query(result: unknown) {
   const q: Record<string, unknown> = {};

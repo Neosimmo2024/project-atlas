@@ -4,7 +4,7 @@ import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 import { processBrevoInboundReplies } from "./recruitment-inbound-replies";
-import { messageIdVariants, replyReferences } from "@/features/mailbox/reply-policy";
+import { mailboxUidBatch, messageIdVariants, replyReferences } from "@/features/mailbox/reply-policy";
 
 const host = "mail.neos-immo.com";
 const email = "renato.ponzio@neos-immo.com";
@@ -59,6 +59,11 @@ async function matchedReference(tenantId: string, references: string[]) {
       .eq("tenant_id", tenantId).in("provider_message_id", variants).limit(1).maybeSingle();
     if (step.error) throw new Error("MAILBOX_LOOKUP_FAILED");
     if (step.data) return reference;
+    const reviewed = await db.from("tasks").select("id").eq("tenant_id", tenantId)
+      .contains("metadata", { source: "recruitment_candidate_reply" })
+      .in("metadata->>reply_provider_message_id", variants).limit(1).maybeSingle();
+    if (reviewed.error) throw new Error("MAILBOX_LOOKUP_FAILED");
+    if (reviewed.data) return reference;
   }
   return null;
 }
@@ -75,12 +80,12 @@ export async function syncMailbox(tenantId: string) {
     let cursor = config.validity === validity ? config.cursor ?? 0 : 0;
     const since = new Date(Date.now() - 90 * 86400000);
     const found = await imap.search({ since, ...(cursor ? { uid: `${cursor + 1}:*` } : {}) }, { uid: true });
-    const uids = (found || []).filter(uid => uid > cursor).sort((a, b) => a - b).slice(0, 100);
+    const { uids, historyIds } = mailboxUidBatch(found || [], cursor);
     // Complete each FETCH before issuing another IMAP command.
     for (const uid of uids) {
       const item = await imap.fetchOne(uid, { envelope: true, size: true,
         headers: ["Message-ID", "In-Reply-To", "References", "Auto-Submitted", "Precedence"] }, { uid: true });
-      if (!item) { cursor = uid; continue; }
+      if (!item) { if (historyIds.has(uid)) cursor = uid; continue; }
       const header = await simpleParser(item.headers ?? Buffer.alloc(0));
       const reference = await matchedReference(tenantId, replyReferences(header));
       if (reference && header.messageId) {
@@ -98,7 +103,8 @@ export async function syncMailbox(tenantId: string) {
           Source: "planethoster_imap", ExtractedMarkdownMessage: text }] }, tenantId);
         processed += result.processed; stopped += result.stopped;
       }
-      cursor = uid; scanned += 1;
+      if (historyIds.has(uid)) cursor = uid;
+      scanned += 1;
     }
     const latest = await configuration(tenantId);
     if (latest?.password === config.password) await save(tenantId, { ...latest,
