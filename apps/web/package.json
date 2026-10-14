@@ -17,6 +17,8 @@
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.45.4",
     "csv-parse": "7.0.3",
+    "imapflow": "2.4.2",
+    "mailparser": "3.9.39",
     "next": "15.5.26",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -25,6 +27,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/mailparser": "3.9.0",
     "@types/node": "^22.5.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

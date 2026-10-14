@@ -6,6 +6,7 @@ type Mailbox = { Address?: string | null; Name?: string | null };
 type Recipient = Mailbox | string;
 
 export type BrevoInboundEmail = {
+  Source?: "planethoster_imap";
   Headers?: unknown;
   MessageId?: string | null;
   InReplyTo?: string | null;
@@ -257,7 +258,7 @@ async function insertReplyEvent(input: {
       sent_at: input.item.SentAtDate ?? null,
       reply_excerpt: replyExcerpt(input.item.ExtractedMarkdownMessage),
       follow_up_task_id: input.followUpTaskId ?? null,
-      source: "brevo_inbound_parsing",
+      source: input.item.Source ?? "brevo_inbound_parsing",
       ...(diagnostic ? { inbound_auth_diagnostic: diagnostic } : {})
     },
     visibility: "tenant",
@@ -286,7 +287,7 @@ async function stopSequenceForCandidateReply(sequence: SequenceRow) {
   return true;
 }
 
-export async function processBrevoInboundReplies(payload: BrevoInboundPayload): Promise<InboundReplySummary> {
+export async function processBrevoInboundReplies(payload: BrevoInboundPayload, tenantId?: string): Promise<InboundReplySummary> {
   const summary: InboundReplySummary = { processed: 0, stopped: 0, duplicates: 0, unmatched: 0, reviewRequired: 0 };
   const items = Array.isArray(payload?.items) ? payload.items : [];
 
@@ -299,7 +300,7 @@ export async function processBrevoInboundReplies(payload: BrevoInboundPayload): 
     }
 
     const sequence = await findSequence(item);
-    if (!sequence) {
+    if (!sequence || (tenantId && sequence.tenant_id !== tenantId)) {
       summary.unmatched += 1;
       continue;
     }
