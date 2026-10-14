@@ -41,5 +41,8 @@ export async function POST(request: Request) {
     const result = await syncBrevoOutboundHistory(tenantId);
     if (body.replay === true) await replayMailboxHistory(tenantId);
     return NextResponse.json(result);
-  } catch { return NextResponse.json({ error: "Import Brevo incomplet" }, { status: 503 }); }
+  } catch (error) {
+    const code = error instanceof Error && /^BREVO_[A-Z_0-9]+$/.test(error.message) ? error.message : "BREVO_HISTORY_UNAVAILABLE";
+    return NextResponse.json({ error: "Import Brevo incomplet", code }, { status: 503 });
+  }
 }

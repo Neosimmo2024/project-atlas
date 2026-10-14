@@ -10,7 +10,10 @@ export async function syncMarketingHistory(tenantId: string, index: Map<string, 
   const read = async (path: string) => {
     const response = await fetch(`https://api.brevo.com/v3/${path}`, { headers: { "api-key": apiKey, accept: "application/json" },
       cache: "no-store", redirect: "error", signal: AbortSignal.timeout(15000) });
-    if (!response.ok) throw new Error("BREVO_MARKETING_READ_FAILED");
+    if (!response.ok) {
+      const phase = path.startsWith("contacts/lists/") ? "LIST" : path.includes("/campaignStats") ? "STATS" : path.startsWith("emailCampaigns") ? "CAMPAIGNS" : "CONTACTS";
+      throw new Error(`BREVO_MARKETING_${phase}_HTTP_${response.status}`);
+    }
     return response.json();
   };
   const campaigns: Campaign[] = [];
@@ -42,14 +45,14 @@ export async function syncMarketingHistory(tenantId: string, index: Map<string, 
   if (!Array.isArray(contacts.contacts)) throw new Error("BREVO_MARKETING_CONTACTS_INVALID");
   const targets = contacts.contacts.filter((contact): contact is { email: string } => typeof contact.email === "string" && Boolean(uniquePersonForEmail(index, contact.email)));
   const writes = [];
-  for (let at = 0; at < targets.length; at += 10) {
-    const batch = await Promise.allSettled(targets.slice(at, at + 10).map(async (contact: { email: string }) => {
+  for (let at = 0; at < targets.length; at += 5) {
+    const batch = await Promise.allSettled(targets.slice(at, at + 5).map(async (contact: { email: string }) => {
       const email = contact.email.trim().toLowerCase();
       const stats = await read(`contacts/${encodeURIComponent(email)}/campaignStats`);
       return { email, sent: Array.isArray(stats.messagesSent) ? stats.messagesSent as { campaignId: number; eventTime: string }[] : [] };
     }));
     for (const result of batch) {
-      if (result.status !== "fulfilled") throw new Error("BREVO_MARKETING_BATCH_INCOMPLETE");
+      if (result.status !== "fulfilled") throw result.reason instanceof Error ? result.reason : new Error("BREVO_MARKETING_BATCH_INCOMPLETE");
       for (const sent of result.value.sent) {
         const campaign = campaigns.find(c => c.id === sent.campaignId);
         if (!campaign?.subject || !Number.isFinite(Date.parse(sent.eventTime))) continue;
