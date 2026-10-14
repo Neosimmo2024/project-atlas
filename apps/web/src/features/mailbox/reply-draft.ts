@@ -15,9 +15,9 @@ export function suggestReply(text: string) {
   } else if (/plus tard|pas pour le moment|pas actuellement|pas maintenant/.test(normalized)) {
     body = "Merci pour votre retour. Je comprends que ce ne soit pas le bon moment pour vous.\n\nSouhaitez-vous que nous reprenions contact plus tard ? Si oui, dites-moi à quelle période cela vous conviendrait.";
   } else if (/rendez.vous|disponib|echang|appel|telephone|interesse/.test(normalized)) {
-    body = "Merci pour votre retour. Je vous propose d’échanger sur votre activité et votre projet, ainsi que sur le développement de NEOS IMMO à Lyon et dans sa métropole.\n\nVous pouvez choisir un créneau ici : https://calendly.com/renato-ponzio/30min\n\nSi vous préférez, indiquez-moi vos disponibilités.";
+    body = "Merci pour votre retour. Je vous propose d’échanger sur votre activité et votre projet, ainsi que sur le fonctionnement de NEOS IMMO.\n\nVous pouvez choisir un créneau ici : https://calendly.com/renato-ponzio/30min\n\nSi vous préférez, indiquez-moi vos disponibilités.";
   } else {
-    body = "Merci pour votre retour. J’ai bien pris connaissance de votre message.\n\nJe vous propose d’en discuter directement pour répondre précisément à vos questions et voir si notre projet de développement sur Lyon peut vous correspondre : https://calendly.com/renato-ponzio/30min";
+    body = "Merci pour votre retour. J’ai bien pris connaissance de votre message.\n\nJe vous propose d’en discuter directement pour répondre précisément à vos questions et voir si notre fonctionnement peut vous correspondre : https://calendly.com/renato-ponzio/30min";
   }
   return `Bonjour,\n\n${body}\n\nBien à vous,\nRenato Ponzio\nPrésident NEOS IMMO`;
 }

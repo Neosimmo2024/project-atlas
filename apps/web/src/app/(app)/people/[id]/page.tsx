@@ -97,6 +97,8 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
         </div>
       </header>
 
+      {["owner", "admin"].includes(context.role) ? <ReplyReviewList tenantId={context.tenantId} personId={person.id} /> : null}
+
       <div className="grid">
         <section className="card stack">
           <h2>Identité et coordonnées</h2>
@@ -195,7 +197,6 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
           </div>
         </div>
         {valueOf(query, "interactionDeleted") === "1" ? <p className="success">Échange supprimé.</p> : null}
-        {["owner", "admin"].includes(context.role) ? <ReplyReviewList tenantId={context.tenantId} personId={person.id} /> : null}
         <TimelineList result={chronology} basePath={`/people/${person.id}`} category={timelineCategory} />
       </details>
 
