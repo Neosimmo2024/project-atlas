@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-type Status = { configured: boolean; enabled: boolean; lastSync: string | null; lastError: string | null; processed: number };
+type Status = { configured: boolean; enabled: boolean; lastSync: string | null; lastError: string | null; processed: number; remaining?: number | null };
 export function MailboxConnection({ initial }: { initial: Status }) {
   const [status, setStatus] = useState(initial);
   const [password, setPassword] = useState("");
@@ -35,6 +35,7 @@ export function MailboxConnection({ initial }: { initial: Status }) {
     {status.enabled && <div><button className="button subtle-button" disabled={busy} onClick={() => void act("sync")}>Rechercher les réponses maintenant</button>{" "}
       <button className="button subtle-button" disabled={busy} onClick={() => void act("pause")}>Suspendre la lecture</button></div>}
     <p>Dernière synchronisation : {status.lastSync ? new Date(status.lastSync).toLocaleString("fr-FR", { timeZone: "Europe/Paris" }) : "Pas encore effectuée"}. Réponses enregistrées : {status.processed}.</p>
+    {status.remaining != null && <p>{status.remaining > 0 ? `Historique en cours : ${status.remaining} message(s) restant(s). Les nouveaux messages sont vérifiés en priorité.` : "Historique analysé. Le contrôle des réponses est à jour."}</p>}
     {status.lastError && <p role="alert">{status.lastError}</p>}
     <p role="status" aria-live="polite">{message}</p>
   </section>;

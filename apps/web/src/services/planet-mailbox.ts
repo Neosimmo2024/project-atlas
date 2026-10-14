@@ -1,14 +1,14 @@
 import "server-only";
 import { dispatchReplySmsAlerts } from "./reply-sms-alerts";
-import { ImapFlow } from "imapflow";
+import { ImapFlow, type FetchMessageObject } from "imapflow";
 import { simpleParser } from "mailparser";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 import { processBrevoInboundReplies } from "./recruitment-inbound-replies";
-import { mailboxUidBatch, messageIdVariants, replyReferences } from "@/features/mailbox/reply-policy";
+import { mailboxUidBatch, messageIdVariants, replyReferences, trackedReplyReference } from "@/features/mailbox/reply-policy";
 
 const host = "mail.neos-immo.com";
 const email = "renato.ponzio@neos-immo.com";
-type Configuration = { password: string; enabled: boolean; cursor?: number; validity?: string; lastSync?: string; lastError?: string | null; processed?: number };
+type Configuration = { password: string; enabled: boolean; cursor?: number; validity?: string; lastSync?: string; lastError?: string | null; processed?: number; remaining?: number };
 const key = (tenantId: string) => `atlas_planet_mailbox_${tenantId}`;
 
 async function configuration(tenantId: string): Promise<Configuration | null> {
@@ -30,7 +30,7 @@ function client(password: string) {
 export async function mailboxStatus(tenantId: string) {
   const config = await configuration(tenantId);
   return { host, port: 993, email, configured: Boolean(config), enabled: config?.enabled ?? false,
-    lastSync: config?.lastSync ?? null, lastError: config?.lastError ?? null, processed: config?.processed ?? 0 };
+    lastSync: config?.lastSync ?? null, lastError: config?.lastError ?? null, processed: config?.processed ?? 0, remaining: config?.remaining ?? null };
 }
 export async function connectMailbox(tenantId: string, password: string) {
   const imap = client(password);
@@ -47,25 +47,28 @@ export async function pauseMailbox(tenantId: string) {
   if (config) await save(tenantId, { ...config, enabled: false });
 }
 
-async function matchedReference(tenantId: string, references: string[]) {
+async function trackedMessageIds(tenantId: string) {
   const db = createSupabaseServiceRoleClient();
-  for (const reference of references) {
-    const variants = messageIdVariants(reference);
-    const initial = await db.from("recruitment_email_sequences").select("id")
-      .eq("tenant_id", tenantId).in("provider_message_id", variants).limit(1).maybeSingle();
-    if (initial.error) throw new Error("MAILBOX_LOOKUP_FAILED");
-    if (initial.data) return reference;
-    const step = await db.from("recruitment_email_sequence_steps").select("id")
-      .eq("tenant_id", tenantId).in("provider_message_id", variants).limit(1).maybeSingle();
-    if (step.error) throw new Error("MAILBOX_LOOKUP_FAILED");
-    if (step.data) return reference;
-    const reviewed = await db.from("tasks").select("id").eq("tenant_id", tenantId)
-      .contains("metadata", { source: "recruitment_candidate_reply" })
-      .in("metadata->>reply_provider_message_id", variants).limit(1).maybeSingle();
-    if (reviewed.error) throw new Error("MAILBOX_LOOKUP_FAILED");
-    if (reviewed.data) return reference;
+  const ids = new Set<string>();
+  for (const table of ["recruitment_email_sequences", "recruitment_email_sequence_steps", "tasks"]) {
+    const task = table === "tasks";
+    for (let offset = 0; ; offset += 1000) {
+      const { data, error } = task
+        ? await db.from("tasks").select("metadata").eq("tenant_id", tenantId)
+          .contains("metadata", { source: "recruitment_candidate_reply" })
+          .not("metadata->>reply_provider_message_id", "is", null).order("id").range(offset, offset + 999)
+        : await db.from(table).select("provider_message_id").eq("tenant_id", tenantId)
+          .not("provider_message_id", "is", null).order("id").range(offset, offset + 999);
+      if (error) throw new Error("MAILBOX_LOOKUP_FAILED");
+      for (const row of data ?? []) {
+        const record = row as unknown as { provider_message_id?: string; metadata?: { reply_provider_message_id?: string } };
+        const value = task ? record.metadata?.reply_provider_message_id : record.provider_message_id;
+        if (value) for (const variant of messageIdVariants(value)) ids.add(variant);
+      }
+      if ((data?.length ?? 0) < 1000) break;
+    }
   }
-  return null;
+  return ids;
 }
 
 export async function syncMailbox(tenantId: string) {
@@ -81,13 +84,18 @@ export async function syncMailbox(tenantId: string) {
     const since = new Date(Date.now() - 90 * 86400000);
     const found = await imap.search({ since, ...(cursor ? { uid: `${cursor + 1}:*` } : {}) }, { uid: true });
     const { uids, historyIds } = mailboxUidBatch(found || [], cursor);
-    // Complete each FETCH before issuing another IMAP command.
+    const trackedIds = await trackedMessageIds(tenantId);
+    const messages = new Map<number, FetchMessageObject>();
+    // Finish the header stream before fetching any message bodies (no nested IMAP commands).
+    if (uids.length) for await (const message of imap.fetch(uids, { envelope: true, size: true,
+      headers: ["Message-ID", "In-Reply-To", "References", "Auto-Submitted", "Precedence"] }, { uid: true })) {
+      messages.set(message.uid, message);
+    }
     for (const uid of uids) {
-      const item = await imap.fetchOne(uid, { envelope: true, size: true,
-        headers: ["Message-ID", "In-Reply-To", "References", "Auto-Submitted", "Precedence"] }, { uid: true });
+      const item = messages.get(uid);
       if (!item) { if (historyIds.has(uid)) cursor = uid; continue; }
       const header = await simpleParser(item.headers ?? Buffer.alloc(0));
-      const reference = await matchedReference(tenantId, replyReferences(header));
+      const reference = trackedReplyReference(replyReferences(header), trackedIds);
       if (reference && header.messageId) {
         let text = "Contenu non importé (message volumineux). Consultez votre messagerie.";
         if ((item.size ?? Infinity) <= 2 * 1024 * 1024) {
@@ -110,7 +118,7 @@ export async function syncMailbox(tenantId: string) {
     if (latest?.password === config.password) await save(tenantId, { ...latest,
       cursor: latest.validity === validity ? Math.max(cursor, latest.cursor ?? 0) : cursor,
       validity, lastSync: new Date().toISOString(), lastError: null,
-      processed: (latest.processed ?? 0) + processed });
+      processed: (latest.processed ?? 0) + processed, remaining: (found || []).filter(uid => uid > cursor).length });
     return { scanned, processed, stopped, remaining: (found || []).filter(uid => uid > cursor).length };
   } catch {
     const latest = await configuration(tenantId);
@@ -124,9 +132,10 @@ export async function syncConfiguredMailboxes() {
   const { data, error } = await db.from("tenants").select("id");
   if (error) throw new Error("MAILBOX_TENANTS_UNAVAILABLE");
   for (const tenant of data ?? []) {
-    await dispatchReplySmsAlerts(tenant.id);
     // Fail closed: no follow-up is sent if replies could not be checked.
     const result = await syncMailbox(tenant.id);
+    await dispatchReplySmsAlerts(tenant.id);
+    if ("paused" in result && tenant.id === "8e27b0ff-3f1a-41fa-8390-628c718723a2") throw new Error("MAILBOX_PAUSED");
     if ("remaining" in result && result.remaining) throw new Error("MAILBOX_BACKLOG_PENDING");
   }
 }
