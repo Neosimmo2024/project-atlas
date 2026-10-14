@@ -10,6 +10,7 @@ describe("reply SMS alerts", () => {
     expect(content).toContain("Eliane Betemps");
     expect(content).toContain("/people/c936ee1c-4831-5059-9928-5c0b0bfefe33");
     expect(content.length).toBeLessThanOrEqual(160);
+    expect(replySmsContent("c936ee1c-4831-5059-9928-5c0b0bfefe33", "Un nom particulierement long et composé").length).toBeLessThanOrEqual(160);
     expect(() => replySmsContent("../../external", "A")).toThrow();
   });
   it("does not access other tenants or send when disabled", async () => {

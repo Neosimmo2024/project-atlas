@@ -19,7 +19,7 @@ export default async function MailboxPage() {
         <h3>{event.metadata?.subject ?? event.title}</h3>
         <p>{event.metadata?.from} · {new Date(event.occurred_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}</p>
         <p style={{ whiteSpace: "pre-wrap" }}>{event.metadata?.reply_excerpt}</p>
-        <Link href={`/people/${event.person_id}`}>Ouvrir la fiche</Link>
+        <Link href={`/people/${event.person_id}#replies`}>Lire et préparer la réponse</Link>
       </article>)}
     </section></div>;
 }

@@ -8,8 +8,8 @@ const origin = "https://project-atlas-qa-beta-1.vercel.app";
 
 export function replySmsContent(personId: string, name: string) {
   if (!/^[0-9a-f-]{36}$/i.test(personId)) throw new Error("INVALID_PERSON");
-  const label = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9 .'-]/g, "").slice(0, 30);
-  return `Atlas: reponse de ${label || "votre contact"}. A verifier: ${origin}/people/${personId}`;
+  const label = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9 .'-]/g, "").slice(0, 22);
+  return `Atlas: reponse de ${label || "votre contact"}. A verifier: ${origin}/people/${personId}#replies`;
 }
 
 /** Durable compare-and-swap claim before sending. An ambiguous POST is never retried. */

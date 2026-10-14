@@ -1,3 +1,4 @@
+import { ReplyReviewList } from "@/components/mailbox/reply-review-list";
 import { availableWhatsAppTemplates } from "@/features/whatsapp/templates";
 import { WhatsAppFollowupCard } from "@/components/people/whatsapp-followup-card";
 import { getWhatsAppFollowup } from "@/repositories/whatsapp-followup";
@@ -194,6 +195,7 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
           </div>
         </div>
         {valueOf(query, "interactionDeleted") === "1" ? <p className="success">Échange supprimé.</p> : null}
+        {["owner", "admin"].includes(context.role) ? <ReplyReviewList tenantId={context.tenantId} personId={person.id} /> : null}
         <TimelineList result={chronology} basePath={`/people/${person.id}`} category={timelineCategory} />
       </details>
 

@@ -1,3 +1,4 @@
+import { suggestReply } from "@/features/mailbox/reply-draft";
 import { timingSafeEqual } from "node:crypto";
 import { collectInboundDiagnostic } from "./recruitment-inbound-diagnostic";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
@@ -200,6 +201,9 @@ async function ensureCandidateReplyFollowUpTask(sequence: SequenceRow, item: Bre
         ...metadataKey,
         sequence_id: sequence.id,
         sms_alert_status: "pending",
+        reply_status: "draft",
+        reply_revision: 0,
+        suggested_reply: suggestReply(excerpt ?? ""),
         subject: item.Subject ?? null,
         sent_at: item.SentAtDate ?? null,
         suggested_actions: ["call", "reply_email", "schedule_meeting", "qualify"]
