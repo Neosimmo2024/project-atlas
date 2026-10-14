@@ -1,8 +1,9 @@
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const m = vi.hoisted(() => ({ rpc: vi.fn(), from: vi.fn(), fetch: vi.fn(), writes: [] as unknown[] }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase/service-role", () => ({ createSupabaseServiceRoleClient: () => ({ rpc: m.rpc, from: m.from }) }));
 import { syncMarketingHistory } from "./brevo-marketing-history";
+afterEach(() => vi.useRealTimers());
 beforeEach(() => {
   vi.resetAllMocks(); m.writes = [];
   vi.stubGlobal("fetch", m.fetch);
@@ -15,6 +16,14 @@ beforeEach(() => {
     else data = { messagesSent: url.includes("one%40") ? [{ campaignId: 19, eventTime: "2026-10-08T09:00:00Z" }] : [] };
     return new Response(JSON.stringify(data), { status: 200 });
   });
+});
+it("retries a throttled provider read without recording an unconfirmed send", async () => {
+  vi.useFakeTimers();
+  m.fetch.mockImplementationOnce(async () => new Response("", { status: 429, headers: { "retry-after": "2" } }));
+  const pending = syncMarketingHistory("tenant", new Map([["one@example.org", ["p1"]]]), "fixture");
+  await vi.runAllTimersAsync();
+  expect((await pending).done).toBe(true);
+  expect(m.writes).toHaveLength(1);
 });
 it("journals provider-confirmed sends rather than assuming every list member received the campaign", async () => {
   const result = await syncMarketingHistory("tenant", new Map([["one@example.org", ["p1"]], ["not-sent@example.org", ["p2"]]]), "fixture");

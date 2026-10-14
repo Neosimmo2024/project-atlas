@@ -8,13 +8,20 @@ type Campaign = { id: number; name?: string; subject?: string; sentDate?: string
 export async function syncMarketingHistory(tenantId: string, index: Map<string, string[]>, apiKey: string) {
   const db = createSupabaseServiceRoleClient();
   const read = async (path: string) => {
+    for (let attempt = 0; ; attempt++) {
     const response = await fetch(`https://api.brevo.com/v3/${path}`, { headers: { "api-key": apiKey, accept: "application/json" },
       cache: "no-store", redirect: "error", signal: AbortSignal.timeout(15000) });
+    if (response.status === 429 && attempt < 3) {
+      const seconds = Number(response.headers.get("retry-after"));
+      await new Promise(resolve => setTimeout(resolve, Number.isFinite(seconds) && seconds > 0 ? Math.min(seconds, 10) * 1000 : 2000 * (attempt + 1)));
+      continue;
+    }
     if (!response.ok) {
       const phase = path.startsWith("contacts/lists/") ? "LIST" : path.includes("/campaignStats") ? "STATS" : path.startsWith("emailCampaigns") ? "CAMPAIGNS" : "CONTACTS";
       throw new Error(`BREVO_MARKETING_${phase}_HTTP_${response.status}`);
     }
     return response.json();
+    }
   };
   const campaigns: Campaign[] = [];
   for (let offset = 0; ; offset += 100) {
@@ -45,8 +52,9 @@ export async function syncMarketingHistory(tenantId: string, index: Map<string, 
   if (!Array.isArray(contacts.contacts)) throw new Error("BREVO_MARKETING_CONTACTS_INVALID");
   const targets = contacts.contacts.filter((contact): contact is { email: string } => typeof contact.email === "string" && Boolean(uniquePersonForEmail(index, contact.email)));
   const writes = [];
-  for (let at = 0; at < targets.length; at += 5) {
-    const batch = await Promise.allSettled(targets.slice(at, at + 5).map(async (contact: { email: string }) => {
+  for (let at = 0; at < targets.length; at++) {
+    if (at > 0) await new Promise(resolve => setTimeout(resolve, 1100));
+    const batch = await Promise.allSettled(targets.slice(at, at + 1).map(async (contact: { email: string }) => {
       const email = contact.email.trim().toLowerCase();
       const stats = await read(`contacts/${encodeURIComponent(email)}/campaignStats`);
       return { email, sent: Array.isArray(stats.messagesSent) ? stats.messagesSent as { campaignId: number; eventTime: string }[] : [] };
