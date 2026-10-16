@@ -65,6 +65,7 @@ async function sendBrevoTemplateEmail(input: {
   email: string;
   displayName: string;
   replyTo?: string | null;
+  params?: Record<string, string>;
 }): Promise<BrevoSendResult> {
   try {
     const response = await fetch("https://api.brevo.com/v3/smtp/email", {
@@ -74,7 +75,7 @@ async function sendBrevoTemplateEmail(input: {
         templateId: input.templateId,
         to: [{ email: input.email, name: input.displayName }],
         replyTo: input.replyTo ? { email: input.replyTo, name: "NEOS IMMO" } : undefined,
-        params: { PRENOM: input.displayName.split(" ")[0] || input.displayName },
+        params: { PRENOM: input.displayName.split(" ")[0] || input.displayName, ...input.params },
         headers: { "Idempotency-Key": input.idempotencyKey }
       }),
       cache: "no-store"
@@ -130,6 +131,7 @@ export async function sendInitialRecruitmentEmail(input: {
   email: string;
   displayName: string;
   templateId?: number | null;
+  params?: Record<string, string>;
 }): Promise<BrevoSendResult> {
   const configuration = brevoConfiguration(input.templateId);
   if (!configuration) return { success: false, error: "Configuration Brevo incomplète." };
@@ -138,6 +140,7 @@ export async function sendInitialRecruitmentEmail(input: {
     idempotencyKey: input.sequenceId,
     email: input.email,
     displayName: input.displayName,
+    params: input.params,
     replyTo: recruitmentReplyAddress(input.sequenceId)
   });
 }
@@ -148,6 +151,7 @@ export async function sendRecruitmentFollowUpEmail(input: {
   templateId?: number;
   email: string;
   displayName: string;
+  params?: Record<string, string>;
 }): Promise<BrevoSendResult> {
   const configuration = input.templateId === undefined
     ? await brevoFollowUpConfiguration(input.stepIndex)
@@ -158,6 +162,7 @@ export async function sendRecruitmentFollowUpEmail(input: {
     idempotencyKey: input.stepId,
     email: input.email,
     displayName: input.displayName,
+    params: input.params,
     replyTo: await recruitmentReplyAddressForStep(input.stepId)
   });
 }
@@ -180,6 +185,6 @@ export async function verifyBrevoTemplate(id: number, expected: { subject: strin
   const body = await response.json() as { isActive?: boolean; subject?: string; sender?: { email?: string }; replyTo?: string; htmlContent?: string };
   if (!response.ok || !body.isActive || body.subject !== expected.subject || body.sender?.email !== expected.sender_email
     || body.replyTo !== expected.reply_to || body.htmlContent?.trim() !== expected.html_content.trim()) {
-    throw new ApiError("Le modèle Brevo ne correspond pas à la version Lyon validée.", 409, "BREVO_TEMPLATE_MISMATCH");
+    throw new ApiError("Le modèle Brevo ne correspond pas à la version validée.", 409, "BREVO_TEMPLATE_MISMATCH");
   }
 }

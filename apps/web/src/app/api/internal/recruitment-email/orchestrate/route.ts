@@ -16,7 +16,7 @@ export async function POST(request: Request) {
 
   try {
     await syncConfiguredMailboxes();
-    const summary = await runRecruitmentEmailOrchestration();
+    const summary = await runRecruitmentEmailOrchestration({ prepareLimit: 500, claimLimit: 50 });
     return NextResponse.json({ data: summary });
   } catch {
     logServerError("Recruitment email orchestration failed");
