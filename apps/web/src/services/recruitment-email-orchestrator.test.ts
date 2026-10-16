@@ -1,7 +1,8 @@
+vi.mock("@/services/local-calendar-stops", () => ({ syncLocalCalendarStops: (...args: unknown[]) => mocks.calendar(...args) ?? Promise.resolve({ stopped: 0, verified: true }) }));
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { runRecruitmentEmailOrchestration } from "./recruitment-email-orchestrator";
 
-const mocks = vi.hoisted(() => ({ from: vi.fn(), rpc: vi.fn(), send: vi.fn(), initial: vi.fn() }));
+const mocks = vi.hoisted(() => ({ from: vi.fn(), rpc: vi.fn(), send: vi.fn(), initial: vi.fn(), calendar: vi.fn() }));
 vi.mock("@/lib/supabase/service-role", () => ({
   createSupabaseServiceRoleClient: () => ({ from: mocks.from, rpc: mocks.rpc })
 }));
@@ -15,7 +16,7 @@ function setup(sequence: typeof activeSequence | null = activeSequence, contact 
   mocks.from.mockImplementation((table: string) => {
     const query = {
       select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(),
-      not: vi.fn().mockReturnThis(), neq: vi.fn().mockReturnThis(), order: vi.fn().mockReturnThis(),
+      is: vi.fn().mockReturnThis(), not: vi.fn().mockReturnThis(), neq: vi.fn().mockReturnThis(), order: vi.fn().mockReturnThis(),
       // Nothing new to schedule; the worker already claimed a due step.
       limit: vi.fn().mockResolvedValue({ data: [], error: null }),
       maybeSingle: vi.fn().mockResolvedValue({
@@ -97,7 +98,7 @@ describe("Lyon pinned delays and models", () => {
     mocks.from.mockImplementation((table: string) => {
       const row = table === "people" ? { ...person, id: personId, comments: "[projet-lyon-neos-20261007]" } : table === "projects" ? { metadata: { recruitment_email_campaign: campaign } } : sequence;
       const data = table === "recruitment_email_sequence_steps" ? index === 1 ? [] : [{ step_index: 1, status: "sent" }] : row;
-      const query = { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), not: vi.fn().mockReturnThis(), neq: vi.fn().mockReturnThis(), order: vi.fn().mockReturnThis(), in: vi.fn().mockReturnThis(),
+      const query = { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), is: vi.fn().mockReturnThis(), not: vi.fn().mockReturnThis(), neq: vi.fn().mockReturnThis(), order: vi.fn().mockReturnThis(), in: vi.fn().mockReturnThis(),
         insert: vi.fn((value: Record<string, unknown>) => { queued.push(value); return query; }), update: vi.fn().mockReturnThis(), upsert: vi.fn().mockReturnThis(),
         maybeSingle: vi.fn(async () => ({ data: row, error: null })), limit: vi.fn(async () => ({ data: [sequence], error: null })), then: (resolve: (value: unknown) => unknown) => Promise.resolve({ data, error: null }).then(resolve) };
       return query;
@@ -121,7 +122,7 @@ describe("Saint-Maur scheduled initial and pinned follow-ups", () => {
     mocks.from.mockImplementation((table: string) => {
       const row = table === "people" ? { ...person, id: personId } : table === "projects" ? { status: "open", archived_at: null, metadata: { local_recruitment_campaign: { ...campaign, ...overrides }, recruitment_email_campaign: { launch_enabled: true } } } : sequence;
       const data = table === "recruitment_email_sequence_steps" ? index === 2 ? [{ step_index: 1, status: "sent" }] : [] : row;
-      const query = { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), not: vi.fn().mockReturnThis(), neq: vi.fn().mockReturnThis(), order: vi.fn().mockReturnThis(), in: vi.fn().mockReturnThis(),
+      const query = { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), is: vi.fn().mockReturnThis(), not: vi.fn().mockReturnThis(), neq: vi.fn().mockReturnThis(), order: vi.fn().mockReturnThis(), in: vi.fn().mockReturnThis(),
         insert: vi.fn((value: Record<string, unknown>) => { queued.push(value); return query; }), update: vi.fn().mockReturnThis(), upsert: vi.fn().mockReturnThis(),
         maybeSingle: vi.fn(async () => ({ data: row, error: null })), limit: vi.fn(async () => ({ data: index === 0 ? [] : [sequence], error: null })), then: (resolve: (value: unknown) => unknown) => Promise.resolve({ data, error: null }).then(resolve) };
       return query;
@@ -147,6 +148,11 @@ describe("Saint-Maur scheduled initial and pinned follow-ups", () => {
     expect(mocks.initial).toHaveBeenCalledWith(expect.objectContaining({ templateId: 82, params: { PRENOM: "Marie Claire", VILLE: "Créteil" } }));
     expect(mocks.rpc).toHaveBeenCalledWith("complete_local_recruitment_initial", { p_step_id: "step", p_success: true, p_provider_message_id: "initial", p_error: null });
     expect(mocks.send).not.toHaveBeenCalled();
+  });
+  it("blocks local sends when the calendar guard is unavailable", async () => {
+    vi.resetAllMocks(); localSetup(0); mocks.calendar.mockResolvedValue({ stopped: 0, verified: false });
+    expect(await runRecruitmentEmailOrchestration()).toMatchObject({ sent: 0, errors: 1 });
+    expect(mocks.initial).not.toHaveBeenCalled(); expect(mocks.send).not.toHaveBeenCalled();
   });
   it("does not send an initial step stopped after a reply", async () => {
     vi.resetAllMocks(); localSetup(0,{},true);

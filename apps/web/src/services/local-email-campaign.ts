@@ -1,3 +1,4 @@
+import { getLocalBookedEmails } from "@/services/local-calendar-stops";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -34,6 +35,7 @@ export async function prepareLocalEmailCampaign(db: SupabaseClient, projectId: s
     bodyText: body.replaceAll("\\n", "\n").replaceAll("[Prénom]", "{{ params.PRENOM }}").replaceAll("[Ville]", "{{ params.VILLE }}") }));
   const contentHash = createHash("sha256").update(JSON.stringify({ html, subjects, sender: LOCAL_SENDER, recipientIds, batches: review.batches, approved_at: review.approved_at })).digest("hex");
   if (previous?.content_hash && previous.content_hash !== contentHash) throw new ApiError("Le dossier préparé a changé. Préparation bloquée.", 409, "LOCAL_APPROVAL_CHANGED");
+  await getLocalBookedEmails();
   await verifyBrevoSender(LOCAL_SENDER);
   const templateIds: number[] = [...(previous?.template_ids ?? [])];
   for (let i = 0; i < 4; i++) {

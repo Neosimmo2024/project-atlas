@@ -1,3 +1,4 @@
+vi.mock("@/services/local-calendar-stops", () => ({ getLocalBookedEmails: async () => new Set() }));
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { prepareLocalEmailCampaign } from "./local-email-campaign";

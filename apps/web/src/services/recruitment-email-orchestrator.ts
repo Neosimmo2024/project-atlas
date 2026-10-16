@@ -1,3 +1,4 @@
+import { syncLocalCalendarStops } from "@/services/local-calendar-stops";
 import { isLocalSnapshot, localFollowUpAt } from "@/features/recruitment-email/local-campaign";
 import { resolveLocalCampaign } from "@/services/local-email-campaign";
 import { resolveLyonFollowUp } from "@/services/lyon-email-campaign";
@@ -177,6 +178,7 @@ async function prepareFollowUps(limit = 100) {
     .from("recruitment_email_sequences")
     .select("id,tenant_id,person_id,email,status,lifecycle_status,sent_at,campaign_snapshot")
     .eq("status", "sent")
+    .is("next_action_at", null)
     .not("sent_at", "is", null)
     .neq("lifecycle_status", "stopped")
     .neq("lifecycle_status", "completed")
@@ -237,7 +239,7 @@ async function prepareFollowUps(limit = 100) {
   return { scheduled, stopped };
 }
 
-async function processDueSteps(limit = 25) {
+async function processDueSteps(limit = 25, calendarVerified = true) {
   const supabase = createSupabaseServiceRoleClient();
   const { data, error } = await supabase.rpc("claim_due_recruitment_email_steps", {
     p_limit: Math.min(Math.max(limit, 1), 100)
@@ -292,10 +294,10 @@ async function processDueSteps(limit = 25) {
     // was queued before the draft guard was introduced.
     const local = await resolveLocalCampaign(supabase, step.tenant_id, step.person_id, currentSequence.campaign_snapshot);
     const lyon = isLocalSnapshot(currentSequence.campaign_snapshot) ? null : await resolveLyonFollowUp(supabase, step.tenant_id, step.person_id, typedPerson?.comments, currentSequence.campaign_snapshot);
-    if (local?.blocked || lyon?.blocked || (step.step_index === 0 && !local)) {
+    if (local?.blocked || lyon?.blocked || (local && !calendarVerified) || (step.step_index === 0 && !local)) {
       const { error: draftError } = await supabase.rpc("complete_recruitment_email_step", {
         p_step_id: step.id, p_success: false, p_provider_message_id: null,
-        p_error: local?.blocked ? "Campagne Saint-Maur suspendue ou modifiée." : "Campagne Lyon en brouillon : relance bloquée, aucun email envoyé."
+        p_error: local && !calendarVerified ? "Contrôle des rendez-vous Calendly indisponible : envoi Saint-Maur bloqué." : local?.blocked ? "Campagne Saint-Maur suspendue ou modifiée." : "Campagne Lyon en brouillon : relance bloquée, aucun email envoyé."
       });
       if (draftError) throw draftError;
       errors += 1;
@@ -333,11 +335,12 @@ async function processDueSteps(limit = 25) {
 }
 
 export async function runRecruitmentEmailOrchestration(input?: { prepareLimit?: number; claimLimit?: number }) {
+  const calendar = await syncLocalCalendarStops(createSupabaseServiceRoleClient());
   const prepared = await prepareFollowUps(input?.prepareLimit ?? 100);
-  const processed = await processDueSteps(input?.claimLimit ?? 25);
+  const processed = await processDueSteps(input?.claimLimit ?? 25, calendar.verified);
   return {
     scheduled: prepared.scheduled,
-    stopped: prepared.stopped,
+    stopped: prepared.stopped + calendar.stopped,
     claimed: processed.claimed,
     skipped: processed.skipped,
     sent: processed.sent,
