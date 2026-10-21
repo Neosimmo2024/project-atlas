@@ -66,9 +66,36 @@ function AccountIndicator({ account }: { account: SessionAccountSummary | null }
   );
 }
 
-export function AppShell({ children, account }: { children: React.ReactNode; account: SessionAccountSummary | null }) {
+export function AppShell({ children, account, tenants, activeTenantId }: {
+  children: React.ReactNode;
+  account: SessionAccountSummary | null;
+  tenants: Array<{ id: string; name: string }>;
+  activeTenantId: string | null;
+}) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
+  const [switchError, setSwitchError] = useState<string | null>(null);
+  const router = useRouter();
+
+  async function switchTenant(tenantId: string) {
+    if (tenantId === activeTenantId) return;
+    setSwitching(true);
+    setSwitchError(null);
+    try {
+      const response = await fetch("/api/active-tenant", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId })
+      });
+      if (!response.ok) throw new Error("Accès refusé");
+      router.replace("/dashboard");
+      router.refresh();
+    } catch {
+      setSwitchError("Impossible de changer d'entreprise.");
+    } finally {
+      setSwitching(false);
+    }
+  }
   const visibleNavItems = navItems.filter((item) => !item.adminOnly || account?.role === "owner" || account?.role === "admin");
 
   useEffect(() => {
