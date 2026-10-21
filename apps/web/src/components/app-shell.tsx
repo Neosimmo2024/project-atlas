@@ -76,8 +76,6 @@ export function AppShell({ children, account, tenants, activeTenantId }: {
   const [menuOpen, setMenuOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
   const [switchError, setSwitchError] = useState<string | null>(null);
-  const router = useRouter();
-
   async function switchTenant(tenantId: string) {
     if (tenantId === activeTenantId) return;
     setSwitching(true);
@@ -88,8 +86,8 @@ export function AppShell({ children, account, tenants, activeTenantId }: {
         body: JSON.stringify({ tenantId })
       });
       if (!response.ok) throw new Error("Accès refusé");
-      router.replace("/dashboard");
-      router.refresh();
+      // Discard all client state and prefetched pages from the previous company.
+      window.location.assign("/dashboard");
     } catch {
       setSwitchError("Impossible de changer d'entreprise.");
     } finally {
@@ -139,6 +137,17 @@ export function AppShell({ children, account, tenants, activeTenantId }: {
         </div>
         <GlobalSearch />
         <nav>{visibleNavItems.map((item) => <Link key={item.href} href={item.href}>{item.label}</Link>)}</nav>
+        {tenants.length > 1 ? (
+          <section aria-label="Entreprise active">
+            <label htmlFor="atlas-active-tenant">Entreprise</label>
+            <select id="atlas-active-tenant" value={activeTenantId ?? ""} disabled={switching}
+              onChange={(event) => void switchTenant(event.target.value)}>
+              {tenants.map((tenant) => <option key={tenant.id} value={tenant.id}>{tenant.name}</option>)}
+            </select>
+            {switching ? <p role="status">Changement d’entreprise…</p> : null}
+            {switchError ? <p role="alert">{switchError}</p> : null}
+          </section>
+        ) : null}
         <AccountIndicator account={account} />
         <button className="button subtle-button sidebar-close" type="button" onClick={() => setMenuOpen(false)}>Fermer</button>
       </aside>
