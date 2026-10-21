@@ -1,4 +1,6 @@
 "use client";
+import { isNeosBrevoTenant } from "@/lib/brevo-tenants";
+
 
 import type { SessionAccountSummary } from "@/features/session-account/session-account";
 import { GlobalSearch } from "@/components/global-search";
@@ -7,11 +9,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-const navItems: Array<{ href: string; label: string; adminOnly?: boolean }> = [
+const navItems: Array<{ href: string; label: string; adminOnly?: boolean; neosOnly?: boolean }> = [
   { href: "/dashboard", label: "Tableau de bord" },
   { href: "/action-plan", label: "Plan d’action" },
   { href: "/admin/team", label: "Administration de l’équipe", adminOnly: true },
-  { href: "/admin/recruitment-email-template", label: "Modèle du premier email", adminOnly: true },
+  { href: "/admin/recruitment-email-template", neosOnly: true, label: "Modèle du premier email", adminOnly: true },
+  { href: "/admin/brevo-contacts", neosOnly: true, label: "Suivi Brevo", adminOnly: true },
+  { href: "/admin/mailbox", neosOnly: true, label: "Réponses email", adminOnly: true },
   { href: "/people", label: "Personnes" },
   { href: "/organizations", label: "Organisations" },
   { href: "/relationships", label: "Relations" },
@@ -66,10 +70,35 @@ function AccountIndicator({ account }: { account: SessionAccountSummary | null }
   );
 }
 
-export function AppShell({ children, account }: { children: React.ReactNode; account: SessionAccountSummary | null }) {
+export function AppShell({ children, account, tenants, activeTenantId }: {
+  children: React.ReactNode;
+  account: SessionAccountSummary | null;
+  tenants: Array<{ id: string; name: string }>;
+  activeTenantId: string | null;
+}) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-  const visibleNavItems = navItems.filter((item) => !item.adminOnly || account?.role === "owner" || account?.role === "admin");
+  const [switching, setSwitching] = useState(false);
+  const [switchError, setSwitchError] = useState<string | null>(null);
+  async function switchTenant(tenantId: string) {
+    if (tenantId === activeTenantId) return;
+    setSwitching(true);
+    setSwitchError(null);
+    try {
+      const response = await fetch("/api/active-tenant", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId })
+      });
+      if (!response.ok) throw new Error("Accès refusé");
+      // Discard all client state and prefetched pages from the previous company.
+      window.location.assign("/dashboard");
+    } catch {
+      setSwitchError("Impossible de changer d'entreprise.");
+    } finally {
+      setSwitching(false);
+    }
+  }
+  const visibleNavItems = navItems.filter((item) => (!item.neosOnly || isNeosBrevoTenant(activeTenantId)) && (!item.adminOnly || account?.role === "owner" || account?.role === "admin"));
 
   useEffect(() => {
     setMenuOpen(false);
@@ -112,6 +141,18 @@ export function AppShell({ children, account }: { children: React.ReactNode; acc
         </div>
         <GlobalSearch />
         <nav>{visibleNavItems.map((item) => <Link key={item.href} href={item.href}>{item.label}</Link>)}</nav>
+        {tenants.length > 1 ? (
+          <section aria-label="Entreprise active">
+            <label htmlFor="atlas-active-tenant">Entreprise</label>
+            <select id="atlas-active-tenant" value={activeTenantId ?? ""} disabled={switching}
+              onChange={(event) => void switchTenant(event.target.value)}>
+              {tenants.map((tenant) => <option key={tenant.id} value={tenant.id}>{tenant.name}</option>)}
+            </select>
+            {switching ? <p role="status">Changement d’entreprise…</p> : null}
+            {switchError ? <p role="alert">{switchError}</p> : null}
+          </section>
+        ) : null}
+        {activeTenantId === "f716f14d-7fc8-4e33-a49a-18c6a2367816" && (account?.role === "owner" || account?.role === "admin") ? <Link href="/admin/brevo-vsc">Connexion Brevo VendreSonCommerce</Link> : null}
         <AccountIndicator account={account} />
         <button className="button subtle-button sidebar-close" type="button" onClick={() => setMenuOpen(false)}>Fermer</button>
       </aside>

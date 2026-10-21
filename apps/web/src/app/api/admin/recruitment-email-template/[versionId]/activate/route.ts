@@ -1,3 +1,4 @@
+import { isNeosBrevoTenant } from "@/lib/brevo-tenants";
 import { NextResponse } from "next/server";
 
 import { apiErrorResponse } from "@/lib/security/api-errors";
@@ -14,6 +15,7 @@ type RouteContext = { params: Promise<{ versionId: string }> };
 export async function POST(_request: Request, route: RouteContext) {
   try {
     const context = await getTenantContext();
+    if (context && !isNeosBrevoTenant(context.tenantId)) return NextResponse.json({ error: "Les fonctions de recrutement NEOS ne sont pas disponibles pour cette entreprise." }, { status: 403 });
     if (!context) return NextResponse.json({ error: "Tenant context not found" }, { status: 401 });
     if (context.role !== "owner" && context.role !== "admin") {
       return NextResponse.json({ error: "Action non autorisée." }, { status: 403 });
@@ -22,6 +24,7 @@ export async function POST(_request: Request, route: RouteContext) {
     const { versionId } = await route.params;
     const version = await getRecruitmentEmailTemplateVersion(context, versionId);
     if (!version) return NextResponse.json({ error: "Version introuvable." }, { status: 404 });
+    if (version.template_name.startsWith("Lyon")) return NextResponse.json({ error: "Les modèles Lyon se préparent depuis le projet Lyon et ne remplacent pas la campagne nationale." }, { status: 409 });
     if (version.status === "active" && version.brevo_template_id) {
       return NextResponse.json({ data: version, alreadyActive: true });
     }
@@ -30,7 +33,7 @@ export async function POST(_request: Request, route: RouteContext) {
       return NextResponse.json({ data: active, alreadySynced: true });
     }
 
-    const result = await createBrevoRecruitmentTemplate({
+    const result = await createBrevoRecruitmentTemplate(context.tenantId, {
       templateName: `${version.template_name} — v${version.version_number}`,
       subject: version.subject,
       senderName: version.sender_name,
