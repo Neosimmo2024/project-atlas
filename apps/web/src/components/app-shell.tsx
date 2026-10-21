@@ -150,6 +150,7 @@ export function AppShell({ children, account, tenants, activeTenantId }: {
             {switchError ? <p role="alert">{switchError}</p> : null}
           </section>
         ) : null}
+        {activeTenantId === "f716f14d-7fc8-4e33-a49a-18c6a2367816" && (account?.role === "owner" || account?.role === "admin") ? <Link href="/admin/brevo-vsc">Connexion Brevo VendreSonCommerce</Link> : null}
         <AccountIndicator account={account} />
         <button className="button subtle-button sidebar-close" type="button" onClick={() => setMenuOpen(false)}>Fermer</button>
       </aside>
