@@ -1,3 +1,4 @@
+import { NEOS_TENANT_ID, VSC_TENANT_ID } from "@/lib/brevo-tenants";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Person, RecruitmentEmailSequence, TenantContext } from "@/types/domain";
 
@@ -15,9 +16,9 @@ vi.mock("@/repositories/recruitment-email-sequences", () => ({
 vi.mock("@/repositories/recruitment-email-template-versions", () => ({ getActiveRecruitmentEmailTemplate: mocks.activeTemplate }));
 vi.mock("@/services/brevo", () => ({ sendInitialRecruitmentEmail: mocks.send }));
 
-const context: TenantContext = { tenantId: "tenant-a", tenant: { id: "tenant-a", name: "A" }, userId: "user-a", role: "recruiter" };
-const person = { id: "person-a", tenant_id: "tenant-a", display_name: "Alice Martin", primary_email: "alice@example.fr", contact_allowed: true, do_not_contact: false } as Person;
-const sequence = { id: "sequence-a", tenant_id: "tenant-a", person_id: person.id, email: person.primary_email, status: "pending" } as RecruitmentEmailSequence;
+const context: TenantContext = { tenantId: NEOS_TENANT_ID, tenant: { id: NEOS_TENANT_ID, name: "A" }, userId: "user-a", role: "recruiter" };
+const person = { id: "person-a", tenant_id: NEOS_TENANT_ID, display_name: "Alice Martin", primary_email: "alice@example.fr", contact_allowed: true, do_not_contact: false } as Person;
+const sequence = { id: "sequence-a", tenant_id: NEOS_TENANT_ID, person_id: person.id, email: person.primary_email, status: "pending" } as RecruitmentEmailSequence;
 const route = { params: Promise.resolve({ id: person.id }) };
 
 describe("recruitment email API", () => {
@@ -30,13 +31,24 @@ describe("recruitment email API", () => {
     mocks.activeTemplate.mockResolvedValue({ brevo_template_id: 88 });
   });
 
+  it("blocks VSC before claiming a sequence or accessing NEOS templates", async () => {
+    const { POST } = await import("../../app/api/people/[id]/recruitment-email/route");
+    mocks.context.mockResolvedValue({ ...context, tenantId: VSC_TENANT_ID });
+    const response = await POST(new Request("http://localhost", { method: "POST" }), route);
+    expect(response.status).toBe(403);
+    expect(mocks.person).not.toHaveBeenCalled();
+    expect(mocks.claim).not.toHaveBeenCalled();
+    expect(mocks.activeTemplate).not.toHaveBeenCalled();
+    expect(mocks.send).not.toHaveBeenCalled();
+  });
+
   it("sends once and stores the Brevo message id", async () => {
     const { POST } = await import("../../app/api/people/[id]/recruitment-email/route");
     mocks.send.mockResolvedValue({ success: true, messageId: "brevo-1" });
     mocks.complete.mockResolvedValue({ ...sequence, status: "sent", provider_message_id: "brevo-1" });
     const response = await POST(new Request("http://localhost", { method: "POST" }), route);
     expect(response.status).toBe(200);
-    expect(mocks.send).toHaveBeenCalledWith(expect.objectContaining({ sequenceId: "sequence-a", email: "alice@example.fr", templateId: 88 }));
+    expect(mocks.send).toHaveBeenCalledWith(expect.objectContaining({ tenantId: NEOS_TENANT_ID, sequenceId: "sequence-a", email: "alice@example.fr", templateId: 88 }));
     expect(mocks.complete).toHaveBeenCalledWith(context, "sequence-a", { success: true, providerMessageId: "brevo-1" });
   });
 

@@ -1,3 +1,4 @@
+import { isNeosBrevoTenant } from "@/lib/brevo-tenants";
 import "server-only";
 import { dispatchReplySmsAlerts } from "./reply-sms-alerts";
 import { syncBrevoOutboundHistory } from "./brevo-outbound-history";
@@ -14,11 +15,13 @@ type Configuration = { password: string; enabled: boolean; cursor?: number; vali
 const key = (tenantId: string) => `atlas_planet_mailbox_${tenantId}`;
 
 async function configuration(tenantId: string): Promise<Configuration | null> {
+  if (!isNeosBrevoTenant(tenantId)) return null;
   const { data, error } = await createSupabaseServiceRoleClient().rpc("get_vault_secret_value", { p_name: key(tenantId) });
   if (error) throw new Error("MAILBOX_STORAGE_UNAVAILABLE");
   return data ? JSON.parse(data as string) as Configuration : null;
 }
 async function save(tenantId: string, config: Configuration) {
+  if (!isNeosBrevoTenant(tenantId)) throw new Error("MAILBOX_TENANT_FORBIDDEN");
   const { error } = await createSupabaseServiceRoleClient().rpc("set_vault_secret_value", {
     p_name: key(tenantId), p_value: JSON.stringify(config), p_description: "Atlas PlanetHoster mailbox — server only"
   });
@@ -30,11 +33,13 @@ function client(password: string) {
     socketTimeout: 30000, tls: { rejectUnauthorized: true } });
 }
 export async function mailboxStatus(tenantId: string) {
+  if (!isNeosBrevoTenant(tenantId)) throw new Error("MAILBOX_TENANT_FORBIDDEN");
   const config = await configuration(tenantId);
   return { host, port: 993, email, configured: Boolean(config), enabled: config?.enabled ?? false,
     lastSync: config?.lastSync ?? null, lastError: config?.lastError ?? null, processed: config?.processed ?? 0, remaining: config?.remaining ?? null };
 }
 export async function connectMailbox(tenantId: string, password: string) {
+  if (!isNeosBrevoTenant(tenantId)) throw new Error("MAILBOX_TENANT_FORBIDDEN");
   const imap = client(password);
   try {
     await imap.connect();

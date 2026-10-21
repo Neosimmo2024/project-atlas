@@ -1,3 +1,4 @@
+import { NEOS_TENANT_ID } from "@/lib/brevo-tenants";
 import { buildRecruitmentEmailHtml, type RecruitmentEmailTemplateInput } from "@/features/recruitment-email-template/model";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 import { createBrevoRecruitmentTemplate } from "@/services/brevo";
@@ -82,7 +83,7 @@ export async function bootstrapRecruitmentFollowUpTemplates() {
       continue;
     }
 
-    const creation = await createBrevoRecruitmentTemplate({
+    const creation = await createBrevoRecruitmentTemplate(NEOS_TENANT_ID, {
       templateName: item.template.templateName,
       subject: item.template.subject,
       senderName: item.template.senderName,

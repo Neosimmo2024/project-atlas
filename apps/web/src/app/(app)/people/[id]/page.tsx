@@ -1,3 +1,4 @@
+import { isNeosBrevoTenant } from "@/lib/brevo-tenants";
 import { ReplyReviewList } from "@/components/mailbox/reply-review-list";
 import { availableWhatsAppTemplates } from "@/features/whatsapp/templates";
 import { WhatsAppFollowupCard } from "@/components/people/whatsapp-followup-card";
@@ -129,7 +130,7 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
 
       <WhatsAppFollowupCard personId={person.id} name={person.first_name ?? ""} phone={person.primary_phone} canContact={!person.do_not_contact && (person.contact_allowed || whatsappFollowup.consent)} canEdit={context.role !== "reader"} consent={whatsappFollowup.consent} history={whatsappFollowup.history} sent={whatsappFollowup.sent} templates={availableWhatsAppTemplates(Date.now())} />
 
-      {!isLyonProfile ? <RecruitmentEmailSequenceCard
+      {isNeosBrevoTenant(context.tenantId) && !isLyonProfile ? <RecruitmentEmailSequenceCard
         personId={person.id}
         email={person.primary_email}
         canContact={person.contact_allowed && !person.do_not_contact}

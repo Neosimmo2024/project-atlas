@@ -1,6 +1,7 @@
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 import { getLyonCampaignForPerson } from "@/services/lyon-email-campaign";
 import { canLaunchLyon, makeLyonSnapshot } from "@/features/recruitment-email/lyon-campaign";
+import { isNeosBrevoTenant } from "@/lib/brevo-tenants";
 import { NextResponse } from "next/server";
 import { apiErrorResponse } from "@/lib/security/api-errors";
 import { getPersonDetail } from "@/repositories/people";
@@ -31,6 +32,7 @@ export async function GET(_request: Request, route: RouteContext) {
 export async function POST(_request: Request, route: RouteContext) {
   try {
     const context = await getTenantContext();
+    if (context && !isNeosBrevoTenant(context.tenantId)) return NextResponse.json({ error: "Les fonctions de recrutement NEOS ne sont pas disponibles pour cette entreprise." }, { status: 403 });
     if (!context) return NextResponse.json({ error: "Tenant context not found" }, { status: 401 });
     if (context.role === "reader") return NextResponse.json({ error: "Action non autorisée." }, { status: 403 });
     const { id } = await route.params;
@@ -60,6 +62,7 @@ export async function POST(_request: Request, route: RouteContext) {
     }
     const activeTemplate = lyon ? null : await getActiveRecruitmentEmailTemplate(context);
     const result = await sendInitialRecruitmentEmail({
+      tenantId: context.tenantId,
       sequenceId: sequence.id,
       email: sequence.email,
       displayName: detail.person.display_name,

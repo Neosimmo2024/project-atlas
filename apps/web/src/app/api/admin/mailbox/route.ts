@@ -1,3 +1,4 @@
+import { isNeosBrevoTenant } from "@/lib/brevo-tenants";
 import { NextResponse } from "next/server";
 import { getTenantContext } from "@/repositories/tenant-context";
 import { connectMailbox, mailboxStatus, pauseMailbox, syncMailbox } from "@/services/planet-mailbox";
@@ -6,7 +7,7 @@ export const runtime = "nodejs";
 export const maxDuration = 120;
 async function context() {
   const value = await getTenantContext();
-  return value && ["owner", "admin"].includes(value.role) ? value : null;
+  return value && isNeosBrevoTenant(value.tenantId) && ["owner", "admin"].includes(value.role) ? value : null;
 }
 export async function GET() {
   try {

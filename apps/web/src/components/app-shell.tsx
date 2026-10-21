@@ -1,4 +1,6 @@
 "use client";
+import { isNeosBrevoTenant } from "@/lib/brevo-tenants";
+
 
 import type { SessionAccountSummary } from "@/features/session-account/session-account";
 import { GlobalSearch } from "@/components/global-search";
@@ -7,13 +9,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-const navItems: Array<{ href: string; label: string; adminOnly?: boolean }> = [
+const navItems: Array<{ href: string; label: string; adminOnly?: boolean; neosOnly?: boolean }> = [
   { href: "/dashboard", label: "Tableau de bord" },
   { href: "/action-plan", label: "Plan d’action" },
   { href: "/admin/team", label: "Administration de l’équipe", adminOnly: true },
-  { href: "/admin/recruitment-email-template", label: "Modèle du premier email", adminOnly: true },
-  { href: "/admin/brevo-contacts", label: "Suivi Brevo", adminOnly: true },
-  { href: "/admin/mailbox", label: "Réponses email", adminOnly: true },
+  { href: "/admin/recruitment-email-template", neosOnly: true, label: "Modèle du premier email", adminOnly: true },
+  { href: "/admin/brevo-contacts", neosOnly: true, label: "Suivi Brevo", adminOnly: true },
+  { href: "/admin/mailbox", neosOnly: true, label: "Réponses email", adminOnly: true },
   { href: "/people", label: "Personnes" },
   { href: "/organizations", label: "Organisations" },
   { href: "/relationships", label: "Relations" },
@@ -96,7 +98,7 @@ export function AppShell({ children, account, tenants, activeTenantId }: {
       setSwitching(false);
     }
   }
-  const visibleNavItems = navItems.filter((item) => !item.adminOnly || account?.role === "owner" || account?.role === "admin");
+  const visibleNavItems = navItems.filter((item) => (!item.neosOnly || isNeosBrevoTenant(activeTenantId)) && (!item.adminOnly || account?.role === "owner" || account?.role === "admin"));
 
   useEffect(() => {
     setMenuOpen(false);

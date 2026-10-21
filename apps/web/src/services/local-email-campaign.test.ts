@@ -22,7 +22,8 @@ describe("approved Saint-Maur template preparation", () => {
     const { db,updates }=database(); const config=await prepareLocalEmailCampaign(db,"project");
     expect(config).toMatchObject({ template_ids: [81,82,83,84], launch_enabled: false, sender_verified: true });
     expect(mocks.verify).toHaveBeenCalledTimes(4);
-    const html=mocks.create.mock.calls[0][0].htmlContent as string;
+    expect(mocks.create.mock.calls.every(([tenantId]) => tenantId === "tenant")).toBe(true);
+    const html=mocks.create.mock.calls[0][1].htmlContent as string;
     expect(html).toContain("18 %"); expect(html).toContain("{{ params.PRENOM }}"); expect(html).toContain("{{ params.VILLE }}");
     expect(html).not.toContain("\\n"); expect(html).not.toContain("[Prénom]");
     expect(html.match(/Président<br \/>Expert Immobilier/g)).toHaveLength(1);

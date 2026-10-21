@@ -1,3 +1,4 @@
+import { isNeosBrevoTenant } from "@/lib/brevo-tenants";
 import { ApiError } from "@/lib/api-errors";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 
@@ -15,7 +16,8 @@ export async function prepareBrevoContact(_payload: BrevoContactPayload) {
   return { prepared: true, sent: false, reason: "Brevo automations are intentionally out of scope for this ticket." };
 }
 
-function brevoApiKey() {
+function brevoApiKey(tenantId: string) {
+  if (!isNeosBrevoTenant(tenantId)) return null;
   const apiKey = process.env.BREVO_API_KEY?.trim();
   return apiKey || null;
 }
@@ -25,21 +27,22 @@ function recruitmentReplyAddress(sequenceId: string) {
   return domain ? `recrutement+${sequenceId}@${domain}` : null;
 }
 
-async function recruitmentReplyAddressForStep(stepId: string) {
+async function recruitmentReplyAddressForStep(tenantId: string, stepId: string) {
   const domain = process.env.BREVO_RECRUITMENT_INBOUND_DOMAIN?.trim().toLowerCase();
   if (!domain) return null;
   const supabase = createSupabaseServiceRoleClient();
   const { data, error } = await supabase
     .from("recruitment_email_sequence_steps")
     .select("sequence_id")
+    .eq("tenant_id", tenantId)
     .eq("id", stepId)
     .maybeSingle();
   if (error || !data?.sequence_id) return null;
   return `recrutement+${data.sequence_id as string}@${domain}`;
 }
 
-function brevoConfiguration(templateOverride?: number | null) {
-  const apiKey = brevoApiKey();
+function brevoConfiguration(tenantId: string, templateOverride?: number | null) {
+  const apiKey = brevoApiKey(tenantId);
   const override = Number(templateOverride);
   const templateId = Number(process.env.BREVO_INITIAL_RECRUITMENT_TEMPLATE_ID);
   const selectedTemplateId = Number.isInteger(override) && override > 0 ? override : templateId;
@@ -47,8 +50,8 @@ function brevoConfiguration(templateOverride?: number | null) {
   return { apiKey, templateId: selectedTemplateId };
 }
 
-async function brevoFollowUpConfiguration(stepIndex: 1 | 2) {
-  const apiKey = brevoApiKey();
+async function brevoFollowUpConfiguration(tenantId: string, stepIndex: 1 | 2) {
+  const apiKey = brevoApiKey(tenantId);
   if (!apiKey) return null;
   const supabase = createSupabaseServiceRoleClient();
   const { data, error } = await supabase.rpc("get_recruitment_follow_up_template_id", { p_step_index: stepIndex });
@@ -98,8 +101,8 @@ export type BrevoTemplatePayload = {
   tag?: string;
 };
 
-export async function createBrevoRecruitmentTemplate(payload: BrevoTemplatePayload) {
-  const apiKey = brevoApiKey();
+export async function createBrevoRecruitmentTemplate(tenantId: string, payload: BrevoTemplatePayload) {
+  const apiKey = brevoApiKey(tenantId);
   if (!apiKey) return { success: false as const, error: "Configuration Brevo incomplète." };
   try {
     const response = await fetch("https://api.brevo.com/v3/smtp/templates", {
@@ -127,13 +130,14 @@ export async function createBrevoRecruitmentTemplate(payload: BrevoTemplatePaylo
 }
 
 export async function sendInitialRecruitmentEmail(input: {
+  tenantId: string;
   sequenceId: string;
   email: string;
   displayName: string;
   templateId?: number | null;
   params?: Record<string, string>;
 }): Promise<BrevoSendResult> {
-  const configuration = brevoConfiguration(input.templateId);
+  const configuration = brevoConfiguration(input.tenantId, input.templateId);
   if (!configuration) return { success: false, error: "Configuration Brevo incomplète." };
   return sendBrevoTemplateEmail({
     ...configuration,
@@ -146,6 +150,7 @@ export async function sendInitialRecruitmentEmail(input: {
 }
 
 export async function sendRecruitmentFollowUpEmail(input: {
+  tenantId: string;
   stepId: string;
   stepIndex: 1 | 2;
   templateId?: number;
@@ -154,8 +159,8 @@ export async function sendRecruitmentFollowUpEmail(input: {
   params?: Record<string, string>;
 }): Promise<BrevoSendResult> {
   const configuration = input.templateId === undefined
-    ? await brevoFollowUpConfiguration(input.stepIndex)
-    : Number.isInteger(input.templateId) && input.templateId > 0 ? brevoConfiguration(input.templateId) : null;
+    ? await brevoFollowUpConfiguration(input.tenantId, input.stepIndex)
+    : Number.isInteger(input.templateId) && input.templateId > 0 ? brevoConfiguration(input.tenantId, input.templateId) : null;
   if (!configuration) return { success: false, error: `Configuration Brevo relance ${input.stepIndex} incomplète.` };
   return sendBrevoTemplateEmail({
     ...configuration,
@@ -163,13 +168,13 @@ export async function sendRecruitmentFollowUpEmail(input: {
     email: input.email,
     displayName: input.displayName,
     params: input.params,
-    replyTo: await recruitmentReplyAddressForStep(input.stepId)
+    replyTo: await recruitmentReplyAddressForStep(input.tenantId, input.stepId)
   });
 }
 
 
-export async function verifyBrevoSender(email: string) {
-  const apiKey = brevoApiKey();
+export async function verifyBrevoSender(tenantId: string, email: string) {
+  const apiKey = brevoApiKey(tenantId);
   if (!apiKey) throw new ApiError("Configuration Brevo incomplète.", 409, "BREVO_NOT_CONFIGURED");
   const response = await fetch("https://api.brevo.com/v3/senders", { headers: { "api-key": apiKey, accept: "application/json" }, cache: "no-store" });
   const body = await response.json() as { senders?: { email: string; active: boolean }[] };
@@ -178,8 +183,8 @@ export async function verifyBrevoSender(email: string) {
   }
 }
 
-export async function verifyBrevoTemplate(id: number, expected: { subject: string; sender_email: string; reply_to: string | null; html_content: string }) {
-  const apiKey = brevoApiKey();
+export async function verifyBrevoTemplate(tenantId: string, id: number, expected: { subject: string; sender_email: string; reply_to: string | null; html_content: string }) {
+  const apiKey = brevoApiKey(tenantId);
   if (!apiKey) throw new ApiError("Configuration Brevo incomplète.", 409, "BREVO_NOT_CONFIGURED");
   const response = await fetch(`https://api.brevo.com/v3/smtp/templates/${id}`, { headers: { "api-key": apiKey, accept: "application/json" }, cache: "no-store" });
   const body = await response.json() as { isActive?: boolean; subject?: string; sender?: { email?: string }; replyTo?: string; htmlContent?: string };

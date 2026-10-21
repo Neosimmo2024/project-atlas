@@ -29,7 +29,7 @@ describe("dedicated Lyon preparation", () => {
     expect(ready).toMatchObject({ state: "ready", launch_enabled: false, sender_verified: true, template_ids: [21,22,23] });
     expect(canLaunchLyon(ready, personId)).toBe(false);
     expect(mocks.create).toHaveBeenCalledTimes(3);
-    expect(mocks.sender).toHaveBeenCalledWith("renato.ponzio@neos-immo.com");
+    expect(mocks.sender).toHaveBeenCalledWith("tenant", "renato.ponzio@neos-immo.com");
     expect(from.mock.calls.every(([table]) => ["projects", "people", "recruitment_email_template_versions"].includes(table))).toBe(true);
     expect(updates.at(-1)).toMatchObject({ metadata: { unrelated: "preserved", lyon_development: { no_outreach: true }, recruitment_email_campaign: { launch_enabled: false } } });
   });

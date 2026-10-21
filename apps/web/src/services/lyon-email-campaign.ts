@@ -37,12 +37,12 @@ export async function prepareLyonEmailCampaign(db: SupabaseClient, tenantId: str
   if (people?.length !== campaign.recipient_ids.length || people.some(p => !p.primary_email || p.do_not_contact || !isLyonRecruitmentProfile(p.comments))) {
     throw new ApiError("Vérifiez les adresses et les restrictions des destinataires Lyon.", 409, "INVALID_RECIPIENTS");
   }
-  await verifyBrevoSender(LYON_SENDER);
+  await verifyBrevoSender(tenantId, LYON_SENDER);
   const templateIds: number[] = [...(campaign.template_ids ?? campaign.pending_template_ids ?? [])];
   for (let index = 0; index < 3; index++) {
     const version = ordered[index]!;
     if (!templateIds[index]) {
-      const result = await createBrevoRecruitmentTemplate({ templateName: `${version.template_name} — v${version.version_number}`,
+      const result = await createBrevoRecruitmentTemplate(tenantId, { templateName: `${version.template_name} — v${version.version_number}`,
         subject: version.subject, senderName: version.sender_name, senderEmail: version.sender_email,
         replyTo: version.reply_to, htmlContent: version.html_content, tag: "atlas-lyon-development" });
       if (!result.success) throw new ApiError(result.error, 502, "BREVO_TEMPLATE_ERROR");
@@ -53,7 +53,7 @@ export async function prepareLyonEmailCampaign(db: SupabaseClient, tenantId: str
         .eq("tenant_id", tenantId).eq("id", projectId);
       if (progressError) throw progressError;
     }
-    await verifyBrevoTemplate(templateIds[index], version);
+    await verifyBrevoTemplate(tenantId, templateIds[index], version);
   }
   const ready = lyonCampaignSchema.parse({ ...campaign, state: "ready", launch_enabled: false,
     template_ids: templateIds, sender_verified: true, prepared_at: new Date().toISOString() });

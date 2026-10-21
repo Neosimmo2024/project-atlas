@@ -308,10 +308,11 @@ async function processDueSteps(limit = 25, calendarVerified = true) {
     if (!typedPerson || !typedPerson.contact_allowed || typedPerson.do_not_contact || !email) {
       result = { success: false, error: "Contact non autorisé ou email manquant au moment de l’envoi." };
     } else if (step.step_index === 0 && local && !local.blocked) {
-      result = await sendInitialRecruitmentEmail({ sequenceId: step.sequence_id, email, displayName: typedPerson.display_name,
+      result = await sendInitialRecruitmentEmail({ tenantId: step.tenant_id, sequenceId: step.sequence_id, email, displayName: typedPerson.display_name,
         templateId: local.snapshot.template_ids[0], params: { PRENOM: local.snapshot.first_name, VILLE: local.snapshot.city } });
     } else if (step.step_index === 1 || step.step_index === 2) {
       result = await sendRecruitmentFollowUpEmail({
+        tenantId: step.tenant_id,
         stepId: step.id,
         stepIndex: step.step_index,
         email,

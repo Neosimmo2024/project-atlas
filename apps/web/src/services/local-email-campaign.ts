@@ -36,11 +36,11 @@ export async function prepareLocalEmailCampaign(db: SupabaseClient, projectId: s
   const contentHash = createHash("sha256").update(JSON.stringify({ html, subjects, sender: LOCAL_SENDER, recipientIds, batches: review.batches, approved_at: review.approved_at })).digest("hex");
   if (previous?.content_hash && previous.content_hash !== contentHash) throw new ApiError("Le dossier préparé a changé. Préparation bloquée.", 409, "LOCAL_APPROVAL_CHANGED");
   await getLocalBookedEmails();
-  await verifyBrevoSender(LOCAL_SENDER);
+  await verifyBrevoSender(project.tenant_id, LOCAL_SENDER);
   const templateIds: number[] = [...(previous?.template_ids ?? [])];
   for (let i = 0; i < 4; i++) {
     if (!templateIds[i]) {
-      const result = await createBrevoRecruitmentTemplate({ templateName: `Saint-Maur 20261016 — ${["initial local", "initial proximité", "J10", "J20"][i]}`,
+      const result = await createBrevoRecruitmentTemplate(project.tenant_id, { templateName: `Saint-Maur 20261016 — ${["initial local", "initial proximité", "J10", "J20"][i]}`,
         subject: subjects[i], senderName: "NEOS IMMO", senderEmail: LOCAL_SENDER, replyTo: LOCAL_SENDER, htmlContent: html[i], tag: "atlas-saint-maur-local" });
       if (!result.success) throw new ApiError(result.error, 502, "BREVO_TEMPLATE_ERROR");
       templateIds[i] = result.templateId;
@@ -48,7 +48,7 @@ export async function prepareLocalEmailCampaign(db: SupabaseClient, projectId: s
         local_recruitment_campaign: { key: LOCAL_CAMPAIGN_KEY, content_hash: contentHash, template_ids: templateIds, state: "preparing" } } }).eq("id", projectId).eq("tenant_id", project.tenant_id);
       if (saveError) throw saveError;
     }
-    await verifyBrevoTemplate(templateIds[i], { subject: subjects[i], sender_email: LOCAL_SENDER, reply_to: LOCAL_SENDER, html_content: html[i] });
+    await verifyBrevoTemplate(project.tenant_id, templateIds[i], { subject: subjects[i], sender_email: LOCAL_SENDER, reply_to: LOCAL_SENDER, html_content: html[i] });
   }
   const config = { key: LOCAL_CAMPAIGN_KEY, state: "ready", launch_enabled: false, sender_verified: true,
     template_ids: templateIds, content_hash: contentHash, recipient_ids: recipientIds, prepared_at: new Date().toISOString() };

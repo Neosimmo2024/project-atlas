@@ -1,3 +1,4 @@
+import { isNeosBrevoTenant } from "@/lib/brevo-tenants";
 import Link from "next/link";
 import { BrevoCoverage } from "@/components/mailbox/brevo-coverage";
 import { getTenantContext } from "@/repositories/tenant-context";
@@ -7,7 +8,7 @@ import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 export const dynamic = "force-dynamic";
 export default async function MailboxPage() {
   const ctx = await getTenantContext();
-  if (!ctx || !["owner", "admin"].includes(ctx.role)) return <div className="page"><h1>Accès non autorisé</h1></div>;
+  if (!ctx || !isNeosBrevoTenant(ctx.tenantId) || !["owner", "admin"].includes(ctx.role)) return <div className="page"><h1>Accès non autorisé</h1></div>;
   const status = await mailboxStatus(ctx.tenantId);
   const { data } = await createSupabaseServiceRoleClient().from("timeline_events")
     .select("id,title,person_id,occurred_at,metadata").eq("tenant_id", ctx.tenantId)
