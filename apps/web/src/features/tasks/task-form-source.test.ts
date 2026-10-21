@@ -72,4 +72,25 @@ describe("task form source", () => {
       relationship_id: null
     }, relationships, { personId: "person-jean" })).toBe(false);
   });
+
+  it("associates a task with a selected project profile without admitting unrelated people", () => {
+    const project = { id: "lyon", title: "Lyon", status: "open" as const, archived_at: null, person_id: null,
+      organization_id: null, relationship_id: null, metadata: { lyon_development: { person_ids: ["person-jean"] } } };
+    expect(projectMatchesTaskContext(project, new Map(), { personId: "person-jean" })).toBe(true);
+    expect(projectMatchesTaskContext(project, new Map(), { personId: "other-person" })).toBe(false);
+    expect(projectMatchesTaskContext({ ...project, archived_at: "2026-01-01" }, new Map(), { personId: "person-jean" })).toBe(false);
+  });
+
+  it("keeps the contextual return target after task creation and editing", () => {
+    const form = readFileSync(join(process.cwd(), "src/components/tasks/task-form.tsx"), "utf8");
+    const newTaskPage = readFileSync(join(process.cwd(), "src/app/(app)/tasks/new/page.tsx"), "utf8");
+    const taskDetailPage = readFileSync(join(process.cwd(), "src/app/(app)/tasks/[id]/page.tsx"), "utf8");
+    const personDetailPage = readFileSync(join(process.cwd(), "src/app/(app)/people/[id]/page.tsx"), "utf8");
+
+    expect(personDetailPage).toContain("returnTo=${encodeURIComponent(personReturnPath)}");
+    expect(newTaskPage).toContain('safeTaskReturnTo(valueOf(params, "returnTo"))');
+    expect(newTaskPage).toContain("returnTo={returnTo}");
+    expect(taskDetailPage).toContain("returnTo={returnTo}");
+    expect(form).toContain("returnTo ? `${taskHref}?returnTo=${encodeURIComponent(returnTo)}` : taskHref");
+  });
 });

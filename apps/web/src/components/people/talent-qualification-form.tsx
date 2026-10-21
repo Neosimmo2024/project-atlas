@@ -16,6 +16,7 @@ export function TalentQualificationForm({ personId, qualification, canEdit }: Pr
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const isCompleted = qualification?.state === "completed";
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -30,7 +31,7 @@ export function TalentQualificationForm({ personId, qualification, canEdit }: Pr
     const result = await response.json();
     setLoading(false);
     if (!response.ok) { setErrors(result.fields ?? []); setMessage(result.error ?? "Enregistrement impossible."); return; }
-    setMessage(payload.action === "finalize" ? "Qualification terminée." : "Brouillon enregistré.");
+    setMessage(payload.action === "finalize" ? (isCompleted ? "Qualification mise à jour." : "Qualification terminée.") : "Brouillon enregistré.");
     router.refresh();
   }
 
@@ -39,19 +40,19 @@ export function TalentQualificationForm({ personId, qualification, canEdit }: Pr
   return (
     <form className="form qualification-form" onSubmit={submit}>
       {message ? <p className={errors.length ? "error" : "success"}>{message}</p> : null}
-      <div className="form-grid">
-        <label>Expérience immobilière<Input name="experience_level" defaultValue={value(qualification?.experience_level)} disabled={!canEdit} /></label>
-        <label>Statut professionnel actuel<Input name="professional_status" defaultValue={value(qualification?.professional_status)} disabled={!canEdit} /></label>
+      <div className="form-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))" }}>
+        <label>Expérience immobilière<textarea className="input" style={{ minHeight: "72px", resize: "vertical" }} rows={2} name="experience_level" defaultValue={value(qualification?.experience_level)} disabled={!canEdit} /></label>
+        <label>Statut professionnel actuel<textarea className="input" style={{ minHeight: "72px", resize: "vertical" }} rows={2} name="professional_status" defaultValue={value(qualification?.professional_status)} disabled={!canEdit} /></label>
         <label>Ancienneté dans l’immobilier (années)<Input name="years_in_real_estate" type="number" min={0} max={80} defaultValue={value(qualification?.years_in_real_estate)} disabled={!canEdit} />{errorFor("years_in_real_estate") ? <span className="field-error">{errorFor("years_in_real_estate")}</span> : null}</label>
-        <label>Situation vis-à-vis de la TVA<Input name="vat_situation" defaultValue={value(qualification?.vat_situation)} disabled={!canEdit} /></label>
-        <label>Réseau ou structure actuelle<Input name="current_network" defaultValue={value(qualification?.current_network)} disabled={!canEdit} /></label>
-        <label>Secteur géographique travaillé<Input name="geographic_area" defaultValue={value(qualification?.geographic_area)} disabled={!canEdit} /></label>
-        <label>Disponibilité<Input name="availability" defaultValue={value(qualification?.availability)} disabled={!canEdit} /></label>
-        <label>Niveau de maturité du projet<Input name="project_maturity" defaultValue={value(qualification?.project_maturity)} disabled={!canEdit} /></label>
+        <label>Situation vis-à-vis de la TVA<textarea className="input" style={{ minHeight: "72px", resize: "vertical" }} rows={2} name="vat_situation" defaultValue={value(qualification?.vat_situation)} disabled={!canEdit} /></label>
+        <label>Réseau ou structure actuelle<textarea className="input" style={{ minHeight: "72px", resize: "vertical" }} rows={2} name="current_network" defaultValue={value(qualification?.current_network)} disabled={!canEdit} /></label>
+        <label>Secteur géographique travaillé<textarea className="input" style={{ minHeight: "72px", resize: "vertical" }} rows={2} name="geographic_area" defaultValue={value(qualification?.geographic_area)} disabled={!canEdit} /></label>
+        <label>Disponibilité<textarea className="input" style={{ minHeight: "72px", resize: "vertical" }} rows={2} name="availability" defaultValue={value(qualification?.availability)} disabled={!canEdit} /></label>
+        <label>Niveau de maturité du projet<textarea className="input" style={{ minHeight: "72px", resize: "vertical" }} rows={2} name="project_maturity" defaultValue={value(qualification?.project_maturity)} disabled={!canEdit} /></label>
       </div>
       <label>Motivation<textarea className="input textarea" name="motivation" defaultValue={value(qualification?.motivation)} disabled={!canEdit} /></label>
-      <label>Besoin principal identifié<textarea className="input textarea" name="primary_need" defaultValue={value(qualification?.primary_need)} disabled={!canEdit} /></label>
-      <label>Commentaire de qualification<textarea className="input textarea" name="comments" defaultValue={value(qualification?.comments)} disabled={!canEdit} /></label>
+      <label>Besoin principal identifié<textarea className="input" rows={2} style={{ minHeight: "72px", resize: "vertical" }} name="primary_need" defaultValue={value(qualification?.primary_need)} disabled={!canEdit} /></label>
+      <label>Commentaire de qualification<textarea className="input textarea" rows={12} name="comments" defaultValue={value(qualification?.comments)} disabled={!canEdit} /></label>
       <label>Conclusion
         <select className="input" name="conclusion" defaultValue={qualification?.conclusion ?? ""} disabled={!canEdit}>
           <option value="">À décider</option>
@@ -60,8 +61,8 @@ export function TalentQualificationForm({ personId, qualification, canEdit }: Pr
         {errorFor("conclusion") ? <span className="field-error">{errorFor("conclusion")}</span> : null}
       </label>
       {canEdit ? <div className="actions qualification-actions">
-        <Button type="submit" name="action" value="draft" disabled={loading}>Enregistrer le brouillon</Button>
-        <Button type="submit" name="action" value="finalize" disabled={loading}>Terminer la qualification</Button>
+        {!isCompleted ? <Button type="submit" name="action" value="draft" disabled={loading}>Enregistrer le brouillon</Button> : null}
+        <Button type="submit" name="action" value="finalize" disabled={loading}>{isCompleted ? "Enregistrer les modifications" : "Terminer la qualification"}</Button>
       </div> : <p className="muted">Votre rôle permet la consultation, mais pas la modification.</p>}
     </form>
   );

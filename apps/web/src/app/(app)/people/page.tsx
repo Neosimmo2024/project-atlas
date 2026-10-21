@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import type { InputHTMLAttributes } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { PERSON_STATUS_LABELS, PERSON_STATUSES, PRIORITIES, PRIORITY_LABELS } from "@/features/people/options";
@@ -25,19 +25,21 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
   const params = await searchParams;
   const context = await getTenantContext();
   const query = valueOf(params, "query");
+  const affiliation = valueOf(params, "affiliation");
   const status = valueOf(params, "status");
   const priority = valueOf(params, "priority");
   const qualificationState = valueOf(params, "qualificationState");
   const talentScore = valueOf(params, "talentScore");
   const page = Number(valueOf(params, "page") || 1);
   const currentParams = new URLSearchParams();
+  if (affiliation) currentParams.set("affiliation", affiliation);
   if (query) currentParams.set("query", query);
   if (status) currentParams.set("status", status);
   if (priority) currentParams.set("priority", priority);
   if (qualificationState) currentParams.set("qualificationState", qualificationState);
   if (talentScore) currentParams.set("talentScore", talentScore);
 
-  const result = context ? await listPeople(context, { query, status, priority, qualificationState, talentScore, page, pageSize: 10 }) : { people: [], total: 0, page: 1, pageSize: 10, pageCount: 1 };
+  const result = context ? await listPeople(context, { query, affiliation, status, priority, qualificationState, talentScore, page, pageSize: 10 }) : { people: [], total: 0, organizations: [], unknownAffiliations: 0, whatsappReady: 0, whatsappRemaining: 0, page: 1, pageSize: 10, pageCount: 1 };
 
   return (
     <div className="page stack">
@@ -80,20 +82,38 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
             {Array.from({ length: 11 }, (_, score) => <option key={score} value={score}>{score} / 10</option>)}
           </select>
         </label>
+        <label>Réseau / agence
+          <select className="input" name="affiliation" defaultValue={affiliation}>
+            <option value="">Tous les réseaux et agences</option>
+            {result.organizations.map((item) => <option key={item.name} value={item.name}>{item.name} ({item.count})</option>)}
+            {result.unknownAffiliations > 0 ? <option value="__unknown">Non renseigné ({result.unknownAffiliations})</option> : null}
+          </select>
+        </label>
         <button className="button" type="submit">Filtrer</button>
       </form>
+
+      <div className="card" role="status" aria-label="Compteurs des contacts">
+        <strong>{result.total} personnes trouvées</strong>
+        <p>{result.whatsappReady} contacts prêts pour WhatsApp · {result.whatsappRemaining} restant à inviter à l’afterwork.</p>
+        <p className="muted">En premier : téléphone valide et accord WhatsApp enregistré, invitation non confirmée. La présence sur WhatsApp reste à vérifier à l’ouverture.</p>
+      </div>
 
       {result.people.length === 0 ? <EmptyState title="Aucune personne" body="Les talents importés ou créés apparaîtront ici." /> : (
         <div className="data-table people-table">
           <div className="table-head">
-            <span>Nom</span><span>Prénom</span><span>Email</span><span>Téléphone</span><span>Ville</span><span>Statut</span><span>Priorité</span><span>Qualification</span><span>Score</span><span>Source</span>
+            <span>Nom</span><span>Prénom</span><span>Réseau / agence</span><span>Email</span><span>Téléphone</span><span>Ville</span><span>Statut</span><span>Priorité</span><span>Qualification</span><span>Score</span><span>Source</span>
           </div>
           {result.people.map((person) => (
             <Link key={person.id} href={`/people/${person.id}`} className="table-row">
               <span>{person.last_name ?? "-"}</span>
               <span>{person.first_name ?? "-"}</span>
+              <span className="cell-affiliation">{person.affiliations?.length ? person.affiliations.map((item) => (
+                <span key={`${item.type}:${item.name}`} style={{ display: "block" }}>
+                  <strong>{item.name}</strong><br /><small>{item.from_source ? "Selon la source" : item.type === "network" ? "Réseau" : "Agence"}</small>
+                </span>
+              )) : <span className="muted">Non renseigné</span>}</span>
               <span className="cell-email">{person.primary_email ?? "-"}</span>
-              <span className="cell-phone">{person.primary_phone ?? "-"}</span>
+              <span className="cell-phone">{person.primary_phone ?? "-"}<br /><small>{person.whatsapp_invited ? "Invitation confirmée" : person.whatsapp_ready ? "Prêt pour WhatsApp" : ""}</small></span>
               <span className="cell-city">{person.city ?? "-"}</span>
               <span>{PERSON_STATUS_LABELS[person.status]}</span>
               <span>{PRIORITY_LABELS[person.priority]}</span>

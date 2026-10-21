@@ -17,7 +17,7 @@ function supabaseOrigin() {
   }
 }
 
-export function buildContentSecurityPolicy() {
+export function buildContentSecurityPolicy(nonce?: string) {
   const isDevelopment = process.env.NODE_ENV !== "production";
   const connectSources = ["'self'"];
   const supabase = supabaseOrigin();
@@ -25,7 +25,12 @@ export function buildContentSecurityPolicy() {
   if (supabase) connectSources.push(supabase);
   if (isDevelopment) connectSources.push("http://127.0.0.1:*", "http://localhost:*", "ws:", "wss:");
 
-  const scriptSources = ["'self'", "'unsafe-inline'"];
+  const scriptSources = ["'self'"];
+  if (nonce) {
+    if (!/^[A-Za-z0-9+/=_-]+$/.test(nonce)) throw new Error("Invalid CSP nonce");
+    scriptSources.push(`'nonce-${nonce}'`, "'strict-dynamic'");
+  }
+  if (isDevelopment && !nonce) scriptSources.push("'unsafe-inline'");
   if (isDevelopment) scriptSources.push("'unsafe-eval'");
 
   const directives = [
@@ -67,3 +72,4 @@ export function applySecurityHeaders(headers: Headers) {
     headers.set(header.key, header.value);
   }
 }
+

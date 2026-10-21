@@ -21,6 +21,7 @@ type ProjectFormProps = {
   relationshipOptions: ProjectRelationshipOption[];
   ownerOptions: ProjectOwnerOption[];
   currentUserId: string;
+  returnTo?: string;
 };
 
 const projectTypes = Object.keys(PROJECT_TYPE_LABELS) as ProjectType[];
@@ -83,7 +84,7 @@ function changedPayload(project: Project, payload: ReturnType<typeof formToPaylo
   return changes;
 }
 
-export function ProjectForm({ mode, project, defaults, peopleOptions, organizationOptions, relationshipOptions, ownerOptions, currentUserId }: ProjectFormProps) {
+export function ProjectForm({ mode, project, defaults, peopleOptions, organizationOptions, relationshipOptions, ownerOptions, currentUserId, returnTo }: ProjectFormProps) {
   const router = useRouter();
   const [fieldErrors, setFieldErrors] = useState<FieldError[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -150,7 +151,8 @@ export function ProjectForm({ mode, project, defaults, peopleOptions, organizati
         return;
       }
 
-      router.push(`/projects/${result.data.id}?projectSaved=1`);
+      const detailHref = `/projects/${result.data.id}?projectSaved=1`;
+      router.push(returnTo ? `${detailHref}&returnTo=${encodeURIComponent(returnTo)}` : detailHref);
       router.refresh();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Erreur réseau pendant l'enregistrement du Projet.");
@@ -235,7 +237,7 @@ export function ProjectForm({ mode, project, defaults, peopleOptions, organizati
       {fieldErrors.length > 0 ? <ul className="error-list">{fieldErrors.map((item) => <li key={`${item.field}-${item.message}`}>{item.message}</li>)}</ul> : null}
       <div className="actions">
         <Button type="submit" disabled={loading}>{loading ? "Enregistrement..." : mode === "create" ? "Créer le Projet" : "Enregistrer"}</Button>
-        <Link className="button subtle-button" href={project ? `/projects/${project.id}` : "/projects"}>Annuler</Link>
+        <Link className="button subtle-button" href={returnTo || (project ? `/projects/${project.id}` : "/projects")}>Annuler</Link>
       </div>
     </form>
   );

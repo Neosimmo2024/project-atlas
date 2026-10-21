@@ -150,6 +150,7 @@ export type RecruitmentEmailSequence = TenantScoped & {
   status: RecruitmentEmailSequenceStatus;
   provider: "brevo";
   provider_message_id: string | null;
+  campaign_snapshot?: unknown;
   sent_at: string | null;
   stopped_at: string | null;
   last_error: string | null;

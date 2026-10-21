@@ -1,10 +1,15 @@
+import { suggestReply } from "@/features/mailbox/reply-draft";
 import { timingSafeEqual } from "node:crypto";
+import { collectInboundDiagnostic } from "./recruitment-inbound-diagnostic";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 
 type Mailbox = { Address?: string | null; Name?: string | null };
 type Recipient = Mailbox | string;
 
 export type BrevoInboundEmail = {
+  Source?: "planethoster_imap";
+  OutboundEvidenceId?: string;
+  Headers?: unknown;
   MessageId?: string | null;
   InReplyTo?: string | null;
   From?: Mailbox | null;
@@ -25,6 +30,9 @@ type SequenceRow = {
   status: "pending" | "sent" | "error" | "stopped";
   lifecycle_status: "idle" | "scheduled" | "running" | "completed" | "stopped" | "error";
   provider_message_id: string | null;
+  external?: boolean;
+  campaign_name?: string | null;
+  match_confidence?: string | null;
 };
 
 type RecruitingRelationshipRow = {
@@ -52,7 +60,10 @@ export function isAuthorizedBrevoInboundWebhook(request: Request) {
   const expected = configuredWebhookSecret();
   const provided = request.headers.get(webhookHeader)?.trim() ?? "";
   if (!expected || provided.length !== expected.length) return false;
-  return timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+  const providedBytes = Buffer.from(provided);
+  const expectedBytes = Buffer.from(expected);
+  if (providedBytes.length !== expectedBytes.length) return false;
+  return timingSafeEqual(providedBytes, expectedBytes);
 }
 
 function messageIdVariants(value: string | null | undefined) {
@@ -87,8 +98,23 @@ async function getSequenceById(id: string): Promise<SequenceRow | null> {
   return data as SequenceRow | null;
 }
 
+function externalSequence(event: { id: string; tenant_id: string; person_id: string | null; metadata: Record<string, unknown> } | null): SequenceRow | null {
+  return event?.person_id && typeof event.metadata.recipient_email === "string" ? {
+    id: event.id, tenant_id: event.tenant_id, person_id: event.person_id, email: event.metadata.recipient_email,
+    status: "sent", lifecycle_status: "completed", provider_message_id: String(event.metadata.provider_message_id),
+    external: true, campaign_name: typeof event.metadata.campaign_name === "string" ? event.metadata.campaign_name : null,
+    match_confidence: typeof event.metadata.match_confidence === "string" ? event.metadata.match_confidence : null
+  } : null;
+}
+
 async function findSequence(item: BrevoInboundEmail): Promise<SequenceRow | null> {
   const supabase = createSupabaseServiceRoleClient();
+  if (item.Source === "planethoster_imap" && item.OutboundEvidenceId) {
+    const evidence = await supabase.from("timeline_events").select("id,tenant_id,person_id,metadata")
+      .eq("id", item.OutboundEvidenceId).contains("metadata", { source: "brevo_outbound_journal" }).maybeSingle();
+    if (evidence.error) throw evidence.error;
+    return externalSequence(evidence.data);
+  }
   const variants = messageIdVariants(item.InReplyTo);
   if (variants.length > 0) {
     const { data: direct, error: directError } = await supabase
@@ -108,10 +134,28 @@ async function findSequence(item: BrevoInboundEmail): Promise<SequenceRow | null
       .maybeSingle();
     if (stepError) throw stepError;
     if (step?.sequence_id) return getSequenceById(step.sequence_id as string);
+
+    const { data: reviewed, error: reviewedError } = await supabase.from("tasks").select("metadata")
+      .contains("metadata", { source: "recruitment_candidate_reply" })
+      .in("metadata->>reply_provider_message_id", variants).limit(1).maybeSingle();
+    if (reviewedError) throw reviewedError;
+    if (reviewed?.metadata?.sequence_id) return getSequenceById(String(reviewed.metadata.sequence_id));
+    if (typeof reviewed?.metadata?.external_outbound_event_id === "string") {
+      const original = await supabase.from("timeline_events").select("id,tenant_id,person_id,metadata")
+        .eq("id", reviewed.metadata.external_outbound_event_id).contains("metadata", { source: "brevo_outbound_journal" }).maybeSingle();
+      if (original.error) throw original.error;
+      return externalSequence(original.data);
+    }
   }
 
   const sequenceId = sequenceIdFromRecipients(item);
-  return sequenceId ? getSequenceById(sequenceId) : null;
+  if (sequenceId) return getSequenceById(sequenceId);
+  if (!variants.length || !item.From?.Address) return null;
+  const { data: external, error } = await supabase.from("timeline_events").select("id,tenant_id,person_id,metadata")
+    .contains("metadata", { source: "brevo_outbound_journal", recipient_email: item.From.Address.trim().toLowerCase() })
+    .in("metadata->>provider_message_id", variants).limit(1).maybeSingle();
+  if (error) throw error;
+  return externalSequence(external);
 }
 
 function eventKey(messageId: string) {
@@ -192,7 +236,14 @@ async function ensureCandidateReplyFollowUpTask(sequence: SequenceRow, item: Bre
       reason: "candidate_reply",
       metadata: {
         ...metadataKey,
-        sequence_id: sequence.id,
+        sequence_id: sequence.external ? null : sequence.id,
+        external_outbound_event_id: sequence.external ? sequence.id : null,
+        campaign_name: sequence.campaign_name ?? null,
+        match_confidence: sequence.match_confidence ?? "message_id",
+        sms_alert_status: item.Source === "planethoster_imap" && item.SentAtDate && Date.parse(item.SentAtDate) < Date.now() - 86400000 ? "historical_review" : "pending",
+        reply_status: "draft",
+        reply_revision: 0,
+        suggested_reply: suggestReply(excerpt ?? "", sequence.campaign_name ?? ""),
         subject: item.Subject ?? null,
         sent_at: item.SentAtDate ?? null,
         suggested_actions: ["call", "reply_email", "schedule_meeting", "qualify"]
@@ -200,6 +251,23 @@ async function ensureCandidateReplyFollowUpTask(sequence: SequenceRow, item: Bre
     })
     .select("id")
     .single();
+  if (error?.code === "23505") {
+    // The unique database index arbitrates concurrent notifications. Never
+    // overwrite a task that another worker (or a user) has already created.
+    const { data: winner, error: lookupError } = await supabase
+      .from("tasks")
+      .select("id")
+      .eq("tenant_id", sequence.tenant_id)
+      .eq("person_id", sequence.person_id)
+      .is("deleted_at", null)
+      .contains("metadata", metadataKey)
+      .limit(1)
+      .maybeSingle();
+    if (lookupError) throw lookupError;
+    if (winner) return winner.id as string;
+    // An unrelated uniqueness violation must not mark this reply processed.
+    throw error;
+  }
   if (error) throw error;
   return data.id as string;
 }
@@ -213,6 +281,7 @@ async function insertReplyEvent(input: {
   followUpTaskId?: string | null;
 }) {
   const messageId = input.item.MessageId!.trim();
+  const diagnostic = collectInboundDiagnostic(input.sequence.id, input.item.Headers);
   const supabase = createSupabaseServiceRoleClient();
   const { error } = await supabase.from("timeline_events").upsert({
     tenant_id: input.sequence.tenant_id,
@@ -225,7 +294,10 @@ async function insertReplyEvent(input: {
     source_type: "person",
     source_id: input.sequence.person_id,
     metadata: {
-      sequence_id: input.sequence.id,
+      sequence_id: input.sequence.external ? null : input.sequence.id,
+      external_outbound_event_id: input.sequence.external ? input.sequence.id : null,
+      campaign_name: input.sequence.campaign_name ?? null,
+      match_confidence: input.sequence.match_confidence ?? "message_id",
       reason: input.reason,
       inbound_message_id: messageId,
       in_reply_to: input.item.InReplyTo ?? null,
@@ -234,7 +306,8 @@ async function insertReplyEvent(input: {
       sent_at: input.item.SentAtDate ?? null,
       reply_excerpt: replyExcerpt(input.item.ExtractedMarkdownMessage),
       follow_up_task_id: input.followUpTaskId ?? null,
-      source: "brevo_inbound_parsing"
+      source: input.item.Source ?? "brevo_inbound_parsing",
+      ...(diagnostic ? { inbound_auth_diagnostic: diagnostic } : {})
     },
     visibility: "tenant",
     idempotency_key: eventKey(messageId)
@@ -243,6 +316,15 @@ async function insertReplyEvent(input: {
 }
 
 async function stopSequenceForCandidateReply(sequence: SequenceRow) {
+  if (sequence.external) {
+    const { data, error } = await createSupabaseServiceRoleClient().from("recruitment_email_sequences")
+      .update({ status: "stopped", lifecycle_status: "stopped", next_action_at: null,
+        stopped_at: new Date().toISOString(), stop_reason: "candidate_reply" })
+      .eq("tenant_id", sequence.tenant_id).eq("email", sequence.email)
+      .not("lifecycle_status", "in", "(stopped,completed)").select("id");
+    if (error) throw error;
+    return Boolean(data?.length);
+  }
   if (sequence.lifecycle_status === "stopped" || sequence.lifecycle_status === "completed") return false;
   const supabase = createSupabaseServiceRoleClient();
   const now = new Date().toISOString();
@@ -262,7 +344,7 @@ async function stopSequenceForCandidateReply(sequence: SequenceRow) {
   return true;
 }
 
-export async function processBrevoInboundReplies(payload: BrevoInboundPayload): Promise<InboundReplySummary> {
+export async function processBrevoInboundReplies(payload: BrevoInboundPayload, tenantId?: string): Promise<InboundReplySummary> {
   const summary: InboundReplySummary = { processed: 0, stopped: 0, duplicates: 0, unmatched: 0, reviewRequired: 0 };
   const items = Array.isArray(payload?.items) ? payload.items : [];
 
@@ -275,7 +357,7 @@ export async function processBrevoInboundReplies(payload: BrevoInboundPayload): 
     }
 
     const sequence = await findSequence(item);
-    if (!sequence) {
+    if (!sequence || (tenantId && sequence.tenant_id !== tenantId)) {
       summary.unmatched += 1;
       continue;
     }
@@ -314,3 +396,4 @@ export async function processBrevoInboundReplies(payload: BrevoInboundPayload): 
 
   return summary;
 }
+

@@ -1,5 +1,10 @@
+import { syncLocalCalendarStops } from "@/services/local-calendar-stops";
+import { isLocalSnapshot, localFollowUpAt } from "@/features/recruitment-email/local-campaign";
+import { resolveLocalCampaign } from "@/services/local-email-campaign";
+import { resolveLyonFollowUp } from "@/services/lyon-email-campaign";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
-import { sendRecruitmentFollowUpEmail } from "@/services/brevo";
+import { recruitmentEmailPolicy } from "@/features/recruitment-email/campaign-policy";
+import { sendInitialRecruitmentEmail, sendRecruitmentFollowUpEmail } from "@/services/brevo";
 
 type SequenceRow = {
   id: string;
@@ -9,6 +14,7 @@ type SequenceRow = {
   status: "pending" | "sent" | "error" | "stopped";
   lifecycle_status: "idle" | "scheduled" | "running" | "completed" | "stopped" | "error";
   sent_at: string | null;
+  campaign_snapshot?: unknown;
 };
 
 type StepRow = {
@@ -25,6 +31,7 @@ type StepRow = {
 type PersonRow = {
   id: string;
   display_name: string;
+  comments?: string | null;
   contact_allowed: boolean;
   do_not_contact: boolean;
 };
@@ -33,6 +40,7 @@ export type RecruitmentOrchestrationSummary = {
   scheduled: number;
   stopped: number;
   claimed: number;
+  skipped: number;
   sent: number;
   errors: number;
 };
@@ -113,7 +121,7 @@ async function insertTimelineEvent(input: {
   if (error) throw error;
 }
 
-async function scheduleStep(sequence: SequenceRow, stepIndex: 1 | 2, dueAt: string) {
+async function scheduleStep(sequence: SequenceRow, stepIndex: 1 | 2, dueAt: string, days: number) {
   const supabase = createSupabaseServiceRoleClient();
   const stepKey = stepIndex === 1 ? "follow_up_1" : "follow_up_2";
   const idempotencyKey = `recruitment-email-step:${sequence.id}:${stepIndex}`;
@@ -156,7 +164,7 @@ async function scheduleStep(sequence: SequenceRow, stepIndex: 1 | 2, dueAt: stri
       sequence_id: sequence.id,
       step_index: stepIndex,
       scheduled_at: dueAt,
-      policy: stepIndex === 1 ? "J+3" : "J+7",
+      policy: `J+${days}`,
       source: "lot_9b_native_orchestrator"
     },
     idempotencyKey: `recruitment_email_scheduled:${sequence.id}:${stepIndex}`
@@ -168,8 +176,9 @@ async function prepareFollowUps(limit = 100) {
   const supabase = createSupabaseServiceRoleClient();
   const { data, error } = await supabase
     .from("recruitment_email_sequences")
-    .select("id,tenant_id,person_id,email,status,lifecycle_status,sent_at")
+    .select("id,tenant_id,person_id,email,status,lifecycle_status,sent_at,campaign_snapshot")
     .eq("status", "sent")
+    .is("next_action_at", null)
     .not("sent_at", "is", null)
     .neq("lifecycle_status", "stopped")
     .neq("lifecycle_status", "completed")
@@ -182,11 +191,19 @@ async function prepareFollowUps(limit = 100) {
   for (const sequence of (data ?? []) as SequenceRow[]) {
     const { data: person, error: personError } = await supabase
       .from("people")
-      .select("id,display_name,contact_allowed,do_not_contact")
+      .select("id,display_name,comments,contact_allowed,do_not_contact")
+      .eq("tenant_id", sequence.tenant_id)
       .eq("id", sequence.person_id)
       .maybeSingle();
     if (personError) throw personError;
     const typedPerson = person as PersonRow | null;
+    const policy = recruitmentEmailPolicy(typedPerson?.comments);
+    const local = await resolveLocalCampaign(supabase, sequence.tenant_id, sequence.person_id, sequence.campaign_snapshot);
+    if (local?.blocked) continue;
+    const lyon = isLocalSnapshot(sequence.campaign_snapshot) ? null : await resolveLyonFollowUp(supabase, sequence.tenant_id, sequence.person_id, typedPerson?.comments, sequence.campaign_snapshot);
+    if (lyon?.blocked) continue;
+    const days = local && !local.blocked ? local.snapshot.days : lyon && !lyon.blocked ? lyon.snapshot.days : policy.days;
+    const dueAt = local ? localFollowUpAt : scheduledAt;
     if (!typedPerson || !typedPerson.contact_allowed || typedPerson.do_not_contact) {
       await stopSequenceForContactRestriction(sequence);
       await insertTimelineEvent({
@@ -212,17 +229,17 @@ async function prepareFollowUps(limit = 100) {
     const second = typedSteps.find((step) => step.step_index === 2);
 
     if (!first) {
-      if (await scheduleStep(sequence, 1, scheduledAt(sequence.sent_at!, 3))) scheduled += 1;
+      if (await scheduleStep(sequence, 1, dueAt(sequence.sent_at!, days[1]), days[1])) scheduled += 1;
       continue;
     }
     if (first.status === "sent" && !second) {
-      if (await scheduleStep(sequence, 2, scheduledAt(sequence.sent_at!, 7))) scheduled += 1;
+      if (await scheduleStep(sequence, 2, dueAt(sequence.sent_at!, days[2]), days[2])) scheduled += 1;
     }
   }
   return { scheduled, stopped };
 }
 
-async function processDueSteps(limit = 25) {
+async function processDueSteps(limit = 25, calendarVerified = true) {
   const supabase = createSupabaseServiceRoleClient();
   const { data, error } = await supabase.rpc("claim_due_recruitment_email_steps", {
     p_limit: Math.min(Math.max(limit, 1), 100)
@@ -232,8 +249,9 @@ async function processDueSteps(limit = 25) {
 
   let sent = 0;
   let errors = 0;
+  let skipped = 0;
   for (const step of claimed) {
-    if (step.step_index !== 1 && step.step_index !== 2) {
+    if (step.step_index !== 0 && step.step_index !== 1 && step.step_index !== 2) {
       const { error: completeError } = await supabase.rpc("complete_recruitment_email_step", {
         p_step_id: step.id,
         p_success: false,
@@ -248,33 +266,61 @@ async function processDueSteps(limit = 25) {
     const [{ data: sequence, error: sequenceError }, { data: person, error: personError }] = await Promise.all([
       supabase
         .from("recruitment_email_sequences")
-        .select("id,email,status,lifecycle_status")
+        .select("id,email,status,lifecycle_status,campaign_snapshot")
+        .eq("tenant_id", step.tenant_id)
         .eq("id", step.sequence_id)
         .maybeSingle(),
       supabase
         .from("people")
-        .select("id,display_name,contact_allowed,do_not_contact")
+        .select("id,display_name,comments,contact_allowed,do_not_contact")
+        .eq("tenant_id", step.tenant_id)
         .eq("id", step.person_id)
         .maybeSingle()
     ]);
     if (sequenceError) throw sequenceError;
     if (personError) throw personError;
 
+    // The claim is a snapshot: a reply/refusal can stop the sequence before this read.
+    // Do not complete a cancelled/deleted step or overwrite its terminal state.
+    const currentSequence = sequence as Pick<SequenceRow, "email" | "status" | "lifecycle_status" | "campaign_snapshot"> | null;
+    if (!currentSequence || currentSequence.status !== (step.step_index === 0 ? "pending" : "sent")
+      || currentSequence.lifecycle_status === "stopped" || currentSequence.lifecycle_status === "completed") {
+      skipped += 1;
+      continue;
+    }
+
     const typedPerson = person as PersonRow | null;
-    const email = (sequence as { email?: string } | null)?.email;
+    // A Lyon draft must never use a national follow-up, even if an old step
+    // was queued before the draft guard was introduced.
+    const local = await resolveLocalCampaign(supabase, step.tenant_id, step.person_id, currentSequence.campaign_snapshot);
+    const lyon = isLocalSnapshot(currentSequence.campaign_snapshot) ? null : await resolveLyonFollowUp(supabase, step.tenant_id, step.person_id, typedPerson?.comments, currentSequence.campaign_snapshot);
+    if (local?.blocked || lyon?.blocked || (local && !calendarVerified) || (step.step_index === 0 && !local)) {
+      const { error: draftError } = await supabase.rpc("complete_recruitment_email_step", {
+        p_step_id: step.id, p_success: false, p_provider_message_id: null,
+        p_error: local && !calendarVerified ? "Contrôle des rendez-vous Calendly indisponible : envoi Saint-Maur bloqué." : local?.blocked ? "Campagne Saint-Maur suspendue ou modifiée." : "Campagne Lyon en brouillon : relance bloquée, aucun email envoyé."
+      });
+      if (draftError) throw draftError;
+      errors += 1;
+      continue;
+    }
+    const email = currentSequence.email;
     let result: Awaited<ReturnType<typeof sendRecruitmentFollowUpEmail>>;
     if (!typedPerson || !typedPerson.contact_allowed || typedPerson.do_not_contact || !email) {
       result = { success: false, error: "Contact non autorisé ou email manquant au moment de l’envoi." };
-    } else {
+    } else if (step.step_index === 0 && local && !local.blocked) {
+      result = await sendInitialRecruitmentEmail({ sequenceId: step.sequence_id, email, displayName: typedPerson.display_name,
+        templateId: local.snapshot.template_ids[0], params: { PRENOM: local.snapshot.first_name, VILLE: local.snapshot.city } });
+    } else if (step.step_index === 1 || step.step_index === 2) {
       result = await sendRecruitmentFollowUpEmail({
         stepId: step.id,
         stepIndex: step.step_index,
         email,
-        displayName: typedPerson.display_name
+        displayName: typedPerson.display_name,
+        ...(local && !local.blocked ? { templateId: local.snapshot.template_ids[step.step_index], params: { PRENOM: local.snapshot.first_name, VILLE: local.snapshot.city } } : lyon && !lyon.blocked ? { templateId: lyon.snapshot.template_ids[step.step_index] } : {})
       });
-    }
+    } else { result = { success: false, error: "Étape initiale sans campagne locale validée." }; }
 
-    const { error: completeError } = await supabase.rpc("complete_recruitment_email_step", {
+    const { error: completeError } = await supabase.rpc(step.step_index === 0 ? "complete_local_recruitment_initial" : "complete_recruitment_email_step", {
       p_step_id: step.id,
       p_success: result.success,
       p_provider_message_id: result.success ? result.messageId : null,
@@ -285,16 +331,18 @@ async function processDueSteps(limit = 25) {
     else errors += 1;
   }
 
-  return { claimed: claimed.length, sent, errors };
+  return { claimed: claimed.length, sent, errors, skipped };
 }
 
 export async function runRecruitmentEmailOrchestration(input?: { prepareLimit?: number; claimLimit?: number }) {
+  const calendar = await syncLocalCalendarStops(createSupabaseServiceRoleClient());
   const prepared = await prepareFollowUps(input?.prepareLimit ?? 100);
-  const processed = await processDueSteps(input?.claimLimit ?? 25);
+  const processed = await processDueSteps(input?.claimLimit ?? 25, calendar.verified);
   return {
     scheduled: prepared.scheduled,
-    stopped: prepared.stopped,
+    stopped: prepared.stopped + calendar.stopped,
     claimed: processed.claimed,
+    skipped: processed.skipped,
     sent: processed.sent,
     errors: processed.errors
   } satisfies RecruitmentOrchestrationSummary;

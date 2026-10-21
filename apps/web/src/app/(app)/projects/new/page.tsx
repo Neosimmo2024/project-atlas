@@ -18,6 +18,10 @@ function valueOf(params: Record<string, string | string[] | undefined>, key: str
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
 
+function safeReturnTo(value: string) {
+  return value.startsWith("/relationships/") || value.startsWith("/organizations/") || value.startsWith("/people/") ? value : "";
+}
+
 export default async function NewProjectPage({ searchParams }: NewProjectPageProps) {
   const params = await searchParams;
   const context = await getTenantContext();
@@ -35,10 +39,11 @@ export default async function NewProjectPage({ searchParams }: NewProjectPagePro
     organization_id: valueOf(params, "organizationId") || null,
     relationship_id: valueOf(params, "relationshipId") || null
   };
+  const returnTo = safeReturnTo(valueOf(params, "returnTo"));
 
   return (
     <div className="page stack">
-      <PageHeader eyebrow="Projets" title="Nouveau Projet" actions={<Link className="button subtle-button" href="/projects">Retour</Link>} />
+      <PageHeader eyebrow="Projets" title="Nouveau Projet" actions={<Link className="button subtle-button" href={returnTo || "/projects"}>Retour</Link>} />
       <PageSection>
         <ProjectForm
           mode="create"
@@ -48,6 +53,7 @@ export default async function NewProjectPage({ searchParams }: NewProjectPagePro
           relationshipOptions={relationshipOptions}
           ownerOptions={ownerOptions}
           currentUserId={context?.userId ?? ""}
+          returnTo={returnTo}
         />
       </PageSection>
     </div>

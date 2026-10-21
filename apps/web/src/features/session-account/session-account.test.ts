@@ -38,7 +38,7 @@ describe("session account indicator", () => {
     const styles = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8");
 
     expect(layout).toContain("getSessionAccountSummary");
-    expect(layout).toContain("<AppShell account={account}>");
+    expect(layout).toContain("<AppShell account={account} ");
     expect(shell).toContain("Compte utilisateur connecté");
     expect(shell).toContain("account-status-dot");
     expect(shell).toContain("Se déconnecter");

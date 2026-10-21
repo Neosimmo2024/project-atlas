@@ -30,6 +30,7 @@ function formToPayload(form: HTMLFormElement, confirmDuplicate = false) {
     display_name: String(data.get("display_name") ?? ""),
     primary_email: String(data.get("primary_email") ?? ""),
     primary_phone: String(data.get("primary_phone") ?? ""),
+    linkedin_url: String(data.get("linkedin_url") ?? ""),
     city: String(data.get("city") ?? ""),
     postal_code: String(data.get("postal_code") ?? ""),
     department: String(data.get("department") ?? ""),
@@ -169,6 +170,7 @@ export function PersonForm({ mode, person, organizationOptions = [] }: PersonFor
         <label>Nom d&apos;affichage<Input name="display_name" required defaultValue={person?.display_name ?? ""} /><FieldError name="display_name" /></label>
         <label>Email<Input name="primary_email" type="email" defaultValue={valueOrEmpty(person?.primary_email) as string} /><FieldError name="primary_email" /></label>
         <label>Téléphone<Input name="primary_phone" defaultValue={valueOrEmpty(person?.primary_phone) as string} /><FieldError name="primary_phone" /></label>
+        <label>Profil LinkedIn<Input name="linkedin_url" type="url" placeholder="https://www.linkedin.com/in/..." defaultValue={valueOrEmpty(person?.linkedin_url) as string} /><FieldError name="linkedin_url" /></label>
         <label>Ville<Input name="city" defaultValue={valueOrEmpty(person?.city) as string} /><FieldError name="city" /></label>
         <label>Code postal<Input name="postal_code" defaultValue={valueOrEmpty(person?.postal_code) as string} /><FieldError name="postal_code" /></label>
         <label>Département<Input name="department" defaultValue={valueOrEmpty(person?.department) as string} /><FieldError name="department" /></label>
