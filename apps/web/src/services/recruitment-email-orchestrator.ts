@@ -1,3 +1,5 @@
+import { isMarketingSnapshot, parisFollowUpAt } from "@/features/recruitment-email/marketing-follow-ups";
+import { resolveMarketingFollowUp } from "@/services/marketing-follow-ups";
 import { syncLocalCalendarStops } from "@/services/local-calendar-stops";
 import { isLocalSnapshot, localFollowUpAt } from "@/features/recruitment-email/local-campaign";
 import { resolveLocalCampaign } from "@/services/local-email-campaign";
@@ -200,10 +202,13 @@ async function prepareFollowUps(limit = 100) {
     const policy = recruitmentEmailPolicy(typedPerson?.comments);
     const local = await resolveLocalCampaign(supabase, sequence.tenant_id, sequence.person_id, sequence.campaign_snapshot);
     if (local?.blocked) continue;
-    const lyon = isLocalSnapshot(sequence.campaign_snapshot) ? null : await resolveLyonFollowUp(supabase, sequence.tenant_id, sequence.person_id, typedPerson?.comments, sequence.campaign_snapshot);
+    const marketing = await resolveMarketingFollowUp(supabase, sequence.tenant_id, sequence.person_id, sequence.campaign_snapshot);
+    if (marketing?.blocked) continue;
+    const lyon = isLocalSnapshot(sequence.campaign_snapshot) || isMarketingSnapshot(sequence.campaign_snapshot) ? null : await resolveLyonFollowUp(supabase, sequence.tenant_id, sequence.person_id, typedPerson?.comments, sequence.campaign_snapshot);
     if (lyon?.blocked) continue;
-    const days = local && !local.blocked ? local.snapshot.days : lyon && !lyon.blocked ? lyon.snapshot.days : policy.days;
-    const dueAt = local ? localFollowUpAt : scheduledAt;
+    const days = marketing && !marketing.blocked ? marketing.snapshot.days : local && !local.blocked ? local.snapshot.days : lyon && !lyon.blocked ? lyon.snapshot.days : policy.days;
+    const dueAt = marketing ? parisFollowUpAt : local ? localFollowUpAt : lyon?.snapshot.follow_up_anchor ? (at: string, days: number) => parisFollowUpAt(at, days, 9, 30) : scheduledAt;
+    const anchor = lyon && !lyon.blocked ? lyon.snapshot.follow_up_anchor ?? sequence.sent_at! : sequence.sent_at!;
     if (!typedPerson || !typedPerson.contact_allowed || typedPerson.do_not_contact) {
       await stopSequenceForContactRestriction(sequence);
       await insertTimelineEvent({
@@ -229,11 +234,11 @@ async function prepareFollowUps(limit = 100) {
     const second = typedSteps.find((step) => step.step_index === 2);
 
     if (!first) {
-      if (await scheduleStep(sequence, 1, dueAt(sequence.sent_at!, days[1]), days[1])) scheduled += 1;
+      if (await scheduleStep(sequence, 1, dueAt(anchor, days[1]), days[1])) scheduled += 1;
       continue;
     }
     if (first.status === "sent" && !second) {
-      if (await scheduleStep(sequence, 2, dueAt(sequence.sent_at!, days[2]), days[2])) scheduled += 1;
+      if (await scheduleStep(sequence, 2, dueAt(anchor, days[2]), days[2])) scheduled += 1;
     }
   }
   return { scheduled, stopped };
@@ -293,11 +298,12 @@ async function processDueSteps(limit = 25, calendarVerified = true) {
     // A Lyon draft must never use a national follow-up, even if an old step
     // was queued before the draft guard was introduced.
     const local = await resolveLocalCampaign(supabase, step.tenant_id, step.person_id, currentSequence.campaign_snapshot);
-    const lyon = isLocalSnapshot(currentSequence.campaign_snapshot) ? null : await resolveLyonFollowUp(supabase, step.tenant_id, step.person_id, typedPerson?.comments, currentSequence.campaign_snapshot);
-    if (local?.blocked || lyon?.blocked || (local && !calendarVerified) || (step.step_index === 0 && !local)) {
+    const marketing = await resolveMarketingFollowUp(supabase, step.tenant_id, step.person_id, currentSequence.campaign_snapshot);
+    const lyon = isLocalSnapshot(currentSequence.campaign_snapshot) || isMarketingSnapshot(currentSequence.campaign_snapshot) ? null : await resolveLyonFollowUp(supabase, step.tenant_id, step.person_id, typedPerson?.comments, currentSequence.campaign_snapshot);
+    if (marketing?.blocked || local?.blocked || lyon?.blocked || (local && !calendarVerified) || (step.step_index === 0 && !local)) {
       const { error: draftError } = await supabase.rpc("complete_recruitment_email_step", {
         p_step_id: step.id, p_success: false, p_provider_message_id: null,
-        p_error: local && !calendarVerified ? "Contrôle des rendez-vous Calendly indisponible : envoi Saint-Maur bloqué." : local?.blocked ? "Campagne Saint-Maur suspendue ou modifiée." : "Campagne Lyon en brouillon : relance bloquée, aucun email envoyé."
+        p_error: marketing?.blocked ? "Campagne Bordeaux suspendue, modifiée ou contact désinscrit." : local && !calendarVerified ? "Contrôle des rendez-vous Calendly indisponible : envoi Saint-Maur bloqué." : local?.blocked ? "Campagne Saint-Maur suspendue ou modifiée." : "Campagne Lyon en brouillon : relance bloquée, aucun email envoyé."
       });
       if (draftError) throw draftError;
       errors += 1;
@@ -316,7 +322,7 @@ async function processDueSteps(limit = 25, calendarVerified = true) {
         stepIndex: step.step_index,
         email,
         displayName: typedPerson.display_name,
-        ...(local && !local.blocked ? { templateId: local.snapshot.template_ids[step.step_index], params: { PRENOM: local.snapshot.first_name, VILLE: local.snapshot.city } } : lyon && !lyon.blocked ? { templateId: lyon.snapshot.template_ids[step.step_index] } : {})
+        ...(marketing && !marketing.blocked ? { templateId: marketing.snapshot.template_ids[step.step_index], params: { PRENOM: marketing.snapshot.first_name } } : local && !local.blocked ? { templateId: local.snapshot.template_ids[step.step_index], params: { PRENOM: local.snapshot.first_name, VILLE: local.snapshot.city } } : lyon && !lyon.blocked ? { templateId: lyon.snapshot.template_ids[step.step_index] } : {})
       });
     } else { result = { success: false, error: "Étape initiale sans campagne locale validée." }; }
 

@@ -17,7 +17,8 @@ export type LyonCampaign = z.infer<typeof lyonCampaignSchema>;
 export const lyonSnapshotSchema = z.object({
   key: z.literal("lyon-development"), project_id: z.string().uuid(),
   version_ids: ids, template_ids: templates,
-  days: z.tuple([z.literal(0), z.literal(17), z.literal(32)])
+  days: z.union([z.tuple([z.literal(0), z.literal(17), z.literal(32)]), z.tuple([z.literal(0), z.literal(15), z.literal(30)])]),
+  follow_up_anchor: z.string().datetime().optional()
 });
 export type LyonSnapshot = z.infer<typeof lyonSnapshotSchema>;
 

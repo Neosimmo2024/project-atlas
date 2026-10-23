@@ -1,3 +1,5 @@
+import { reconcileMarketingFollowUps } from "@/services/marketing-follow-ups";
+import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 import { logServerError } from "@/lib/security/logger";
 import { syncConfiguredMailboxes } from "@/services/planet-mailbox";
 import { NextResponse } from "next/server";
@@ -16,6 +18,7 @@ export async function POST(request: Request) {
 
   try {
     await syncConfiguredMailboxes();
+    await reconcileMarketingFollowUps(createSupabaseServiceRoleClient());
     const summary = await runRecruitmentEmailOrchestration({ prepareLimit: 500, claimLimit: 50 });
     return NextResponse.json({ data: summary });
   } catch {
