@@ -300,10 +300,10 @@ async function processDueSteps(limit = 25, calendarVerified = true) {
     const local = await resolveLocalCampaign(supabase, step.tenant_id, step.person_id, currentSequence.campaign_snapshot);
     const marketing = await resolveMarketingFollowUp(supabase, step.tenant_id, step.person_id, currentSequence.campaign_snapshot);
     const lyon = isLocalSnapshot(currentSequence.campaign_snapshot) || isMarketingSnapshot(currentSequence.campaign_snapshot) ? null : await resolveLyonFollowUp(supabase, step.tenant_id, step.person_id, typedPerson?.comments, currentSequence.campaign_snapshot);
-    if (marketing?.blocked || local?.blocked || lyon?.blocked || (local && !calendarVerified) || (step.step_index === 0 && !local)) {
+    if (marketing?.blocked || local?.blocked || lyon?.blocked || ((local || lyon || marketing) && !calendarVerified) || (step.step_index === 0 && !local)) {
       const { error: draftError } = await supabase.rpc("complete_recruitment_email_step", {
         p_step_id: step.id, p_success: false, p_provider_message_id: null,
-        p_error: marketing?.blocked ? "Campagne Bordeaux suspendue, modifiée ou contact désinscrit." : local && !calendarVerified ? "Contrôle des rendez-vous Calendly indisponible : envoi Saint-Maur bloqué." : local?.blocked ? "Campagne Saint-Maur suspendue ou modifiée." : "Campagne Lyon en brouillon : relance bloquée, aucun email envoyé."
+        p_error: marketing?.blocked ? "Campagne Bordeaux suspendue, modifiée ou contact désinscrit." : (local || lyon || marketing) && !calendarVerified ? "Contrôle des rendez-vous Calendly indisponible : envoi bloqué." : local?.blocked ? "Campagne Saint-Maur suspendue ou modifiée." : "Campagne Lyon en brouillon : relance bloquée, aucun email envoyé."
       });
       if (draftError) throw draftError;
       errors += 1;

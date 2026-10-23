@@ -52,7 +52,7 @@ export async function getLocalBookedEmails() {
 
 export async function syncLocalCalendarStops(db: SupabaseClient) {
   const { data, error }=await db.from("recruitment_email_sequences").select("id,tenant_id,person_id,email")
-    .contains("campaign_snapshot",{ key: LOCAL_CAMPAIGN_KEY }).in("status",["pending","sent"])
+    .in("campaign_snapshot->>key", [LOCAL_CAMPAIGN_KEY, "lyon-development", "bordeaux-marketing-20261023"]).in("status",["pending","sent"])
     .neq("lifecycle_status","stopped").neq("lifecycle_status","completed");
   if (error) throw error;
   if (!data?.length) return { stopped: 0, verified: true };
@@ -69,7 +69,7 @@ export async function syncLocalCalendarStops(db: SupabaseClient) {
     if (!changed?.length) continue;
     // The existing status trigger cancels scheduled steps and processing attempts.
     const { error: eventError }=await db.from("timeline_events").upsert({ tenant_id: sequence.tenant_id, person_id: sequence.person_id,
-      event_type: "recruitment_email_stopped", title: "Séquence Saint-Maur arrêtée après rendez-vous", description: "Rendez-vous Calendly identifié par adresse email exacte.",
+      event_type: "recruitment_email_stopped", title: "Séquence de recrutement arrêtée après rendez-vous", description: "Rendez-vous Calendly identifié par adresse email exacte.",
       occurred_at: new Date().toISOString(), created_by: null, source_type: "person", source_id: sequence.person_id, visibility: "tenant",
       metadata: { sequence_id: sequence.id, reason: "appointment", source: "calendly_local_recruitment" }, idempotency_key: `local-appointment-stop:${sequence.id}`
     },{ onConflict: "tenant_id,idempotency_key", ignoreDuplicates: true });
