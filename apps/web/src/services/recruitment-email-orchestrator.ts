@@ -39,6 +39,7 @@ type PersonRow = {
 };
 
 export type RecruitmentOrchestrationSummary = {
+  calendarVerified: boolean;
   scheduled: number;
   stopped: number;
   claimed: number;
@@ -345,6 +346,7 @@ export async function runRecruitmentEmailOrchestration(input?: { prepareLimit?: 
   const prepared = await prepareFollowUps(input?.prepareLimit ?? 100);
   const processed = await processDueSteps(input?.claimLimit ?? 25, calendar.verified);
   return {
+    calendarVerified: calendar.verified,
     scheduled: prepared.scheduled,
     stopped: prepared.stopped + calendar.stopped,
     claimed: processed.claimed,
