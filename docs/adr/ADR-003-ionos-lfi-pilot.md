@@ -43,3 +43,23 @@ inchangées. Ce pilote ne propose volontairement aucun bouton d'activation SMTP.
 - Ne résilier Brevo qu'après validation de ces parcours.
 
 Références : https://nodemailer.com/smtp ; documentation SMTP IONOS.
+
+## Test de réception (26 octobre 2026)
+
+Le diagnostic SMTP est confirmé par la capture utilisateur. Un bouton distinct
+prépare un unique message technique vers renatoponzio@gmail.com. Expéditeur,
+destinataire, objet et contenu sont fixes côté serveur. La route POST contrôle
+l'origine et les mêmes droits administrateur. Le journal ionos_delivery_tests
+est réservé au service serveur (RLS sans politique client, droits client révoqués).
+Une insertion unique (tenant, version du test) réserve l'envoi avant SMTP.
+Une erreur ou un arrêt du processus ne libère jamais cette réservation :
+aucun réessai automatique après résultat SMTP ambigu. L'acceptation SMTP
+n'est pas présentée comme une preuve de réception.
+
+Attention : LFI est un projet dans le tenant principal Atlas. La configuration
+tenant de ce diagnostic ne constitue PAS un routage global pour les campagnes.
+L'intégration future doit sélectionner explicitement le projet LFI et préserver
+les campagnes Brevo NEOS/VendreSonCommerce.
+
+Le test ne valide pas les modèles marketing, l'import IMAP, les désinscriptions
+ou la délivrabilité d'une campagne. Aucun envoi commercial n'est activé.

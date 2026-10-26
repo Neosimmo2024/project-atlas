@@ -26,7 +26,22 @@ export async function verifyIonosConnection(context: TenantContext) {
   const password = process.env.LFI_IONOS_SMTP_PASSWORD;
   if (!password) return { success: false, error: "La connexion IONOS doit encore être configurée par l’administrateur technique." };
   // Fixed destination and identity: neither can be supplied by the client.
-  const transport = nodemailer.createTransport({
+  const transport = createIonosTransport(password);
+  try {
+    await transport.verify();
+    return { success: true, message: "Connexion à IONOS vérifiée. Aucun email envoyé. La réception des messages reste à tester avant les campagnes." };
+  } catch (error) {
+    const code = typeof error === "object" && error !== null && "code" in error ? error.code : "";
+    return { success: false, error: code === "EAUTH"
+      ? "IONOS refuse l’authentification. Vérifiez les identifiants de la boîte contact."
+      : "Connexion à IONOS impossible. Vérifiez la disponibilité du service et réessayez." };
+  } finally {
+    transport.close();
+  }
+}
+
+export function createIonosTransport(password: string) {
+  return nodemailer.createTransport({
     host: HOST,
     port: 465,
     secure: true,
@@ -40,16 +55,4 @@ export async function verifyIonosConnection(context: TenantContext) {
     disableFileAccess: true,
     disableUrlAccess: true
   });
-  try {
-    await transport.verify();
-    return { success: true, message: "Connexion à IONOS vérifiée. Aucun email envoyé. La réception des messages reste à tester avant les campagnes." };
-  } catch (error) {
-    // SMTP errors may contain credentials or server dialogue: never log/return them.
-    const code = typeof error === "object" && error !== null && "code" in error ? error.code : "";
-    return { success: false, error: code === "EAUTH"
-      ? "IONOS refuse l’authentification. Vérifiez les identifiants de la boîte contact."
-      : "Connexion à IONOS impossible. Vérifiez la disponibilité du service et réessayez." };
-  } finally {
-    transport.close();
-  }
 }
