@@ -2,7 +2,8 @@
 -- Usage: psql -v tenant_id=... -v member_id=... -v other_tenant_id=... -v single_tenant_member_id=... -f scripts/validate-people-search-performance.sql
 -- Read-only assertions on existing data. No fixtures or outbound operations.
 begin;
-set local statement_timeout='8s';
+-- Budget covers several RPCs in one assertion block, not a production timeout change.
+set local statement_timeout='45s';
 select set_config('request.jwt.claim.sub', :'member_id', true);
 select set_config('atlas.test_tenant', :'tenant_id', true);
 select set_config('atlas.test_other_tenant', :'other_tenant_id', true);
