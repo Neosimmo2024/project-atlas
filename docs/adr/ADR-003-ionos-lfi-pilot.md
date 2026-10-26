@@ -63,3 +63,14 @@ les campagnes Brevo NEOS/VendreSonCommerce.
 
 Le test ne valide pas les modèles marketing, l'import IMAP, les désinscriptions
 ou la délivrabilité d'une campagne. Aucun envoi commercial n'est activé.
+
+## Réception et diagnostic de réponse
+
+Le 26 octobre, le test signé est reçu dans INBOX de Renato ; le PNG intégré
+est présent et les en-têtes Gmail indiquent SPF, DKIM et DMARC pass.
+Un contrôle IMAP manuel lit INBOX en lecture seule sur imap.ionos.fr:993.
+Il recherche uniquement une réponse de Renato au Message-ID du test signé,
+vérifie l'enveloppe exacte et ne lit aucun corps de message. Aucun message
+n'est marqué lu, déplacé ou supprimé. Délai maximal 25 secondes, erreurs
+et journaux expurgés des informations de connexion. Ce diagnostic n'est pas
+le futur traitement des réponses, refus ou rebonds des campagnes.
