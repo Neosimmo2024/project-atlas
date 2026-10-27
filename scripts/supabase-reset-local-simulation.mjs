@@ -384,7 +384,12 @@ function verifyMigrationSet() {
   const actual = migrations.join("\n");
   const expected = EXPECTED_MIGRATIONS.join("\n");
   if (actual !== expected) {
-    throw new Error("Migration set does not match the exact expected migration list.");
+    const missing = EXPECTED_MIGRATIONS.filter((name) => !migrations.includes(name));
+    const unexpected = migrations.filter((name) => !EXPECTED_MIGRATIONS.includes(name));
+    throw new Error(
+      "Migration set does not match the exact expected migration list. " +
+      "Missing: " + JSON.stringify(missing) + "; unexpected: " + JSON.stringify(unexpected)
+    );
   }
 }
 
