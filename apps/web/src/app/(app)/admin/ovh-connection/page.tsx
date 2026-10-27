@@ -6,7 +6,7 @@ import { ovhConnectionStatus } from "@/services/ovh-connection";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export default async function OvhConnectionPage() {
- const context = await getTenantContext();
+ const context = await getTenantContext(process.env.VSC_OVH_TENANT_ID?.trim());
  const status = context ? ovhConnectionStatus(context) : null;
  if (!status) return <div className="page stack"><EmptyState title="Connexion OVH non disponible" body="Cette connexion doit être configurée pour votre espace et est réservée à ses administrateurs." /></div>;
  return <div className="page stack">

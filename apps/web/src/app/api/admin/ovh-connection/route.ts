@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Origine non autorisée." }, { status: 403, headers });
   }
   try {
-    const context = await getTenantContext();
+    const context = await getTenantContext(process.env.VSC_OVH_TENANT_ID?.trim());
     if (!context) return NextResponse.json({ error: "Connexion requise." }, { status: 401, headers });
     if (!canManageOvh(context)) return NextResponse.json({ error: "Accès non autorisé." }, { status: 403, headers });
     const result = await verifyOvhConnection(context);

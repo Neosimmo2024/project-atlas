@@ -8,4 +8,4 @@ VSC_OVH_SMTP_PASSWORD doit être renseigné par Renato dans les secrets Vercel, 
 La vérification ne fait aucun envoi. Elle ne valide ni réception, ni IMAP, ni campagnes.
 IMAP prévu : ssl0.ovh.net:993 TLS, non implémenté ici.
 Référence : https://docs.ovhcloud.com/fr/guides/web-cloud/email-and-collaborative-solutions/mx-plan/email-generalities
-Ne pas utiliser cette identité comme routage global : VSC est un projet du tenant Atlas partagé.
+Ne pas utiliser cette identité comme routage global : VSC dispose du tenant f716f14d-7fc8-4e33-a49a-18c6a2367816. La résolution du contexte filtre explicitement ce tenant et vérifie l’appartenance active de l’utilisateur connecté.

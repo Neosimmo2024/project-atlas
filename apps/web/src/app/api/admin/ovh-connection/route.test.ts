@@ -35,6 +35,7 @@ describe("OVH diagnostic API", () => {
   it("returns an uncached diagnostic to the authorized tenant admin", async () => {
     const response = await POST(request());
     expect(response.status).toBe(200);
+    expect(mocks.context).toHaveBeenCalledWith(tenantId);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(await response.json()).toEqual({ success: true, message: "ok" });
     expect(mocks.verify).toHaveBeenCalledOnce();
