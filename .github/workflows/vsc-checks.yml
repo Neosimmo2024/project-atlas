@@ -6,6 +6,8 @@ on:
       - 'apps/web/src/features/vsc-campaign/**'
       - 'apps/web/src/services/vsc-*.ts'
       - 'apps/web/src/app/api/admin/vsc-*/**'
+      - 'apps/web/src/components/vsc-*.tsx'
+      - 'apps/web/src/app/(app)/admin/ovh-connection/**'
       - 'supabase/migrations/*vsc*.sql'
       - '.github/workflows/vsc-checks.yml'
   workflow_dispatch:
