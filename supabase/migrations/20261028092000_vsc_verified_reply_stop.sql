@@ -10,7 +10,7 @@ create or replace function public.vsc_record_verified_reply(
   p_received_at timestamptz
 ) returns boolean
 language plpgsql
-security definer
+security invoker
 set search_path = ''
 as $$
 declare
