@@ -1,7 +1,7 @@
 # Validation VendreSonCommerce — 28 octobre 2026
 
 Branche : `feature/vsc-campaign-engine-foundation`, PR #88 (dépend de #87).
-Les campagnes restent désactivées. Aucun traitement périodique ni route publique ne lance le worker de réponses.
+Les campagnes restent désactivées. Aucun traitement périodique ne lance le worker de réponses. Une action manuelle réservée aux administrateurs VSC permet de traiter un lot sans envoyer de message.
 
 ## Réponses OVH
 
@@ -25,7 +25,7 @@ L'audit Supabase signale l'absence de politique sur le point de reprise : c'est 
 
 Projet QA : `project-atlas-qa-beta-1`.
 Les variables VSC_OVH_TENANT_ID et VSC_OVH_SMTP_PASSWORD de prévisualisation ont été transférées de la branche #87 à celle de #88, sans lecture ni changement des valeurs. La collecte IMAP utilise le mot de passe IMAP dédié s'il existe, sinon celui SMTP.
-Le quota Vercel est levé après passage à une offre payante. La prévisualisation du commit f37e11e est READY sur l’alias de branche. Les six migrations VSC sont installées en QA et les scénarios SQL y passent avec ROLLBACK. Aucune promotion ni mise en production n'est autorisée.
+Le quota Vercel est levé après passage à une offre payante. La prévisualisation du commit 03b2472 est READY sur l’alias de branche. Les six migrations VSC sont installées en QA et les scénarios SQL y passent avec ROLLBACK. Aucune promotion ni mise en production n'est autorisée.
 
 ## Intégration applicative sur base jetable
 
@@ -59,3 +59,15 @@ Le diagnostic ne peut envoyer qu'à `contact@vendresoncommerce.com`. Il crée un
 Le point initial IMAP ne peut être avancé que lorsqu'aucun envoi VSC historique n'existe. Aucun test ne peut donc sauter une ancienne réponse de campagne. Les données de cette vérification sont identifiables par la source `vsc-reply-self-test` et le nom `[TEST TECHNIQUE OVH] Réponse et arrêt des relances` ; elles sont à supprimer de façon ciblée après collecte de la preuve. Le point de reprise peut être conservé. Le diagnostic reste désactivé en production et n'active aucun scheduler.
 
 La page de désinscription utilise `Referrer-Policy: strict-origin` : le chemin et le jeton ne sont pas transmis comme référent, et le navigateur conserve l’origine du formulaire HTTPS pour le contrôle anti-CSRF. `no-referrer` rendait cette origine nulle lors du POST natif. Référence : https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Referrer-Policy#effect_on_the_origin_header .
+
+## Résultat de la recette réelle
+
+Le 28 octobre 2026, trois messages techniques ont été envoyés exclusivement à notre propre boîte contact@vendresoncommerce.com : un aller-retour simple et deux messages liés par In-Reply-To/References. Le worker a enregistré une réponse et annulé la relance fictive. Le formulaire de désinscription a créé l’opposition email persistante après confirmation POST ; GET n’a rien modifié. Les contacts, campagnes, livraisons, journaux et oppositions fictifs ont ensuite été supprimés de façon ciblée. Le point de reprise IMAP a été conservé.
+
+La CI du commit 03b2472 a réussi : 634 tests unitaires et 7 tests d’intégration sur Supabase local jetable. Aucun SMS réel n’a été envoyé. Aucun envoi commercial ni tâche périodique n’est activé.
+
+## Traitement manuel des réponses
+
+La page administrateur OVH propose une simulation et, séparément, le traitement réel d’un lot. POST `/api/admin/vsc-reply-sync` exige une origine identique, une session et un rôle propriétaire/administrateur dans le tenant VSC configuré côté serveur. Le client ne choisit pas l’entreprise. Le résultat contient les compteurs et `hasMore` ; chaque lot suivant exige un clic explicite. Une erreur ne provoque aucun nouvel essai automatique. Le worker existant conserve les garanties d’idempotence et de reprise.
+
+Cette action ne crée ni contact de test ni email, ne programme aucune tâche et n’active aucune campagne. La planification périodique et les envois commerciaux restent à valider séparément.
