@@ -10,7 +10,7 @@ const raw = {
 describe("VSC IMAP envelope parsing", () => {
   it("normalizes valid reply metadata", () => {
     expect(normalizeVscInboundEnvelope(raw)).toEqual({
-      ...raw, from: "shop@example.com"
+      ...raw, from: "shop@example.com", receivedAt: "2026-10-28T09:00:00.000Z"
     });
   });
   it("rejects unrelated messages and malformed headers", () => {
