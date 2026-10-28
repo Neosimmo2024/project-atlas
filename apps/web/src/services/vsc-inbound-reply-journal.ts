@@ -15,17 +15,20 @@ export async function recordVerifiedVscReply(
   if (!check.accepted) throw new Error("Réponse non attribuable : " + check.reason);
 
   const supabase = createSupabaseServiceRoleClient();
-  // Confirm the outbound campaign/person link before recording a reply.
+  // Do not trust a caller-supplied isReplyToCampaign flag alone.
+  // Match the exact original outbound Message-ID to the same tenant/person.
   const { data: outbound, error: outboundError } = await supabase
     .from("vsc_campaign_deliveries")
     .select("id")
     .eq("tenant_id", candidate.tenantId)
     .eq("campaign_id", candidate.campaignId)
     .eq("person_id", candidate.personId)
+    .eq("channel", "email")
     .eq("status", "sent")
-    .limit(1);
+    .eq("provider_message_id", candidate.originalOutboundMessageId)
+    .maybeSingle();
   if (outboundError) throw outboundError;
-  if (!outbound?.length) throw new Error("Aucun envoi confirmé pour ce prospect");
+  if (!outbound) throw new Error("Message d'origine non reconnu pour ce prospect");
 
   const { data, error } = await supabase.rpc("vsc_record_verified_reply", {
     p_tenant_id: candidate.tenantId,
