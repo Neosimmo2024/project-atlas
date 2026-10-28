@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { getTenantContext } from "@/repositories/tenant-context";
 import { canManageOvh } from "@/services/ovh-connection";
 import { previewVscReplyReconciliation } from "@/services/vsc-reply-reconciliation";
+import { createVscReplyPreviewReport } from "@/features/vsc-campaign/reply-report";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -21,11 +22,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Accès non autorisé" }, { status: 403, headers });
   try {
     const result = await previewVscReplyReconciliation(tenantId);
-    return NextResponse.json({
-      dryRun: true,
+    return NextResponse.json(createVscReplyPreviewReport({
       inspected: result.inspected,
-      matched: result.matches.length
-    }, { headers });
+      matched: result.matches.length,
+      now: new Date()
+    }), { headers });
   } catch {
     return NextResponse.json({ error: "Inspection OVH indisponible" }, { status: 503, headers });
   }
