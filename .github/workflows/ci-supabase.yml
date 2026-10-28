@@ -385,6 +385,10 @@ jobs:
           # empty schema in the newly created temporary database so the archive
           # recreates it with its grants. RESTRICT fails if it is not empty.
           docker exec -e PGPASSWORD "$db_container" psql --username=supabase_admin --dbname="$restore_db" -X -v ON_ERROR_STOP=1 -q -c 'DROP SCHEMA public RESTRICT;'
+          # The selected schemas reference extension objects from Supabase's
+          # managed extensions schema. The isolated restore database needs that
+          # namespace before replaying the archive; no remote DB is affected.
+          docker exec -e PGPASSWORD "$db_container" psql --username=supabase_admin --dbname="$restore_db" -X -v ON_ERROR_STOP=1 -q -c 'CREATE SCHEMA IF NOT EXISTS extensions;'
           # Restore as the managed local admin role, without granting extra
           # privileges to the application's connection role.
           # Capture errors privately; never print restored data or credentials.
