@@ -19,7 +19,7 @@ export async function previewVscReplyReconciliation(tenantId: string) {
   if (error) throw error;
 
   const outbounds = (sent ?? []).flatMap((row) => {
-    const people = row.people as unknown as { primary_email?: string | null } | { email?: string | null }[] | null;
+    const people = row.people as unknown as { primary_email?: string | null } | { primary_email?: string | null }[] | null;
     const person = Array.isArray(people) ? people[0] : people;
     return person?.primary_email && row.provider_message_id ? [{
       tenantId: row.tenant_id, campaignId: row.campaign_id, personId: row.person_id,
