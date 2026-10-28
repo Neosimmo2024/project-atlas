@@ -48,3 +48,49 @@ jobs:
       - name: Typecheck web
         working-directory: apps/web
         run: npm run typecheck
+
+  vsc-migrations:
+    name: VSC isolated Supabase migration smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Start disposable local Supabase
+        run: supabase start > /dev/null
+      - name: Apply all local migrations
+        run: supabase migration up --local
+      - name: Verify VSC schema, RLS, and RPC grants
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase status -o env > "$RUNNER_TEMP/supabase.env"
+          set -a
+          source "$RUNNER_TEMP/supabase.env"
+          set +a
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          declare table_name text;
+          begin
+            foreach table_name in array array['vsc_campaigns','vsc_campaign_deliveries','vsc_inbound_replies']
+            loop
+              if not exists (
+                select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+                where n.nspname='public' and c.relname=table_name and c.relrowsecurity
+              ) then raise exception 'VSC RLS missing: %', table_name; end if;
+            end loop;
+            if has_function_privilege('authenticated',
+              'public.vsc_record_verified_reply(uuid,uuid,uuid,text,timestamptz)', 'EXECUTE')
+            then raise exception 'Authenticated role can invoke VSC reply RPC'; end if;
+            if not has_function_privilege('service_role',
+              'public.vsc_record_verified_reply(uuid,uuid,uuid,text,timestamptz)', 'EXECUTE')
+            then raise exception 'Service role cannot invoke VSC reply RPC'; end if;
+          end $$;
+          SQL
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
