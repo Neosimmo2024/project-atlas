@@ -8,6 +8,7 @@ export type VscReplyCandidate = {
   campaignId: string;
   personId: string;
   inboundMessageId: string;
+  originalOutboundMessageId: string;
   inboundFrom: string;
   expectedEmail: string;
   isReplyToCampaign: boolean;
@@ -24,6 +25,8 @@ export function validateVscReplyCandidate(
     return { accepted: false, reason: "unrelated_message" };
   if (!candidate.inboundFrom.trim() || candidate.inboundFrom.trim().toLowerCase() !== candidate.expectedEmail.trim().toLowerCase())
     return { accepted: false, reason: "sender_mismatch" };
+  if (!candidate.originalOutboundMessageId?.trim() || candidate.originalOutboundMessageId.length > 512)
+    return { accepted: false, reason: "invalid_original_message_id" };
   if (!candidate.inboundMessageId.trim() || candidate.inboundMessageId.length > 512)
     return { accepted: false, reason: "invalid_message_id" };
   if (Number.isNaN(Date.parse(candidate.receivedAt)))
