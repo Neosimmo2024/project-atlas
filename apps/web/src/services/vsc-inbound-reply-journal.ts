@@ -3,7 +3,6 @@
  * Mailbox ingestion must independently authenticate mailbox ownership and
  * verify In-Reply-To/References against an outbound message in this tenant.
  */
-import "server-only";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 import { validateVscReplyCandidate, type VscReplyCandidate } from "@/features/vsc-campaign/inbound-replies";
 
