@@ -37,6 +37,12 @@ describe("VSC draft persistence", () => {
     })).rejects.toThrow();
     expect(from).not.toHaveBeenCalled();
   });
+  it("rejects impossible calendar dates before accessing the database", async () => {
+    for (const scheduledDate of ["2026-02-31", "2026-02-29", "2026-00-10", "2026-10-00"]) {
+      await expect(saveVscDraftPlan({ tenantId, campaignId, plan: [{ ...plan[0], scheduledDate }] })).rejects.toThrow();
+    }
+    expect(from).not.toHaveBeenCalled();
+  });
   it("refuses a campaign that is no longer a draft", async () => {
     maybeSingle.mockResolvedValue({ data: { state: "active" }, error: null });
     await expect(saveVscDraftPlan({ tenantId, campaignId, plan })).rejects.toThrow();

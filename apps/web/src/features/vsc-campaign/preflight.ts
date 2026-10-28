@@ -3,7 +3,7 @@
  * Never trust tenant, sender, opt-out, or campaign state from the browser.
  * Server callers must load them from authoritative database records.
  */
-import { VSC_SENDER, VSC_OFFER_END, type VscContact, type VscChannel } from "./policy";
+import { VSC_SENDER, VSC_OFFER_END, isVscCalendarDate, type VscContact, type VscChannel } from "./policy";
 
 export type VscPreflight = {
   tenantId: string;
@@ -28,7 +28,7 @@ export function validateVscPreflight(input: VscPreflight): VscPreflightResult {
   if (!input.campaignApproved || !input.campaignEnabled)
     return { allowed: false, reason: "campaign_not_approved_or_enabled" };
   if (!input.providerConfigured) return { allowed: false, reason: "provider_not_configured" };
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.scheduledDate) || input.scheduledDate > VSC_OFFER_END)
+  if (!isVscCalendarDate(input.scheduledDate) || input.scheduledDate > VSC_OFFER_END)
     return { allowed: false, reason: "offer_expired_or_invalid_date" };
   const c = input.contact;
   if (c.doNotContact || c.replied || c.appointmentBooked || c.purchased)

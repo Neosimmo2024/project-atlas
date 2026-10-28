@@ -3,6 +3,7 @@
  * through an API route or scheduler. It cannot activate or send campaigns.
  */
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
+import { isVscCalendarDate, VSC_OFFER_END } from "@/features/vsc-campaign/policy";
 import type { VscPlannedDelivery } from "@/features/vsc-campaign/review-plan";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -18,8 +19,8 @@ export async function saveVscDraftPlan(input: {
   if (input.plan.some(item =>
     item.tenantId !== input.tenantId || !UUID.test(item.leadId) ||
     item.status !== "draft" || !["email", "sms"].includes(item.channel) ||
-    !/^\d{4}-\d{2}-\d{2}$/.test(item.scheduledDate) ||
-    item.scheduledDate > "2026-11-30"
+    !isVscCalendarDate(item.scheduledDate) ||
+    item.scheduledDate > VSC_OFFER_END
   )) throw new Error("Plan invalide ou entreprise incorrecte");
 
   const supabase = createSupabaseServiceRoleClient();

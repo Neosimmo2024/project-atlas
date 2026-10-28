@@ -15,6 +15,11 @@ describe("VSC preflight is fail closed", () => {
   it("allows only a fully approved configured eligible request", () => {
     expect(validateVscPreflight(ready)).toEqual({ allowed: true });
   });
+  it("refuses impossible calendar dates even before the promotion ends", () => {
+    for (const scheduledDate of ["2026-02-31", "2026-02-29", "2026-10-00"]) {
+      expect(validateVscPreflight({ ...ready, scheduledDate })).toEqual({ allowed: false, reason: "offer_expired_or_invalid_date" });
+    }
+  });
   it("blocks another tenant and a wrong sender", () => {
     expect(validateVscPreflight({ ...ready, tenantId: "neos" }).allowed).toBe(false);
     expect(validateVscPreflight({ ...ready, sender: "personal@gmail.com" }).allowed).toBe(false);

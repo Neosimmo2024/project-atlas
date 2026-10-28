@@ -6,6 +6,7 @@
 import { createOvhTransport, OVH_SENDER } from "@/services/ovh-connection";
 import { validateVscPreflight, type VscPreflight } from "@/features/vsc-campaign/preflight";
 
+import { isVscOfferCurrent } from "@/features/vsc-campaign/policy";
 import { checkVscContactStop } from "@/services/vsc-contact-stop";
 import { createVscUnsubscribeUrl } from "@/services/vsc-unsubscribe-token";
 
@@ -25,6 +26,7 @@ export async function sendApprovedVscEmail(
   const check = validateVscPreflight(preflight);
   if (!check.allowed || preflight.channel !== "email")
     return { success: false, error: !check.allowed ? check.reason : "invalid_channel" };
+  if (!isVscOfferCurrent(new Date())) return { success: false, error: "offer_expired" };
   const password = process.env.VSC_OVH_SMTP_PASSWORD;
   if (!password) return { success: false, error: "ovh_not_configured" };
   if (!mail.recipient || mail.recipient.trim().toLowerCase() !== preflight.contact.email?.trim().toLowerCase())
@@ -40,6 +42,8 @@ export async function sendApprovedVscEmail(
   const footer = `<p>Ne plus recevoir nos emails : <a href="${unsubscribeUrl.replace(/&/g, "&amp;").replace(/"/g, "&quot;")}">se désinscrire</a></p>`;
   const html = mail.html ? (/<\/body\s*>/i.test(mail.html)
     ? mail.html.replace(/<\/body\s*>/i, footer + "</body>") : mail.html + footer) : undefined;
+  // Database and signing checks can cross midnight: recheck immediately before SMTP.
+  if (!isVscOfferCurrent(new Date())) return { success: false, error: "offer_expired" };
   const transport = createOvhTransport(password);
   try {
     const result = await transport.sendMail({

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
 const { stop, unsubscribe } = vi.hoisted(() => ({ stop: vi.fn(), unsubscribe: vi.fn() }));
 vi.mock("@/services/vsc-contact-stop", () => ({ checkVscContactStop: stop }));
@@ -21,7 +21,23 @@ const request: VscPreflight = {
 };
 
 describe("VSC OVH transport", () => {
-  beforeEach(() => { sendMail.mockReset(); close.mockReset(); process.env.VSC_OVH_SMTP_PASSWORD = "test-only"; stop.mockReset(); stop.mockResolvedValue({ stopped: false }); unsubscribe.mockReset(); unsubscribe.mockReturnValue("https://example.com/vsc-unsubscribe?token=test"); });
+  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-28T12:00:00Z")); sendMail.mockReset(); close.mockReset(); process.env.VSC_OVH_SMTP_PASSWORD = "test-only"; stop.mockReset(); stop.mockResolvedValue({ stopped: false }); unsubscribe.mockReset(); unsubscribe.mockReturnValue("https://example.com/vsc-unsubscribe?token=test"); });
+  afterEach(() => vi.useRealTimers());
+  it("blocks delayed promotional messages from midnight in Paris on December 1", async () => {
+    vi.setSystemTime(new Date("2026-11-30T23:00:00Z"));
+    expect(await sendApprovedVscEmail(request, { personId: "person", recipient: "shop@example.com", subject: "Test", text: "Message" })).toEqual({ success: false, error: "offer_expired" });
+    expect(stop).not.toHaveBeenCalled(); expect(sendMail).not.toHaveBeenCalled();
+  });
+  it("allows the last second of November 30 in Paris", async () => {
+    vi.setSystemTime(new Date("2026-11-30T22:59:59Z")); sendMail.mockResolvedValue({ messageId: "test-id" });
+    expect((await sendApprovedVscEmail(request, { personId: "person", recipient: "shop@example.com", subject: "Test", text: "Message" })).success).toBe(true);
+  });
+  it("rechecks expiry after a slow database lookup crosses midnight", async () => {
+    vi.setSystemTime(new Date("2026-11-30T22:59:59Z"));
+    stop.mockImplementation(async () => { vi.setSystemTime(new Date("2026-11-30T23:00:00Z")); return { stopped: false }; });
+    expect(await sendApprovedVscEmail(request, { personId: "person", recipient: "shop@example.com", subject: "Test", text: "Message" })).toEqual({ success: false, error: "offer_expired" });
+    expect(sendMail).not.toHaveBeenCalled();
+  });
   it("blocks a stopped contact without invoking SMTP", async () => {
     const result = await sendApprovedVscEmail(
       { ...request, contact: { ...request.contact, replied: true } },

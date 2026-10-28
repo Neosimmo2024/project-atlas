@@ -8,6 +8,23 @@ export const VSC_OFFER_END = "2026-11-30";
 export const VSC_PROMO_PRICE_HT = 79;
 export const VSC_STANDARD_PRICE_HT = 159;
 
+/** Strict calendar validation shared by planning, persistence and preflight. */
+export function isVscCalendarDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(value + "T12:00:00Z");
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+/** Actual send date, including delayed jobs, uses the business timezone. */
+export function isVscOfferCurrent(now: Date): boolean {
+  if (!Number.isFinite(now.getTime())) return false;
+  const parts = new Intl.DateTimeFormat("en", {
+    timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit"
+  }).formatToParts(now);
+  const part = (type: string) => parts.find(item => item.type === type)?.value;
+  return `${part("year")}-${part("month")}-${part("day")}` <= VSC_OFFER_END;
+}
+
 export type VscContact = {
   email?: string | null;
   mobile?: string | null;
@@ -47,9 +64,8 @@ export function vscCampaignSteps(contact: VscContact): VscStep[] {
 }
 
 export function vscEligibleSteps(contact: VscContact, startDate: string): Array<VscStep & { scheduledDate: string }> {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) throw new Error("Date invalide");
+  if (!isVscCalendarDate(startDate)) throw new Error("Date invalide");
   const start = new Date(startDate + "T12:00:00Z");
-  if (Number.isNaN(start.getTime()) || start.toISOString().slice(0, 10) !== startDate) throw new Error("Date invalide");
   return vscCampaignSteps(contact).flatMap((step) => {
     const date = new Date(start);
     date.setUTCDate(date.getUTCDate() + step.offsetDays);
