@@ -66,7 +66,8 @@ export async function syncLfiCampaignReplies(context: TenantContext) {
   return {success:true,complete,stopped,message:complete?`Contrôle terminé : ${stopped} arrêt(s) de relance.`:"Contrôle partiel : poursuivre la vérification avant tout envoi."};
  }catch(error){
   const code=error && typeof error==="object" && "code" in error ? String(error.code) : "UNKNOWN";
-  const detail=error instanceof Error ? error.message : "Unknown error";
+  const response=error && typeof error==="object" && "response" in error && typeof error.response==="string" ? error.response : "";
+  const detail=response || (error instanceof Error ? error.message : "Unknown error");
   const safeDetail=detail.replaceAll(process.env.LFI_IONOS_SMTP_PASSWORD ?? "INVALID_EMPTY_SECRET","[redacted]").replace(/[^\\s@]+@[^\\s@]+/g,"[address]").slice(0,200);
   console.error("LFI mailbox check failed",{phase,code:/^[A-Za-z0-9_ -]{1,80}$/.test(code)?code:"UNKNOWN",detail:safeDetail});
   throw new Error("Contrôle des réponses indisponible. Les envois restent bloqués.");
