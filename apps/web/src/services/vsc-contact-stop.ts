@@ -14,11 +14,11 @@ export async function checkVscContactStop(tenantId: string, personId: string, em
   assertContact(tenantId, personId);
   const db = createSupabaseServiceRoleClient();
   const [person, suppression, reply] = await Promise.all([
-    db.from("people").select("primary_email,do_not_contact").eq("tenant_id", tenantId).eq("id", personId).maybeSingle(),
+    db.from("people").select("primary_email,do_not_contact,contact_allowed").eq("tenant_id", tenantId).eq("id", personId).maybeSingle(),
     db.from("vsc_contact_suppressions").select("channel").eq("tenant_id", tenantId).eq("person_id", personId).in("channel", ["all","email"]).limit(1),
     db.from("vsc_inbound_replies").select("id").eq("tenant_id", tenantId).eq("person_id", personId).limit(1)
   ]);
   if (person.error || suppression.error || reply.error) throw new Error("Contrôle VSC indisponible");
   if (!person.data || person.data.primary_email?.trim().toLowerCase() !== email.trim().toLowerCase()) return { stopped: true };
-  return { stopped: !!person.data.do_not_contact || !!suppression.data?.length || !!reply.data?.length };
+  return { stopped: person.data.contact_allowed !== true || !!person.data.do_not_contact || !!suppression.data?.length || !!reply.data?.length };
 }

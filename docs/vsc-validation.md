@@ -77,3 +77,7 @@ Cette action ne crée ni contact de test ni email, ne programme aucune tâche et
 La date prévue ne suffit pas à autoriser un envoi retardé : le transport email vérifie également l’horloge serveur en Europe/Paris, avant les accès externes puis immédiatement avant SMTP. À partir du 1er décembre 2026 à 00:00 à Paris, l’envoi promotionnel est refusé même si sa date planifiée était antérieure. Le contrôle ne dépend d’aucune date envoyée par le navigateur. Une vérification en base qui franchit minuit ne permet pas de contourner ce refus.
 
 La planification, la persistance des brouillons et le précontrôle partagent une validation stricte des jours du calendrier : le 31 février et le 29 février 2026 sont refusés. La date limite de l’offre est centralisée dans la politique VSC. Aucun envoi réel n’est effectué par ces tests.
+
+## Autorisation de contact actuelle
+
+Le contrôle serveur précédant SMTP exige désormais `people.contact_allowed = true`, en plus de l’absence d’opposition globale, de désinscription et de réponse connue. Une autorisation fausse, absente ou illisible bloque l’envoi. Le scénario de révocation est vérifié avec une vraie mise à jour sur Supabase local jetable ; il ne modifie aucun contact réel. La préparation technique ne vaut pas autorisation de lancement : voir [la revue avant lancement](vsc-release-review.md).

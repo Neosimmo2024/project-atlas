@@ -36,7 +36,7 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
     const foreignPerson = randomUUID();
     vi.stubEnv("VSC_OVH_TENANT_ID", tenant);
     await checked(db.from("tenants").insert([{ id: tenant, name: "VSC synthetic integration" }, { id: foreignTenant, name: "Other synthetic integration" }]));
-    await checked(db.from("people").insert([{ id: person, tenant_id: tenant, display_name: "VSC fixture", primary_email: "shop@fixture.invalid" }, { id: foreignPerson, tenant_id: foreignTenant, display_name: "Other fixture", primary_email: "other@fixture.invalid" }]));
+    await checked(db.from("people").insert([{ id: person, tenant_id: tenant, display_name: "VSC fixture", primary_email: "shop@fixture.invalid", contact_allowed: true }, { id: foreignPerson, tenant_id: foreignTenant, display_name: "Other fixture", primary_email: "other@fixture.invalid" }]));
     await checked(db.from("vsc_campaigns").insert([{ id: campaign, tenant_id: tenant, name: "VSC fixture" }, { id: foreignCampaign, tenant_id: foreignTenant, name: "Other fixture" }]));
     const plan = buildVscReviewPlan({ tenantId: tenant, campaignState: "draft", startDate: "2026-10-28", leads: [{ id: person, tenantId: tenant, unsubscribed: false, contact: {
       email: "shop@fixture.invalid", mobile: "0600000000", doNotContact: false, emailOptOut: false, smsOptOut: false, replied: false, appointmentBooked: false, purchased: false
@@ -77,6 +77,13 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
     await saveVscImapCursor(tenant, a, batch);
     await expect(saveVscImapCursor(tenant, b, { ...batch, lastUid: 100 })).rejects.toThrow("concurrente");
     expect((await loadVscImapCursor(tenant)).lastUid).toBe(200);
+  });
+  it("blocks a revoked contact authorization using fresh database state", async () => {
+    expect(await checkVscContactStop(tenant, person, "shop@fixture.invalid")).toEqual({ stopped: false });
+    await checked(db.from("people").update({ contact_allowed: false }).eq("tenant_id", tenant).eq("id", person));
+    expect(await checkVscContactStop(tenant, person, "shop@fixture.invalid")).toEqual({ stopped: true });
+    const unchanged = await checked(db.from("vsc_campaign_deliveries").select("status").eq("tenant_id", foreignTenant));
+    expect(unchanged?.map(x => x.status)).toEqual(["scheduled"]);
   });
   it("persists email opt-outs and cancels only email followups", async () => {
     expect(await checkVscContactStop(tenant, person, "shop@fixture.invalid")).toEqual({ stopped: false });
