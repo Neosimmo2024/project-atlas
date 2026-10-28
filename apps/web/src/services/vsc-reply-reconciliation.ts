@@ -13,17 +13,17 @@ export async function previewVscReplyReconciliation(tenantId: string) {
 
   const supabase = createSupabaseServiceRoleClient();
   const { data: sent, error } = await supabase.from("vsc_campaign_deliveries")
-    .select("tenant_id,campaign_id,person_id,provider_message_id,people!vsc_delivery_person_tenant_fk(email)")
+    .select("tenant_id,campaign_id,person_id,provider_message_id,people!vsc_delivery_person_tenant_fk(primary_email)")
     .eq("tenant_id", tenantId).eq("channel", "email").eq("status", "sent")
     .not("provider_message_id", "is", null).limit(500);
   if (error) throw error;
 
   const outbounds = (sent ?? []).flatMap((row) => {
-    const people = row.people as unknown as { email?: string | null } | { email?: string | null }[] | null;
+    const people = row.people as unknown as { primary_email?: string | null } | { email?: string | null }[] | null;
     const person = Array.isArray(people) ? people[0] : people;
-    return person?.email && row.provider_message_id ? [{
+    return person?.primary_email && row.provider_message_id ? [{
       tenantId: row.tenant_id, campaignId: row.campaign_id, personId: row.person_id,
-      recipientEmail: person.email, providerMessageId: row.provider_message_id
+      recipientEmail: person.primary_email, providerMessageId: row.provider_message_id
     }] : [];
   });
   if (!outbounds.length) return { inspected: 0, matches: [], dryRun: true as const };
