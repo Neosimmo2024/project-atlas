@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const { connect, lock, release, fetch, logout, mailbox } = vi.hoisted(() => ({ connect: vi.fn(), lock: vi.fn(), release: vi.fn(), fetch: vi.fn(), logout: vi.fn(), mailbox: { uidValidity: BigInt(42), uidNext: 401 } }));
-vi.mock("imapflow", () => ({ ImapFlow: class { connect = connect; getMailboxLock = lock; fetch = fetch; logout = logout; mailbox = mailbox; } }));
+const { connect, lock, release, fetch, logout, close, on, mailbox } = vi.hoisted(() => ({ connect: vi.fn(), lock: vi.fn(), release: vi.fn(), fetch: vi.fn(), logout: vi.fn(), close: vi.fn(), on: vi.fn(), mailbox: { uidValidity: BigInt(42), uidNext: 401 } }));
+vi.mock("imapflow", () => ({ ImapFlow: class { connect = connect; getMailboxLock = lock; fetch = fetch; logout = logout; close = close; on = on; mailbox = mailbox; } }));
 import { inspectVscInboxBatch } from "./vsc-ovh-imap";
 describe("VSC read-only UID collector", () => {
   beforeEach(() => {
@@ -16,6 +16,18 @@ describe("VSC read-only UID collector", () => {
     const result = await inspectVscInboxBatch({ uidValidity: "42", lastUid: 200, version: 1 });
     expect(lock).toHaveBeenCalledWith("INBOX", { readOnly: true }); expect(fetch.mock.calls[0][0]).toBe("201:400"); expect(fetch.mock.calls[0][2]).toEqual({ uid: true });
     expect(result.envelopes[0].receivedAt).toBe("2026-10-28T09:00:00.000Z"); expect(result.lastUid).toBe(400); expect(release).toHaveBeenCalled(); expect(logout).toHaveBeenCalled();
+  });
+  it("closes a session even when authentication fails", async () => {
+    connect.mockRejectedValue(new Error("auth failed"));
+    await expect(inspectVscInboxBatch({ uidValidity: "42", lastUid: 0, version: 1 })).rejects.toThrow("auth failed");
+    expect(close).toHaveBeenCalled();
+  });
+  it("rejects a silently truncated fetch after a connection error", async () => {
+    fetch.mockImplementation(async function* () {
+      on.mock.calls.find(call => call[0] === "error")![1](new Error("connection lost"));
+    });
+    await expect(inspectVscInboxBatch({ uidValidity: "42", lastUid: 0, version: 1 })).rejects.toThrow("interrompue");
+    expect(close).toHaveBeenCalled();
   });
   it("does not refetch the last message when caught up", async () => {
     await inspectVscInboxBatch({ uidValidity: "42", lastUid: 400, version: 1 }); expect(fetch).not.toHaveBeenCalled();

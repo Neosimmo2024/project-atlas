@@ -6,6 +6,7 @@ Les campagnes restent désactivées. Aucun traitement périodique ni route publi
 ## Réponses OVH
 
 `reconcileVscRepliesOnce` traite un lot de 200 identifiants UID au maximum dans INBOX, ouverte en lecture seule. Le résultat `hasMore` indique si un autre lot est nécessaire.
+Une session IMAP est bornée à 45 secondes, avec délais de connexion et limites de réponse. Une erreur de connexion ou une lecture tronquée invalide le lot.
 Le point de reprise est conservé par entreprise dans `vsc_imap_cursors`, accessible uniquement au serveur. Il avance après l'enregistrement de toutes les réponses du lot. Une panne laisse le point précédent intact ; les doublons du journal sont sans effet. Une version compare-and-swap refuse l'écrasement concurrent d'un point de reprise. Un changement UIDVALIDITY reprend la lecture depuis le début.
 
 Les références des réponses sont rapprochées des identifiants exacts des envois VSC par lots de 100 références, avec pagination de l'historique. Le traitement ne se limite plus aux 100 derniers messages ni aux 500 premières livraisons. Le panneau d'aperçu conserve sa fenêtre limitée et ne modifie pas le point de reprise.

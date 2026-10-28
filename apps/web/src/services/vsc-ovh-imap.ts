@@ -7,17 +7,36 @@ import { ImapFlow } from "imapflow";
 import { normalizeVscInboundEnvelope, parseVscThreadHeaders, type VscInboundEnvelope } from "@/features/vsc-campaign/imap-envelope";
 import { OVH_SENDER } from "@/services/ovh-connection";
 
-export async function inspectVscInboxHeaders(limit = 50): Promise<VscInboundEnvelope[]> {
+/** A failed or truncated session must never produce a successful checkpoint. */
+async function withVscImapSession<T>(read: (client: ImapFlow) => Promise<T>): Promise<T> {
   const password = process.env.VSC_OVH_IMAP_PASSWORD ?? process.env.VSC_OVH_SMTP_PASSWORD;
   if (!password) throw new Error("OVH IMAP non configuré");
   const client = new ImapFlow({
     host: "ssl0.ovh.net", port: 993, secure: true,
     auth: { user: OVH_SENDER, pass: password },
-    logger: false, disableAutoIdle: true
+    tls: { minVersion: "TLSv1.2", rejectUnauthorized: true },
+    logger: false, logRaw: false, disableAutoIdle: true,
+    connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 10000,
+    maxLiteralSize: 1048576, maxResponseSize: 2097152
   });
-  const result: VscInboundEnvelope[] = [];
-  await client.connect();
+  let interrupted = false;
+  const abort = () => { interrupted = true; client.close(); };
+  client.on("error", abort);
+  const deadline = setTimeout(abort, 45000);
   try {
+    await client.connect();
+    const result = await read(client);
+    if (interrupted) throw new Error("Lecture OVH interrompue : aucun point de reprise validé");
+    return result;
+  } finally {
+    try { await client.logout().catch(() => undefined); }
+    finally { clearTimeout(deadline); client.close(); }
+  }
+}
+
+export async function inspectVscInboxHeaders(limit = 50): Promise<VscInboundEnvelope[]> {
+  return withVscImapSession(async (client) => {
+    const result: VscInboundEnvelope[] = [];
     const lock = await client.getMailboxLock("INBOX", { readOnly: true });
     try {
       const total = client.mailbox && typeof client.mailbox === "object" ? client.mailbox.exists : 0;
@@ -43,19 +62,12 @@ export async function inspectVscInboxHeaders(limit = 50): Promise<VscInboundEnve
     } finally {
       lock.release();
     }
-  } finally {
-    await client.logout().catch(() => undefined);
-  }
+  });
 }
 
 /** Incremental, read-only mailbox batch; caller commits its cursor after DB processing. */
 export async function inspectVscInboxBatch(cursor: import("@/features/vsc-campaign/imap-cursor").VscImapCursor): Promise<import("@/features/vsc-campaign/imap-cursor").VscImapBatch> {
-  const password = process.env.VSC_OVH_IMAP_PASSWORD ?? process.env.VSC_OVH_SMTP_PASSWORD;
-  if (!password) throw new Error("OVH IMAP non configuré");
-  const client = new ImapFlow({ host: "ssl0.ovh.net", port: 993, secure: true,
-    auth: { user: OVH_SENDER, pass: password }, logger: false, disableAutoIdle: true });
-  await client.connect();
-  try {
+  return withVscImapSession(async (client) => {
     const lock = await client.getMailboxLock("INBOX", { readOnly: true });
     try {
       if (!client.mailbox) throw new Error("Boîte IMAP indisponible");
@@ -79,5 +91,5 @@ export async function inspectVscInboxBatch(cursor: import("@/features/vsc-campai
       }
       return { uidValidity, lastUid: plan.lastUid, hasMore: plan.hasMore, scanned, envelopes };
     } finally { lock.release(); }
-  } finally { await client.logout().catch(() => undefined); }
+  });
 }
