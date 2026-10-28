@@ -19,8 +19,10 @@ export async function syncLfiCampaignReplies(context: TenantContext) {
  const imap=new ImapFlow({host:"imap.ionos.fr",port:993,secure:true,auth:{user:IONOS_SENDER,pass:process.env.LFI_IONOS_SMTP_PASSWORD},tls:{minVersion:"TLSv1.2",rejectUnauthorized:true},logger:false,disableAutoIdle:true,connectionTimeout:8000,greetingTimeout:8000,socketTimeout:10000,maxLiteralSize:600000,maxResponseSize:4000000});
  imap.on("error",()=>imap.close());
  const timeout=setTimeout(()=>imap.close(),25000);
+ let phase="connect";
  try {
   await imap.connect();
+  phase="open";
   const mailbox=await imap.mailboxOpen("INBOX",{readOnly:true});
   const validity=mailbox.uidValidity.toString();
   const cursor=cfg.data.mailbox_uidvalidity===validity?Number(cfg.data.mailbox_last_uid):0;
@@ -35,6 +37,7 @@ export async function syncLfiCampaignReplies(context: TenantContext) {
    stopped++;
   };
   if(upper>cursor && outbox.data.length){
+   phase="envelopes";
    for await(const message of imap.fetch(`${cursor+1}:${upper}`,{envelope:true,internalDate:true},{uid:true})){
     const sender=message.envelope?.from?.[0]?.address?.toLowerCase();
     const recipient=recipients.data.find(r=>r.email===sender);
@@ -44,6 +47,7 @@ export async function syncLfiCampaignReplies(context: TenantContext) {
    }
    // Never issue another IMAP command inside the fetch iterator.
    for(const uid of pendingBounces){
+    phase="bounce-source";
     const message=await imap.fetchOne(uid,{source:true},{uid:true});
     if(!message || !message.source)throw new Error("BOUNCE_UNREADABLE");
     const source=message.source.toString("utf8");
@@ -56,9 +60,14 @@ export async function syncLfiCampaignReplies(context: TenantContext) {
    }
   }
   const complete=upper>=last;
+  phase="save";
   const saved=await db.from("lfi_campaigns").update({mailbox_uidvalidity:validity,mailbox_last_uid:upper,mailbox_checked_at:complete?new Date().toISOString():null}).eq("id",cfg.data.id);
   if(saved.error)throw new Error("SAVE_FAILED");
   return {success:true,complete,stopped,message:complete?`Contrôle terminé : ${stopped} arrêt(s) de relance.`:"Contrôle partiel : poursuivre la vérification avant tout envoi."};
- }catch{throw new Error("Contrôle des réponses indisponible. Les envois restent bloqués.");}
+ }catch(error){
+  const code=error && typeof error==="object" && "code" in error ? String(error.code) : "UNKNOWN";
+  console.error("LFI mailbox check failed",{phase,code:/^[A-Za-z0-9_ -]{1,80}$/.test(code)?code:"UNKNOWN"});
+  throw new Error("Contrôle des réponses indisponible. Les envois restent bloqués.");
+ }
  finally{clearTimeout(timeout);imap.close();}
 }
