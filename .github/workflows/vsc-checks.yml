@@ -5,6 +5,7 @@ on:
     paths:
       - 'apps/web/src/features/vsc-campaign/**'
       - 'apps/web/src/services/vsc-*.ts'
+      - 'apps/web/src/app/api/admin/vsc-*/**'
       - 'supabase/migrations/*vsc*.sql'
       - '.github/workflows/vsc-checks.yml'
   workflow_dispatch:
