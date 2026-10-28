@@ -36,7 +36,7 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
     const foreignPerson = randomUUID();
     vi.stubEnv("VSC_OVH_TENANT_ID", tenant);
     await checked(db.from("tenants").insert([{ id: tenant, name: "VSC synthetic integration" }, { id: foreignTenant, name: "Other synthetic integration" }]));
-    await checked(db.from("people").insert([{ id: person, tenant_id: tenant, display_name: "VSC fixture", primary_email: "shop@fixture.invalid", contact_allowed: true }, { id: foreignPerson, tenant_id: foreignTenant, display_name: "Other fixture", primary_email: "other@fixture.invalid" }]));
+    await checked(db.from("people").insert([{ id: person, tenant_id: tenant, display_name: "VSC fixture", primary_email: "shop@fixture.invalid", contact_allowed: true }, { id: foreignPerson, tenant_id: foreignTenant, display_name: "Other fixture", primary_email: "other@fixture.invalid", contact_allowed: false }]));
     await checked(db.from("vsc_campaigns").insert([{ id: campaign, tenant_id: tenant, name: "VSC fixture" }, { id: foreignCampaign, tenant_id: foreignTenant, name: "Other fixture" }]));
     const plan = buildVscReviewPlan({ tenantId: tenant, campaignState: "draft", startDate: "2026-10-28", leads: [{ id: person, tenantId: tenant, unsubscribed: false, contact: {
       email: "shop@fixture.invalid", mobile: "0600000000", doNotContact: false, emailOptOut: false, smsOptOut: false, replied: false, appointmentBooked: false, purchased: false
