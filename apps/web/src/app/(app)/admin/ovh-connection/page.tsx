@@ -1,5 +1,6 @@
 import { EmptyState } from "@/components/empty-state";
 import { OvhConnectionCheck } from "@/components/ovh-connection-check";
+import { VscReplyPreview } from "@/components/vsc-reply-preview";
 import { PageHeader } from "@/components/ui/page-header";
 import { getTenantContext } from "@/repositories/tenant-context";
 import { ovhConnectionStatus } from "@/services/ovh-connection";
@@ -13,6 +14,7 @@ export default async function OvhConnectionPage() {
   <PageHeader eyebrow="VendreSonCommerce" title="Connexion email OVH" subtitle={status.sender} />
   <p>Expéditeur : VendreSonCommerce — contact@vendresoncommerce.com. Les réponses doivent arriver sur cette même adresse.</p>
   <OvhConnectionCheck configured={status.configured} />
+  <VscReplyPreview />
   <section className="card stack"><h2>Campagnes OVH non activées</h2><p>Le diagnostic vérifie la connexion SMTP. La réception et le traitement des réponses restent à valider avant la mise en service des campagnes.</p></section>
  </div>;
 }
