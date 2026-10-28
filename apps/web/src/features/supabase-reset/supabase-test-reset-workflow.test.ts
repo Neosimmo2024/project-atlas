@@ -95,7 +95,7 @@ describe("Supabase test reset workflow", () => {
     }
   });
 
-  it("tracks canonical repository migrations through 0021 while keeping the remote reset lock at validated 0019", () => {
+  it("tracks canonical repository migrations including the contact journal while keeping the remote reset lock at validated 0019", () => {
     const migrations = readdirSync(resolve(root, "supabase/migrations")).filter((name) => name.endsWith(".sql")).sort();
     expect(migrations).toEqual([
       "0001_core.sql",
@@ -118,7 +118,26 @@ describe("Supabase test reset workflow", () => {
       "0018_recruitment_initial_email_sequence.sql",
       "0019_recruitment_email_template_management.sql",
       "0020_recruitment_sequence_engine.sql",
-      "0021_csv_import_direct_write_hardening.sql"
+      "0021_csv_import_direct_write_hardening.sql",
+      "20260924195950_brevo_contact_sync_journal.sql",
+      "20260925222113_security_audit_hardening.sql",
+      "20260926060617_privileged_rpc_validation.sql",
+      "20260928062634_brevo_contact_check_audit.sql",
+      "20260928080003_brevo_contact_review_closure.sql",
+      "20260928120500_brevo_contact_service_lock_grants.sql",
+      "20260929082400_sms_personal_pilot_journal.sql",
+    "20261007100332_atlas_database_search.sql",
+    "20261007101406_atlas_search_storage_indexed.sql",
+    "20261008155331_lyon_campaign_snapshot.sql",
+    "20261009062247_recruitment_campaign_overlap_guard.sql",
+    "20261009062829_recruitment_campaign_claim_retry.sql",
+    "20261013132000_people_directory_whatsapp.sql",
+    "20261013133000_people_directory_custom_query_plan.sql",
+    "20261013134000_people_directory_city_index.sql",
+    "20261013135000_people_directory_affiliations.sql",
+    "20261013140000_people_affiliations_city_filter_index.sql",
+    "20261016095000_local_scheduled_initial.sql",
+    "20261016161000_local_initial_attempt_accounting.sql"
     ]);
     expect(workflow).toContain("Refusing reset: migration set is not exactly 0001 through 0019.");
     expect(workflow).not.toContain("Refusing reset: migration set is not exactly 0001 through 0021.");

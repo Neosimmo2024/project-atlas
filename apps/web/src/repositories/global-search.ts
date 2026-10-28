@@ -6,9 +6,9 @@ import {
   buildRelationshipSearchResults,
   buildTaskSearchResults,
   emptyGlobalSearchResults,
-  GLOBAL_SEARCH_MAX_ROWS_PER_SOURCE,
   GLOBAL_SEARCH_MIN_QUERY_LENGTH,
   normalizeGlobalSearchQuery,
+  type GlobalSearchCategory,
   type GlobalSearchResults,
   type RelationshipSearchRow
 } from "@/features/global-search/global-search";
@@ -19,65 +19,23 @@ export async function searchGlobally(context: TenantContext, query: string): Pro
   if (normalizeGlobalSearchQuery(query).length < GLOBAL_SEARCH_MIN_QUERY_LENGTH) return emptyGlobalSearchResults();
 
   const supabase = await createSupabaseServerClient();
-  const [
-    people,
-    organizations,
-    relationships,
-    projects,
-    interactions,
-    tasks
-  ] = await Promise.all([
-    supabase
-      .from("people")
-      .select("*")
-      .eq("tenant_id", context.tenantId)
-      .order("updated_at", { ascending: false })
-      .limit(GLOBAL_SEARCH_MAX_ROWS_PER_SOURCE),
-    supabase
-      .from("organizations")
-      .select("*")
-      .eq("tenant_id", context.tenantId)
-      .order("updated_at", { ascending: false })
-      .limit(GLOBAL_SEARCH_MAX_ROWS_PER_SOURCE),
-    supabase
-      .from("relationships")
-      .select("*, people(display_name), organizations(name)")
-      .eq("tenant_id", context.tenantId)
-      .order("updated_at", { ascending: false })
-      .limit(GLOBAL_SEARCH_MAX_ROWS_PER_SOURCE),
-    supabase
-      .from("projects")
-      .select("*")
-      .eq("tenant_id", context.tenantId)
-      .order("updated_at", { ascending: false })
-      .limit(GLOBAL_SEARCH_MAX_ROWS_PER_SOURCE),
-    supabase
-      .from("interactions")
-      .select("*")
-      .eq("tenant_id", context.tenantId)
-      .is("deleted_at", null)
-      .order("updated_at", { ascending: false })
-      .limit(GLOBAL_SEARCH_MAX_ROWS_PER_SOURCE),
-    supabase
-      .from("tasks")
-      .select("*")
-      .eq("tenant_id", context.tenantId)
-      .is("deleted_at", null)
-      .order("updated_at", { ascending: false })
-      .limit(GLOBAL_SEARCH_MAX_ROWS_PER_SOURCE)
-  ]);
-
-  for (const result of [people, organizations, relationships, projects, interactions, tasks]) {
-    if (result.error) throw result.error;
-  }
+  const { data, error } = await supabase.rpc("atlas_global_search", {
+    p_tenant_id: context.tenantId,
+    p_query: query
+  });
+  if (error) throw error;
+  const rows = (data ?? []) as Array<{ category: GlobalSearchCategory; row_data: unknown }>;
+  const categoryRows = (category: GlobalSearchCategory) => rows
+    .filter((row) => row.category === category)
+    .map((row) => row.row_data);
 
   return {
-    people: buildPeopleSearchResults((people.data ?? []) as Person[], query),
-    organizations: buildOrganizationSearchResults((organizations.data ?? []) as Organization[], query),
-    relationships: buildRelationshipSearchResults((relationships.data ?? []) as RelationshipSearchRow[], query),
-    projects: buildProjectSearchResults((projects.data ?? []) as Project[], query),
-    interactions: buildInteractionSearchResults((interactions.data ?? []) as Interaction[], query),
-    tasks: buildTaskSearchResults((tasks.data ?? []) as Task[], query)
+    people: buildPeopleSearchResults(categoryRows("people") as Person[], query),
+    organizations: buildOrganizationSearchResults(categoryRows("organizations") as Organization[], query),
+    relationships: buildRelationshipSearchResults(categoryRows("relationships") as RelationshipSearchRow[], query),
+    projects: buildProjectSearchResults(categoryRows("projects") as Project[], query),
+    interactions: buildInteractionSearchResults(categoryRows("interactions") as Interaction[], query),
+    tasks: buildTaskSearchResults(categoryRows("tasks") as Task[], query)
   };
 }
 

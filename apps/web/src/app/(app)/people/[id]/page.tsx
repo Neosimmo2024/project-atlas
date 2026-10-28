@@ -1,15 +1,26 @@
+import { isNeosBrevoTenant } from "@/lib/brevo-tenants";
+import { ReplyReviewList } from "@/components/mailbox/reply-review-list";
+import { availableWhatsAppTemplates } from "@/features/whatsapp/templates";
+import { WhatsAppFollowupCard } from "@/components/people/whatsapp-followup-card";
+import { getWhatsAppFollowup } from "@/repositories/whatsapp-followup";
+import { getLyonCampaignForPerson } from "@/services/lyon-email-campaign";
+import { canLaunchLyon, isLyonCampaignReady } from "@/features/recruitment-email/lyon-campaign";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DeletePersonButton } from "@/components/people/delete-person-button";
 import { SafeBackLink } from "@/components/navigation/safe-back-link";
 import { PersonForm } from "@/components/people/person-form";
 import { TalentQualificationForm } from "@/components/people/talent-qualification-form";
+import { QualificationNotes } from "@/components/people/qualification-notes";
+import { LYON_CAMPAIGN_MARKER, isLyonRecruitmentProfile } from "@/features/recruitment-email/campaign-policy";
 import { RecruitmentEmailSequenceCard } from "@/components/people/recruitment-email-sequence-card";
 import { ContextProjects } from "@/components/projects/context-projects";
 import { TaskCard } from "@/components/tasks/task-card";
 import { TimelineFilters, normalizeTimelineCategory } from "@/components/timeline/timeline-filters";
 import { TimelineList } from "@/components/timeline/timeline-list";
 import { PERSON_STATUS_LABELS, PRIORITY_LABELS } from "@/features/people/options";
+import { safePersonReturnTo } from "@/features/people/person-detail-return";
 import { canDeletePeople } from "@/features/people/search";
 import { getPersonDetail } from "@/repositories/people";
 import { listContextProjects } from "@/repositories/projects";
@@ -50,16 +61,27 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
   if (!detail) notFound();
 
   const { person, organizations, relationships } = detail;
+  const returnTo = safePersonReturnTo(valueOf(query, "returnTo"));
+  const personReturnPath = returnTo === "/people"
+    ? `/people/${person.id}`
+    : `/people/${person.id}?returnTo=${encodeURIComponent(returnTo)}`;
   const timelineCategory = normalizeTimelineCategory(valueOf(query, "timelineCategory"));
   const timelinePage = Number(valueOf(query, "timelinePage") || 1);
-  const [chronology, tasks, projects, qualification, recruitmentEmailSequence] = await Promise.all([
+  const [chronology, tasks, projects, qualification, recruitmentEmailSequence, whatsappFollowup] = await Promise.all([
     listTimelineEvents(context, { personId: person.id, category: timelineCategory, page: timelinePage, pageSize: 3 }),
     listPersonTasks(context, person.id),
     listContextProjects(context, { personId: person.id }),
     getTalentQualification(context, person.id),
-    getRecruitmentEmailSequence(context, person.id)
+    getRecruitmentEmailSequence(context, person.id),
+    getWhatsAppFollowup(context, person.id)
   ]);
   const visibleTasks = tasks.tasks.slice(0, 2);
+  const lyonMarker = LYON_CAMPAIGN_MARKER;
+  const isLyonProfile = isLyonRecruitmentProfile(person.comments);
+  const lyonCampaign = isLyonProfile ? await getLyonCampaignForPerson(await createSupabaseServerClient(), context.tenantId, person.id) : null;
+  const readableNotes = isLyonProfile && qualification?.comments
+    ? `${person.comments?.split(lyonMarker)[0] ?? ""}${qualification.comments}`
+    : person.comments;
 
   return (
     <div className="page stack">
@@ -68,8 +90,15 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
           <p className="muted">Personnes</p>
           <h1>{person.display_name}</h1>
         </div>
-        <SafeBackLink fallbackHref="/people" />
+        <div className="actions">
+          {person.linkedin_url ? <a className="button subtle-button" href={person.linkedin_url} target="_blank" rel="noopener noreferrer">Ouvrir le profil LinkedIn</a> : null}
+          <SafeBackLink fallbackHref={returnTo} useHistory={returnTo === "/people"}>
+            {returnTo.startsWith("/projects/") ? "Retour au projet" : "Retour"}
+          </SafeBackLink>
+        </div>
       </header>
+
+      {["owner", "admin"].includes(context.role) ? <ReplyReviewList tenantId={context.tenantId} personId={person.id} /> : null}
 
       <div className="grid">
         <section className="card stack">
@@ -81,6 +110,7 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
           <p><strong>Ville</strong><br />{person.city ?? "-"} {person.postal_code ? `(${person.postal_code})` : ""}</p>
           <p><strong>Département</strong><br />{person.department ?? "-"}</p>
           <p><strong>Fonction</strong><br />{person.job_title ?? "-"}</p>
+          <p><strong>LinkedIn</strong><br />{person.linkedin_url ? <a href={person.linkedin_url} target="_blank" rel="noopener noreferrer">Ouvrir le profil</a> : "Lien à renseigner"}</p>
         </section>
         <section className="card stack">
           <h2>Qualification</h2>
@@ -98,17 +128,19 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
         </section>
       </div>
 
-      <RecruitmentEmailSequenceCard
+      <WhatsAppFollowupCard personId={person.id} name={person.first_name ?? ""} phone={person.primary_phone} canContact={!person.do_not_contact && (person.contact_allowed || whatsappFollowup.consent)} canEdit={context.role !== "reader"} consent={whatsappFollowup.consent} history={whatsappFollowup.history} sent={whatsappFollowup.sent} templates={availableWhatsAppTemplates(Date.now())} />
+
+      {isNeosBrevoTenant(context.tenantId) && !isLyonProfile ? <RecruitmentEmailSequenceCard
         personId={person.id}
         email={person.primary_email}
         canContact={person.contact_allowed && !person.do_not_contact}
         canEdit={context.role !== "reader"}
         sequence={recruitmentEmailSequence}
-      />
+      /> : null}
 
-      <details className="card stack qualification-summary">
+      <details className="card stack qualification-summary" open={isLyonProfile}>
         <summary>
-          <strong>Qualification structurée — {QUALIFICATION_STATE_LABELS[qualification?.state ?? "none"]}</strong>
+          <strong>{isLyonProfile ? "Qualification Lyon" : "Qualification structurée"} — {QUALIFICATION_STATE_LABELS[qualification?.state ?? "none"]}</strong>
           {qualification?.conclusion ? ` — ${QUALIFICATION_CONCLUSION_LABELS[qualification.conclusion]}` : ""}
         </summary>
         {qualification ? <div className="qualification-meta">
@@ -116,13 +148,24 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
           <span>Par : {qualification.updated_by_label}</span>
           {qualification.completed_at ? <span>Terminée le : {formatDate(qualification.completed_at)} par {qualification.completed_by_label}</span> : null}
         </div> : <p className="muted">Aucune qualification commencée.</p>}
-        <TalentQualificationForm personId={person.id} qualification={qualification} canEdit={context.role !== "reader"} />
+        {isLyonProfile ? <QualificationNotes comments={readableNotes} /> : qualification ? <dl style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))", gap: "16px" }}>
+          {Object.entries({ "Expérience": qualification.experience_level, "Statut professionnel": qualification.professional_status, "Ancienneté (années)": qualification.years_in_real_estate, "TVA": qualification.vat_situation, "Réseau": qualification.current_network, "Secteur": qualification.geographic_area, "Disponibilité": qualification.availability, "Projet": qualification.project_maturity, "Motivation": qualification.motivation, "Besoin principal": qualification.primary_need }).map(([label, value]) => <div key={label}><dt><strong>{label}</strong></dt><dd style={{ margin: "6px 0 0", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{value ?? "À confirmer"}</dd></div>)}
+        </dl> : null}
+        {!isLyonProfile && qualification?.comments ? <QualificationNotes comments={qualification.comments} /> : null}
+        <details>
+          <summary><strong>{context.role === "reader" ? "Voir les champs de qualification" : "Modifier la qualification"}</strong></summary>
+          <TalentQualificationForm personId={person.id} qualification={qualification} canEdit={context.role !== "reader"} />
+        </details>
       </details>
 
-      <details className="card stack">
+      {!isLyonProfile ? <details className="card stack">
         <summary><strong>Commentaires</strong> — {person.comments ? "Renseigné" : "Aucun"}</summary>
-        <p>{person.comments ?? "Aucun commentaire."}</p>
-      </details>
+        <QualificationNotes comments={person.comments} />
+      </details> : <details className="card stack">
+        <summary><strong>Suivi des prises de contact</strong></summary>
+        <p className="muted">Campagne Lyon : chaque invitation ou message doit être validé par Renato avant envoi.</p>
+        <RecruitmentEmailSequenceCard campaign="lyon" campaignReady={isLyonCampaignReady(lyonCampaign?.campaign ?? null)} launchAllowed={canLaunchLyon(lyonCampaign?.campaign ?? null, person.id)} personId={person.id} email={person.primary_email} canContact={person.contact_allowed && !person.do_not_contact} canEdit={context.role !== "reader"} sequence={recruitmentEmailSequence} />
+      </details>}
 
       <details className="card stack">
         <summary><strong>Organisations liées</strong> — {countLabel(organizations.length, "organisation", "organisations")}</summary>
@@ -132,34 +175,41 @@ export default async function PersonDetailPage({ params, searchParams }: PersonD
       <details className="card stack">
         <summary><strong>Relations de recrutement liées</strong> — {countLabel(relationships.length, "relation", "relations")}</summary>
         {relationships.length === 0 ? <p className="muted">Aucune relation liée.</p> : relationships.map((relationship) => (
-          <p key={relationship.id}>{relationship.relationship_type} - {relationship.pipeline_stage} - {relationship.status}</p>
+          <p key={relationship.id}>
+            <Link href={`/relationships/${relationship.id}?returnTo=${encodeURIComponent(personReturnPath)}`}>
+              {relationship.relationship_type} - {relationship.pipeline_stage} - {relationship.status}
+            </Link>
+          </p>
         ))}
       </details>
 
       <details className="card stack">
         <summary><strong>Projets liés</strong> — ouvrir pour consulter</summary>
-        <ContextProjects result={projects} newHref={`/projects/new?personId=${person.id}`} allHref={`/projects?personId=${person.id}`} />
+        <ContextProjects result={projects} newHref={`/projects/new?personId=${person.id}&returnTo=${encodeURIComponent(personReturnPath)}`} allHref={`/projects?personId=${person.id}`} />
       </details>
 
       <details className="card stack">
         <summary><strong>Chronologie</strong> — 3 derniers événements</summary>
         <div className="page-header">
           <h2>Chronologie</h2>
-          <TimelineFilters category={timelineCategory} hiddenFields={{}} />
+          <div className="actions">
+            <TimelineFilters category={timelineCategory} hiddenFields={{}} />
+            <Link className="button subtle-button" href={`/interactions/new?personId=${person.id}&returnTo=${encodeURIComponent(personReturnPath)}`}>Nouvel échange</Link>
+          </div>
         </div>
         {valueOf(query, "interactionDeleted") === "1" ? <p className="success">Échange supprimé.</p> : null}
         <TimelineList result={chronology} basePath={`/people/${person.id}`} category={timelineCategory} />
       </details>
 
       <details className="card stack">
-        <summary><strong>Tâches liées</strong> — {visibleTasks.length === 0 ? "Aucune" : `${visibleTasks.length} prochaine${visibleTasks.length > 1 ? "s" : ""}`}</summary>
+        <summary><strong>Tâches liées</strong> — {tasks.total === 0 ? "Aucune tâche" : `${tasks.total} tâche${tasks.total > 1 ? "s" : ""}`}</summary>
         <div className="page-header">
           <h2>Tâches liées</h2>
-          <Link className="button subtle-button" href={`/tasks/new?sourceType=person&sourceId=${person.id}&personId=${person.id}`}>Nouvelle tâche</Link>
+          <Link className="button subtle-button" href={`/tasks/new?sourceType=person&sourceId=${person.id}&personId=${person.id}&returnTo=${encodeURIComponent(personReturnPath)}`}>Nouvelle tâche</Link>
         </div>
         {valueOf(query, "taskDeleted") === "1" ? <p className="success">Tâche supprimée.</p> : null}
         {visibleTasks.length === 0 ? <p className="muted">Aucune tâche liée.</p> : visibleTasks.map((task) => <TaskCard key={task.id} task={task} />)}
-        {tasks.tasks.length > visibleTasks.length ? <Link className="button subtle-button" href={`/tasks?personId=${person.id}`}>Voir toutes les tâches</Link> : null}
+        {tasks.total > visibleTasks.length ? <Link className="button subtle-button" href={`/tasks?personId=${person.id}`}>Voir toutes les tâches</Link> : null}
       </details>
 
       <details className="card stack">

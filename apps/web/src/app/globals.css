@@ -608,6 +608,7 @@ button, input, select, textarea { font: inherit; }
   grid-template-columns:
     minmax(120px, 0.9fr)
     minmax(120px, 0.9fr)
+    minmax(180px, 1.1fr)
     minmax(240px, 1.45fr)
     minmax(150px, 0.95fr)
     minmax(170px, 1fr)
@@ -616,7 +617,7 @@ button, input, select, textarea { font: inherit; }
     minmax(120px, 0.85fr)
     minmax(76px, 0.55fr)
     minmax(140px, 0.9fr);
-  min-width: 1400px;
+  min-width: 1590px;
 }
 .people-table .cell-email,
 .people-table .cell-phone,

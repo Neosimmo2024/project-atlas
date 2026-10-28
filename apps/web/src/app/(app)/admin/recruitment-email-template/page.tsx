@@ -1,3 +1,4 @@
+import { isNeosBrevoTenant } from "@/lib/brevo-tenants";
 import { EmptyState } from "@/components/empty-state";
 import { RecruitmentEmailTemplateManager } from "@/components/recruitment-email-template/template-manager";
 import { PageHeader } from "@/components/ui/page-header";
@@ -13,6 +14,8 @@ export default async function RecruitmentEmailTemplateAdminPage() {
   if (context.role !== "owner" && context.role !== "admin") {
     return <div className="page stack"><EmptyState title="Accès non autorisé" body="La gestion du modèle Brevo est réservée aux propriétaires et administrateurs." /></div>;
   }
+
+  if (!isNeosBrevoTenant(context.tenantId)) return <div className="page stack"><EmptyState title="Modèles de recrutement NEOS" body="Ces modèles sont réservés à NEOS IMMO. La campagne VendreSonCommerce sera préparée dans son compte dédié." /></div>;
 
   const versions = await listRecruitmentEmailTemplateVersions(context);
 

@@ -18,6 +18,7 @@ type InteractionFormProps = {
   relationshipOptions: Pick<Relationship, "id" | "relationship_type" | "pipeline_stage" | "status">[];
   projectOptions?: Pick<Project, "id" | "title">[];
   defaults?: Partial<Pick<Interaction, "person_id" | "organization_id" | "relationship_id" | "project_id" | "interaction_date">>;
+  returnTo?: string;
 };
 
 function valueOrEmpty(value: string | number | Record<string, unknown> | null | undefined) {
@@ -61,7 +62,7 @@ function formToPayload(form: HTMLFormElement) {
   };
 }
 
-export function InteractionForm({ mode, interaction, types, peopleOptions, organizationOptions, relationshipOptions, projectOptions = [], defaults }: InteractionFormProps) {
+export function InteractionForm({ mode, interaction, types, peopleOptions, organizationOptions, relationshipOptions, projectOptions = [], defaults, returnTo }: InteractionFormProps) {
   const router = useRouter();
   const [fieldErrors, setFieldErrors] = useState<FieldError[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -108,7 +109,8 @@ export function InteractionForm({ mode, interaction, types, peopleOptions, organ
         return;
       }
 
-      router.push(`/interactions/${result.data.id}`);
+      const detailHref = `/interactions/${result.data.id}`;
+      router.push(returnTo ? `${detailHref}?returnTo=${encodeURIComponent(returnTo)}` : detailHref);
       router.refresh();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Erreur réseau pendant l'enregistrement de l'échange.");

@@ -28,7 +28,27 @@ export const EXPECTED_MIGRATIONS = [
   "0018_recruitment_initial_email_sequence.sql",
   "0019_recruitment_email_template_management.sql",
   "0020_recruitment_sequence_engine.sql",
-  "0021_csv_import_direct_write_hardening.sql"
+  "0021_csv_import_direct_write_hardening.sql",
+  "20260924195950_brevo_contact_sync_journal.sql",
+  "20260925222113_security_audit_hardening.sql",
+      "20260926060617_privileged_rpc_validation.sql",
+      "20260928062634_brevo_contact_check_audit.sql",
+      "20260928080003_brevo_contact_review_closure.sql",
+      "20260928120500_brevo_contact_service_lock_grants.sql",
+      "20260929082400_sms_personal_pilot_journal.sql",
+    "20261007100332_atlas_database_search.sql",
+    "20261007101406_atlas_search_storage_indexed.sql",
+    "20261008155331_lyon_campaign_snapshot.sql",
+    "20261009062247_recruitment_campaign_overlap_guard.sql",
+    "20261009062829_recruitment_campaign_claim_retry.sql",
+    "20261013132000_people_directory_whatsapp.sql",
+    "20261013133000_people_directory_custom_query_plan.sql",
+    "20261013134000_people_directory_city_index.sql",
+    "20261013135000_people_directory_affiliations.sql",
+    "20261013140000_people_affiliations_city_filter_index.sql",
+    "20261016095000_local_scheduled_initial.sql",
+    "20261016161000_local_initial_attempt_accounting.sql",
+    "20261019130145_local_campaign_scheduler_daily_cap.sql"
 ];
 export const EXPECTED_COUNTS = Object.freeze({
   "auth.users": 1,
@@ -46,7 +66,11 @@ export const EXPECTED_COUNTS = Object.freeze({
   "public.audit_log": 29,
   "public.action_plan_decisions": 0,
   "public.recruitment_email_sequences": 0,
-  "public.recruitment_email_template_versions": 0
+  "public.recruitment_email_template_versions": 0,
+  "public.brevo_contact_sync_attempts": 0,
+  "public.brevo_contact_checks": 0,
+  "public.brevo_contact_reviews": 0,
+  "public.sms_personal_pilot_attempts": 0
 });
 export const LOCAL_AUTH_READINESS = Object.freeze({
   timeoutMs: 120000,
@@ -361,7 +385,12 @@ function verifyMigrationSet() {
   const actual = migrations.join("\n");
   const expected = EXPECTED_MIGRATIONS.join("\n");
   if (actual !== expected) {
-    throw new Error("Migration set is not exactly 0001 through 0021.");
+    const missing = EXPECTED_MIGRATIONS.filter((name) => !migrations.includes(name));
+    const unexpected = migrations.filter((name) => !EXPECTED_MIGRATIONS.includes(name));
+    throw new Error(
+      "Migration set does not match the exact expected migration list. " +
+      "Missing: " + JSON.stringify(missing) + "; unexpected: " + JSON.stringify(unexpected)
+    );
   }
 }
 
@@ -406,6 +435,10 @@ from (
   union all select 'public.action_plan_decisions', count(*)::integer from public.action_plan_decisions
   union all select 'public.recruitment_email_sequences', count(*)::integer from public.recruitment_email_sequences
   union all select 'public.recruitment_email_template_versions', count(*)::integer from public.recruitment_email_template_versions
+  union all select 'public.brevo_contact_sync_attempts', count(*)::integer from public.brevo_contact_sync_attempts
+  union all select 'public.brevo_contact_checks', count(*)::integer from public.brevo_contact_checks
+  union all select 'public.brevo_contact_reviews', count(*)::integer from public.brevo_contact_reviews
+  union all select 'public.sms_personal_pilot_attempts', count(*)::integer from public.sms_personal_pilot_attempts
 ) counts;
 `);
   return JSON.parse(output);
@@ -580,13 +613,13 @@ declare
 begin
   select count(*)
   into missing_version_count
-  from unnest(array['0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011','0012','0013','0014','0015','0016','0017','0018','0019','0020','0021']) as version_prefix
+  from unnest(array['0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011','0012','0013','0014','0015','0016','0017','0018','0019','0020','0021','20260924195950','20260925222113','20260926060617']) as version_prefix
   where not exists (
     select 1 from supabase_migrations.schema_migrations sm
     where sm.version like version_prefix || '%'
   );
   if missing_version_count > 0 then
-    raise exception 'Expected migration history 0001 through 0021 is incomplete.';
+    raise exception 'Expected migration history including the contact journal is incomplete.';
   end if;
 
   select count(*)
@@ -609,7 +642,11 @@ begin
     'public.csv_import_runs',
     'public.recruitment_email_sequences',
     'public.recruitment_email_template_versions',
-    'public.recruitment_email_sequence_steps'
+    'public.recruitment_email_sequence_steps',
+    'public.brevo_contact_sync_attempts',
+    'public.brevo_contact_checks',
+    'public.brevo_contact_reviews',
+    'public.sms_personal_pilot_attempts'
   ]) as table_name
   where to_regclass(table_name) is null;
   if missing_table_count > 0 then
@@ -634,7 +671,11 @@ begin
     'csv_import_runs',
     'recruitment_email_sequences',
     'recruitment_email_template_versions',
-    'recruitment_email_sequence_steps'
+    'recruitment_email_sequence_steps',
+    'brevo_contact_sync_attempts',
+    'brevo_contact_checks',
+    'brevo_contact_reviews',
+    'sms_personal_pilot_attempts'
   ]) as table_name
   where not exists (
     select 1
@@ -828,3 +869,4 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     process.exit(1);
   });
 }
+
