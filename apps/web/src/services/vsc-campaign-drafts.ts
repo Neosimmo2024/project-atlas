@@ -2,7 +2,6 @@
  * Server-only draft persistence. This module is intentionally not exposed
  * through an API route or scheduler. It cannot activate or send campaigns.
  */
-import "server-only";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 import type { VscPlannedDelivery } from "@/features/vsc-campaign/review-plan";
 
