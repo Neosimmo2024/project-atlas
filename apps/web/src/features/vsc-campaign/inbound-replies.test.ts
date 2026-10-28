@@ -3,7 +3,7 @@ import { validateVscReplyCandidate, type VscReplyCandidate } from "./inbound-rep
 
 const reply: VscReplyCandidate = {
   tenantId: "vsc", campaignId: "campaign", personId: "person",
-  inboundMessageId: "<reply@example.com>", inboundFrom: "shop@example.com",
+  inboundMessageId: "<reply@example.com>", originalOutboundMessageId: "<sent@example.com>", inboundFrom: "shop@example.com",
   expectedEmail: "shop@example.com", isReplyToCampaign: true,
   receivedAt: "2026-10-28T08:00:00Z"
 };
