@@ -18,7 +18,7 @@ describe("VSC public unsubscribe confirmation", () => {
   it("GET renders confirmation without changing consent", async () => {
     const response = await GET(new Request(`${base}?token=${token}`));
     expect(response.status).toBe(200); expect(await response.text()).toContain("Confirmer ma désinscription"); expect(unsubscribe).not.toHaveBeenCalled();
-    expect(response.headers.get("referrer-policy")).toBe("no-referrer"); expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("referrer-policy")).toBe("strict-origin"); expect(response.headers.get("cache-control")).toBe("no-store");
   });
   it("POST confirms only the signed contact and channel", async () => {
     const response = await POST(post()); expect(response.status).toBe(200); expect(unsubscribe).toHaveBeenCalledWith(tenant, person, "email");
@@ -27,7 +27,7 @@ describe("VSC public unsubscribe confirmation", () => {
     expect((await GET(new Request(`${base}?token=invalid`))).status).toBe(400);
     expect((await POST(post("invalid"))).status).toBe(400);
     expect((await POST(post(token, "https://other.example.com"))).status).toBe(403);
-    expect((await POST(post(token, ""))).status).toBe(403); expect(unsubscribe).not.toHaveBeenCalled();
+    expect((await POST(post(token, ""))).status).toBe(403); expect((await POST(post(token, "null"))).status).toBe(403); expect(unsubscribe).not.toHaveBeenCalled();
   });
   it("rejects oversized forms without a mutation", async () => {
     expect((await POST(post("x".repeat(5000)))).status).toBe(400); expect(unsubscribe).not.toHaveBeenCalled();

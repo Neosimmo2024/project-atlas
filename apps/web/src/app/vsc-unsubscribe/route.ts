@@ -2,9 +2,10 @@ import { verifyVscUnsubscribeToken } from "@/services/vsc-unsubscribe-token";
 import { unsubscribeVscContact } from "@/services/vsc-contact-stop";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Strip paths/tokens from Referer while preserving Origin on native HTTPS form POSTs.
 const headers = {
   "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store",
-  "Referrer-Policy": "no-referrer", "X-Robots-Tag": "noindex, nofollow",
+  "Referrer-Policy": "strict-origin", "X-Robots-Tag": "noindex, nofollow",
   "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
 };
 function escape(value: string) { return value.replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]!)); }

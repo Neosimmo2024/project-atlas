@@ -18,7 +18,7 @@ export async function updateSession(request: NextRequest) {
   // Signed VSC opt-out has its own token and origin checks, with no login required.
   if (request.nextUrl.pathname === "/vsc-unsubscribe") {
     applySecurityHeaders(response.headers);
-    response.headers.set("Referrer-Policy", "no-referrer");
+    response.headers.set("Referrer-Policy", "strict-origin");
     return response;
   }
 
