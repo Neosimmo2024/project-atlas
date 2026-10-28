@@ -4,14 +4,13 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const limit = vi.fn();
-const inbox = vi.fn();
-const from = vi.fn(() => {
+const { limit, inbox } = vi.hoisted(() => ({ limit: vi.fn(), inbox: vi.fn() }));
+const from = vi.hoisted(() => vi.fn(() => {
   const query = { eq: vi.fn(), not: vi.fn(), limit };
   query.eq.mockReturnValue(query);
   query.not.mockReturnValue(query);
   return { select: () => query };
-});
+}));
 vi.mock("@/lib/supabase/service-role", () => ({
   createSupabaseServiceRoleClient: () => ({ from })
 }));
