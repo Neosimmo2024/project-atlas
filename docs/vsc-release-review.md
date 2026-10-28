@@ -15,13 +15,13 @@
 
 - Interface `/admin/vsc-campaigns` : sélection explicite de contacts email VSC autorisés, modification des objets/textes proposés, aperçu des dates et messages, sauvegarde atomique et idempotente de brouillons non approuvés, relecture des textes conservés dans les 20 dernières campagnes. Les plans SMS restent dans les fonctions de politique, sans interface ni transport SMS.
 - Transport email OVH contrôlé avant envoi : identité, destinataire, autorisation actuelle de contact, oppositions, réponses connues, lien de désinscription et fin de promotion. Ce transport n’est raccordé à aucun endpoint d’envoi.
-- Réservation atomique des livraisons email, passage unique au début de tentative, libération uniquement avant tentative et résultat incertain bloqué. Ces primitives sont réservées au serveur et ne sont raccordées ni au transport SMTP ni à un endpoint d’envoi ou scheduler. Les politiques d’approbation et d’activation restent sans interface de lancement.
+- Réservation atomique des livraisons email, passage unique au début de tentative, libération uniquement avant tentative et résultat incertain bloqué. Ces primitives sont réservées au serveur et raccordées à un adaptateur SMTP désactivé par défaut, sans endpoint d’envoi ni scheduler. Les politiques d’approbation et d’activation restent sans interface de lancement.
 - Règles SMS Brevo préparées. Aucun transport SMS VSC ni test réel de SMS validé dans cette recette.
 
 ## Travaux nécessaires avant une campagne réelle
 
 1. Faire valider les textes, les destinataires et la cadence d’un pilote concret. Les propositions éditables et leur aperçu sont disponibles, sans approbation ni envoi.
-2. Raccorder, après validation, les primitives de réservation au transport OVH en imposant l’identifiant de message réservé ; classifier les résultats SMTP avec preuve et préparer la procédure humaine de traitement des cas incertains. Aucun rapprochement ou renvoi automatique de ces cas n’est activé.
+2. Valider l’adaptateur réservé sur un pilote technique explicitement autorisé avant toute activation commerciale et préparer la procédure humaine de traitement des cas incertains. Le parcours intégré est testé sur une base jetable avec SMTP simulé ; il ne constitue pas une recette réelle d’envoi commercial. Aucun rapprochement ou renvoi automatique des cas incertains n’est activé.
 3. Préparer une planification du worker OVH ; actuellement seul le traitement manuel est disponible. La collecte des réponses ne déclenche aucun envoi.
 4. Terminer séparément le parcours SMS VSC, ses oppositions et sa vérification sur un numéro de test autorisé.
 5. Présenter la campagne et les résultats complets avant toute approbation de lancement.

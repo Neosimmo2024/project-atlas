@@ -1,4 +1,4 @@
-/** Inert server preparation. No route, scheduler or SMTP transport imports this module. */
+/** Inert server preparation. No route or scheduler calls this module. The reserved SMTP adapter is disabled by default. */
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export type VscReservedPayload = { deliveryId: string; campaignId: string; personId: string; recipient: string; subject: string; text: string; messageId: string };
@@ -31,4 +31,17 @@ export async function recordVscEmailResult(tenantId: string, deliveryId: string,
   const { data, error } = await createSupabaseServiceRoleClient().rpc("vsc_record_email_dispatch_result", { ...input, p_result: outcome, p_message_id: messageId ?? null });
   if (error) throw new Error("Résultat VSC à vérifier manuellement");
   return data === true;
+}
+
+/** Refresh state and eligibility immediately before the reserved adapter's provider call. */
+export async function refreshVscEmail(tenantId: string, deliveryId: string, claimToken: string): Promise<VscReservedPayload | null> {
+  args(tenantId, deliveryId, claimToken);
+  const db = createSupabaseServiceRoleClient();
+  const current = await db.from("vsc_campaign_deliveries").select("status,claim_token,dispatch_outcome")
+    .eq("tenant_id", tenantId).eq("id", deliveryId).maybeSingle();
+  if (current.error) throw new Error("Vérification VSC indisponible");
+  if (!current.data || current.data.status !== "claimed" || current.data.claim_token !== claimToken || current.data.dispatch_outcome !== "sending") return null;
+  const { data, error } = await db.rpc("vsc_email_dispatch_payload", { p_tenant_id: tenantId, p_delivery_id: deliveryId });
+  if (error) throw new Error("Vérification VSC indisponible");
+  return data as VscReservedPayload | null;
 }

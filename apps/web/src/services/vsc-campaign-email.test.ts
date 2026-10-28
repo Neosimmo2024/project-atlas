@@ -21,8 +21,13 @@ const request: VscPreflight = {
 };
 
 describe("VSC OVH transport", () => {
-  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-28T12:00:00Z")); sendMail.mockReset(); close.mockReset(); process.env.VSC_OVH_SMTP_PASSWORD = "test-only"; stop.mockReset(); stop.mockResolvedValue({ stopped: false }); unsubscribe.mockReset(); unsubscribe.mockReturnValue("https://example.com/vsc-unsubscribe?token=test"); });
-  afterEach(() => vi.useRealTimers());
+  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-28T12:00:00Z")); sendMail.mockReset(); close.mockReset(); vi.stubEnv("VSC_OVH_SMTP_PASSWORD", "test-only"); vi.stubEnv("VSC_EMAIL_DISPATCH_ENABLED", "true"); stop.mockReset(); stop.mockResolvedValue({ stopped: false }); unsubscribe.mockReset(); unsubscribe.mockReturnValue("https://example.com/vsc-unsubscribe?token=test"); });
+  afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
+  it("blocks commercial transport by default without SMTP or database access", async () => {
+    vi.stubEnv("VSC_EMAIL_DISPATCH_ENABLED", "");
+    expect(await sendApprovedVscEmail(request, { personId: "person", recipient: "shop@example.com", subject: "Test", text: "Message" })).toEqual({ success: false, error: "commercial_dispatch_disabled" });
+    expect(stop).not.toHaveBeenCalled(); expect(sendMail).not.toHaveBeenCalled();
+  });
   it("blocks delayed promotional messages from midnight in Paris on December 1", async () => {
     vi.setSystemTime(new Date("2026-11-30T23:00:00Z"));
     expect(await sendApprovedVscEmail(request, { personId: "person", recipient: "shop@example.com", subject: "Test", text: "Message" })).toEqual({ success: false, error: "offer_expired" });

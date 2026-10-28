@@ -2,9 +2,14 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-const { inbox } = vi.hoisted(() => ({ inbox: vi.fn() }));
+const { inbox, smtp } = vi.hoisted(() => ({ inbox: vi.fn(), smtp: { enabled: false, send: vi.fn(), close: vi.fn() } }));
 vi.mock("@/services/vsc-ovh-imap", () => ({ inspectVscInboxBatch: inbox }));
-vi.mock("nodemailer", () => ({ default: { createTransport: () => { throw new Error("Transport interdit dans ce test"); } } }));
+vi.mock("nodemailer", () => ({ default: { createTransport: () => {
+  if (!smtp.enabled) throw new Error("Transport interdit dans ce test");
+  return { sendMail: smtp.send, close: smtp.close };
+} } }));
+import { dispatchReservedVscEmail } from "./vsc-reserved-ovh-dispatch";
+import { verifyVscUnsubscribeToken } from "./vsc-unsubscribe-token";
 import { defaultVscEmailContent } from "@/features/vsc-campaign/email-content";
 import { buildVscReviewPlan } from "@/features/vsc-campaign/review-plan";
 import { saveVscDraftPlan } from "./vsc-campaign-drafts";
@@ -40,7 +45,7 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
     approvalActor = actor.data.user.id;
   });
   beforeEach(async () => {
-    inbox.mockReset();
+    inbox.mockReset(); smtp.enabled = false; smtp.send.mockReset(); smtp.close.mockReset();
     tenant = randomUUID(); foreignTenant = randomUUID(); person = randomUUID(); campaign = randomUUID(); foreignCampaign = randomUUID(); outbound = `<sent-${randomUUID()}@fixture.invalid>`;
     const foreignPerson = randomUUID();
     vi.stubEnv("VSC_OVH_TENANT_ID", tenant);
@@ -66,6 +71,45 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
     if (!row) throw new Error("Scheduled fixture unavailable");
     return row.id as string;
   }
+  function enableFakeSmtp() {
+    vi.stubEnv("VSC_EMAIL_DISPATCH_ENABLED", "true"); vi.stubEnv("VSC_OVH_SMTP_PASSWORD", "synthetic-local-test-only");
+    vi.stubEnv("VSC_UNSUBSCRIBE_SIGNING_KEY", "synthetic-local-signing-key-not-a-real-secret-0123456789");
+    vi.stubEnv("VSC_PUBLIC_BASE_URL", "https://vsc.fixture.invalid");
+    smtp.enabled = true;
+    smtp.send.mockImplementation(async (mail: { messageId: string; envelope: { to: string[] } }) => ({ messageId: mail.messageId, accepted: mail.envelope.to, rejected: [], response: "250 accepted by simulated SMTP" }));
+  }
+  it("leaves the delivery untouched while commercial dispatch is disabled", async () => {
+    const id = await scheduledEmail();
+    vi.stubEnv("VSC_EMAIL_DISPATCH_ENABLED", "");
+    expect(await dispatchReservedVscEmail(tenant, id)).toEqual({ state: "disabled" }); expect(smtp.send).not.toHaveBeenCalled();
+    const row = await checked(db.from("vsc_campaign_deliveries").select("status,claim_token").eq("tenant_id", tenant).eq("id", id).single());
+    expect(row).toEqual({ status: "scheduled", claim_token: null });
+  });
+  it.skipIf(promotionExpired)("runs the real reserved adapter with simulated SMTP, persists its receipt and cannot resend", async () => {
+    const id = await scheduledEmail(); enableFakeSmtp();
+    expect(await dispatchReservedVscEmail(tenant, id)).toEqual({ state: "sent" });
+    expect(await dispatchReservedVscEmail(tenant, id)).toEqual({ state: "not_eligible" }); expect(smtp.send).toHaveBeenCalledTimes(1);
+    const mail = smtp.send.mock.calls[0][0];
+    expect(mail.messageId).toBe(`<vsc-${id}@vendresoncommerce.com>`); expect(mail.envelope.to).toEqual(["shop@fixture.invalid"]);
+    const url = new URL(mail.text.split("\n").at(-1)!.replace("Ne plus recevoir nos emails : ", ""));
+    expect(verifyVscUnsubscribeToken(url.searchParams.get("token")!)).toEqual({ v: 1, tenantId: tenant, personId: person, channel: "email" });
+    const row = await checked(db.from("vsc_campaign_deliveries").select("status,provider_message_id,dispatch_outcome").eq("tenant_id", tenant).eq("id", id).single());
+    expect(row).toEqual({ status: "sent", provider_message_id: mail.messageId, dispatch_outcome: "sent" });
+  });
+  it.skipIf(promotionExpired)("keeps a simulated SMTP timeout uncertain through the real adapter and never retries it", async () => {
+    const id = await scheduledEmail(); enableFakeSmtp(); smtp.send.mockRejectedValue({ code: "ETIMEDOUT", command: "DATA" });
+    expect((await dispatchReservedVscEmail(tenant, id)).state).toBe("review_required");
+    expect(await dispatchReservedVscEmail(tenant, id)).toEqual({ state: "not_eligible" }); expect(smtp.send).toHaveBeenCalledTimes(1);
+    const row = await checked(db.from("vsc_campaign_deliveries").select("status,dispatch_outcome").eq("tenant_id", tenant).eq("id", id).single());
+    expect(row).toEqual({ status: "claimed", dispatch_outcome: "unknown" });
+  });
+  it.skipIf(promotionExpired)("persists a proven simulated SMTP rejection without any automatic retry", async () => {
+    const id = await scheduledEmail(); enableFakeSmtp(); smtp.send.mockRejectedValue({ code: "EENVELOPE", command: "RCPT TO", responseCode: 550, response: "550 refused by simulated SMTP" });
+    expect(await dispatchReservedVscEmail(tenant, id)).toEqual({ state: "rejected" });
+    expect(await dispatchReservedVscEmail(tenant, id)).toEqual({ state: "not_eligible" }); expect(smtp.send).toHaveBeenCalledTimes(1);
+    const row = await checked(db.from("vsc_campaign_deliveries").select("status,dispatch_outcome").eq("tenant_id", tenant).eq("id", id).single());
+    expect(row).toEqual({ status: "failed", dispatch_outcome: "rejected" });
+  });
   it("enforces the database clock's promotional end", async () => {
     const id = await scheduledEmail();
     const reservation = await reserveVscEmail(tenant, id);

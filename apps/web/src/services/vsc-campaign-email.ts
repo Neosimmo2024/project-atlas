@@ -23,6 +23,7 @@ export async function sendApprovedVscEmail(
   preflight: VscPreflight,
   mail: VscMail
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  if (process.env.VSC_EMAIL_DISPATCH_ENABLED !== "true") return { success: false, error: "commercial_dispatch_disabled" };
   const check = validateVscPreflight(preflight);
   if (!check.allowed || preflight.channel !== "email")
     return { success: false, error: !check.allowed ? check.reason : "invalid_channel" };
