@@ -33,6 +33,8 @@ describe("Supabase middleware auth pages", () => {
     expect(isAuthPage("/forgot-password")).toBe(true);
     expect(isAuthPage("/update-password")).toBe(true);
     expect(isAuthPage("/dashboard")).toBe(false);
+    expect(isAuthPage("/lfi/unsubscribe")).toBe(true);
+    expect(isAuthPage("/lfi/unsubscribe/other")).toBe(false);
   });
 
   it("allows root, forgot-password and update-password without an authenticated user", async () => {

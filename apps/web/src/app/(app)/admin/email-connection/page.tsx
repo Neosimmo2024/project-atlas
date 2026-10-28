@@ -17,6 +17,7 @@ export default async function EmailConnectionPage() {
     <EmailConnectionCheck configured={status.configured} />
     <section className="card stack">
       <h2>Campagnes IONOS non activées</h2>
+      <a href="/admin/lfi-campaign">Préparer la campagne Les Formateurs Immo</a>
       <p>La vérification de connexion est la première étape. Les envois, les désinscriptions et le traitement des réponses doivent être validés avant la mise en service.</p>
     </section>
   </div>;
