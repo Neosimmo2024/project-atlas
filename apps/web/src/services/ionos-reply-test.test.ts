@@ -9,7 +9,7 @@ vi.mock("imapflow", () => ({ ImapFlow: class {
 import { verifyIonosTestReply } from "./ionos-reply-test";
 const tenantId = "11111111-1111-4111-8111-111111111111";
 const context = { tenantId, role: "owner" } as TenantContext;
-const reference = `<atlas-ionos-${tenantId}-delivery-signature-v2@lesformateursimmo.com>`;
+const reference = `<atlas-ionos-${tenantId}-delivery-signature-v3@lesformateursimmo.com>`;
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv("LFI_IONOS_TENANT_ID", tenantId);

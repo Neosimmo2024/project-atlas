@@ -4,7 +4,7 @@ import type { TenantContext } from "@/types/domain";
 import { canManageIonos, createIonosTransport, IONOS_SENDER } from "./ionos-connection";
 
 export const TEST_RECIPIENT = "renatoponzio@gmail.com";
-const TEST_VERSION = "delivery-signature-v2";
+const TEST_VERSION = "delivery-signature-v3";
 const pending = "Un test a déjà été demandé. Vérifiez votre boîte Gmail et les indésirables. Aucun nouvel envoi n’a été effectué.";
 
 /** One durable claim per tenant/version. Never automatically retry an ambiguous SMTP result. */
@@ -26,7 +26,7 @@ export async function sendIonosDeliveryTest(context: TenantContext) {
       from: { name: "Les Formateurs Immo", address: IONOS_SENDER },
       to: TEST_RECIPIENT, replyTo: IONOS_SENDER,
       messageId: `<atlas-ionos-${context.tenantId}-${TEST_VERSION}@lesformateursimmo.com>`,
-      subject: "Test Atlas — Les Formateurs Immo — IONOS",
+      subject: "Test logo et signature validés — Les Formateurs Immo",
       text: "Bonjour Renato,\n\nCe message vérifie l’envoi depuis Atlas avec la boîte contact@lesformateursimmo.com chez IONOS.\n\nMerci de vérifier sa réception et de répondre simplement « Bien reçu » pour préparer le contrôle des réponses.\n\nIl s’agit uniquement d’un test technique. Aucune campagne commerciale n’a été activée.\n\n" + LFI_SIGNATURE_TEXT,
       html: '<div style="font-family:Arial,sans-serif;color:#183248;line-height:1.6"><p>Bonjour Renato,</p><p>Ce message vérifie l’envoi depuis Atlas avec la boîte <strong>contact@lesformateursimmo.com</strong> chez IONOS.</p><p>Merci de vérifier sa réception et de répondre simplement « Bien reçu » pour préparer le contrôle des réponses.</p><p>Il s’agit uniquement d’un test technique. Aucune campagne commerciale n’a été activée.</p></div>' + LFI_SIGNATURE_HTML,
       attachments: lfiSignatureAttachments()
