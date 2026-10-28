@@ -2,6 +2,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import type { TenantContext } from "@/types/domain";
 const { from, insert, sendMail, close, worker, load, save, checkpoint } = vi.hoisted(() => ({ from: vi.fn(), insert: vi.fn(), sendMail: vi.fn(), close: vi.fn(), worker: vi.fn(), load: vi.fn(), save: vi.fn(), checkpoint: vi.fn() }));
 vi.mock("@/lib/supabase/service-role", () => ({ createSupabaseServiceRoleClient: () => ({ from }) }));
+vi.mock("@/services/vsc-unsubscribe-token", () => ({ createVscUnsubscribeUrl: () => "https://qa.example.com/vsc-unsubscribe?token=synthetic" }));
 vi.mock("@/services/vsc-reply-worker", () => ({ reconcileVscRepliesOnce: worker }));
 vi.mock("@/services/vsc-imap-cursor", () => ({ loadVscImapCursor: load, saveVscImapCursor: save }));
 vi.mock("@/services/vsc-ovh-imap", () => ({ getVscInboxCheckpoint: checkpoint }));

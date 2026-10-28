@@ -1,4 +1,5 @@
 /** QA-only, explicit two-message self-test. Never sends to a prospect. */
+import { createVscUnsubscribeUrl } from "./vsc-unsubscribe-token";
 import { randomUUID } from "node:crypto";
 import type { TenantContext } from "@/types/domain";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
@@ -13,6 +14,14 @@ export function canRunVscReplySelfTest(context: TenantContext) {
       process.env.VSC_REPLY_SELF_TEST_ENABLED === "true" &&
       new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").hostname === "mahgxumwucxehsooijag.supabase.co";
   } catch { return false; }
+}
+export async function getVscReplySelfTestId(context: TenantContext): Promise<string | undefined> {
+  if (!canRunVscReplySelfTest(context)) return undefined;
+  const { data, error } = await createSupabaseServiceRoleClient().from("vsc_campaigns")
+    .select("id").eq("tenant_id", context.tenantId).eq("name", TEST_NAME).eq("state", "draft")
+    .order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (error) return undefined;
+  return data?.id;
 }
 async function checked<T>(request: PromiseLike<{ data: T; error: { message: string } | null }>) {
   const result = await request; if (result.error) throw new Error(result.error.message); return result.data;
@@ -67,7 +76,7 @@ export async function verifyVscReplySelfTest(context: TenantContext, resumeId?: 
       checked(db.from("vsc_inbound_replies").select("id").eq("tenant_id", tenantId).eq("campaign_id", testId).eq("provider_message_id", replyDelivery.provider_message_id).maybeSingle()),
       checked(db.from("vsc_campaign_deliveries").select("status").eq("tenant_id", tenantId).eq("campaign_id", testId).eq("step_key", "technical-followup").single())
     ]);
-    if (journal && followup?.status === "cancelled") return { success: true, pending: false, testId, message: "Test complet réussi : réponse OVH reconnue, journal enregistré et relance fictive annulée. Aucune campagne commerciale activée." };
+    if (journal && followup?.status === "cancelled") return { success: true, pending: false, testId, unsubscribeUrl: createVscUnsubscribeUrl(tenantId, replyDelivery.person_id), message: "Test complet réussi : réponse OVH reconnue, journal enregistré et relance fictive annulée. Aucune campagne commerciale activée." };
     return { success: false, pending: true, testId, message: "Les deux messages techniques sont envoyés. La réponse n’est pas encore traitée. Reprendre la vérification ne renverra aucun message." };
   } catch {
     return { success: false, pending: false, testId, error: "Test interrompu. Des messages techniques peuvent avoir été acceptés par OVH. Aucun renvoi automatique ; vérifier le diagnostic avant de recommencer." };
