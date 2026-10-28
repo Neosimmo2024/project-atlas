@@ -93,3 +93,14 @@ export async function inspectVscInboxBatch(cursor: import("@/features/vsc-campai
     } finally { lock.release(); }
   });
 }
+
+/** Safe initial checkpoint for a QA mailbox with no existing campaign sends. */
+export async function getVscInboxCheckpoint() {
+  return withVscImapSession(async client => {
+    const lock = await client.getMailboxLock("INBOX", { readOnly: true });
+    try {
+      if (!client.mailbox) throw new Error("Boîte IMAP indisponible");
+      return { uidValidity: client.mailbox.uidValidity.toString(), lastUid: client.mailbox.uidNext - 1 };
+    } finally { lock.release(); }
+  });
+}

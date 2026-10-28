@@ -25,7 +25,7 @@ L'audit Supabase signale l'absence de politique sur le point de reprise : c'est 
 
 Projet QA : `project-atlas-qa-beta-1`.
 Les variables VSC_OVH_TENANT_ID et VSC_OVH_SMTP_PASSWORD de prévisualisation ont été transférées de la branche #87 à celle de #88, sans lecture ni changement des valeurs. La collecte IMAP utilise le mot de passe IMAP dédié s'il existe, sinon celui SMTP.
-Le nouveau déploiement reste soumis au quota journalier Vercel (402 api-deployments-free-per-day). L'ancienne prévisualisation ne contient pas les nouveaux correctifs. Aucune promotion ni mise en production n'est autorisée.
+Le quota Vercel est levé après passage à une offre payante. La prévisualisation du commit f37e11e est READY sur l’alias de branche. Les six migrations VSC sont installées en QA et les scénarios SQL y passent avec ROLLBACK. Aucune promotion ni mise en production n'est autorisée.
 
 ## Intégration applicative sur base jetable
 
@@ -35,8 +35,8 @@ Scénarios : plan de brouillons persistant, réponse reconnue, annulation des re
 
 ## Avant une activation
 
-- Déployer le commit validé en prévisualisation lorsque le quota le permet.
-- Préparer un environnement de bout en bout avec des comptes fictifs et la base isolée ; ne pas rediriger les secrets Supabase du projet QA partagé.
+- Vérifier le dernier commit déployé sur l’alias de prévisualisation.
+- Utiliser uniquement des comptes fictifs pour les scénarios de test ; les identifiants Supabase du QA partagé restent inchangés.
 - Vérifier une vraie réponse OVH puis la création du journal et l'arrêt des relances.
 - Valider explicitement la planification du worker et, séparément, les envois commerciaux.
 
@@ -49,3 +49,11 @@ Le lien signé HMAC est lié à une entreprise et un contact ; il ne contient pa
 Le transport email exige maintenant un identifiant de contact, relit son opposition et ses réponses dans la base, vérifie l'adresse destinataire et ajoute un lien de désinscription au texte et au HTML. Une erreur de contrôle ou une configuration incomplète bloque le transport.
 
 Deux paramètres supplémentaires sont requis avant un test réel d'envoi : `VSC_UNSUBSCRIBE_SIGNING_KEY` (clé aléatoire dédiée, au moins 32 caractères, à conserver pour les liens déjà émis) et `VSC_PUBLIC_BASE_URL` (origine HTTPS de l'environnement testé). Ils sont préparés uniquement pour la branche de prévisualisation de la PR #88, avec une clé dédiée non exposée. Ils ne sont pas configurés en production. Aucun endpoint d'envoi ni scheduler n'est activé.
+
+## Diagnostic réel de réponse — QA uniquement
+
+La connexion SMTP et le premier aller-retour réel SMTP/IMAP ont été vérifiés dans l'interface le 28 octobre. Le diagnostic de réponse est séparé des campagnes : `VSC_REPLY_SELF_TEST_ENABLED=true`, environnement Vercel preview, projet Supabase QA attendu et propriétaire/administrateur de VSC sont tous requis.
+
+Le diagnostic ne peut envoyer qu'à `contact@vendresoncommerce.com`. Il crée un contact marqué TEST, interdit de prospection, et une campagne brouillon non approuvée. Deux messages techniques sont envoyés avec In-Reply-To/References réels. Le worker normal doit reconnaître la réponse, écrire le journal et annuler la relance fictive. Si la réponse n'est pas encore visible, la reprise ne renvoie aucun message.
+
+Le point initial IMAP ne peut être avancé que lorsqu'aucun envoi VSC historique n'existe. Aucun test ne peut donc sauter une ancienne réponse de campagne. Les données de cette vérification sont identifiables par la source `vsc-reply-self-test` et le nom `[TEST TECHNIQUE OVH] Réponse et arrêt des relances` ; elles sont à supprimer de façon ciblée après collecte de la preuve. Le point de reprise peut être conservé. Le diagnostic reste désactivé en production et n'active aucun scheduler.
