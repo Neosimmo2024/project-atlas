@@ -6,7 +6,8 @@ const sql = readFileSync(resolve(process.cwd(), "../../supabase/migrations/20261
 
 describe("VSC verified reply stop migration", () => {
   it("limits invocation to the service role", () => {
-    expect(sql).toContain("security definer");
+    expect(sql).toContain("security invoker");
+    expect(sql).not.toContain("security definer");
     expect(sql).toContain("set search_path = ''");
     expect(sql).toMatch(/revoke all on function public\.vsc_record_verified_reply[\s\S]*from public, anon, authenticated/);
     expect(sql).toMatch(/grant execute on function public\.vsc_record_verified_reply[\s\S]*to service_role/);
