@@ -33,6 +33,18 @@ jobs:
       - name: Run VSC service tests
         working-directory: apps/web
         run: npx vitest run src/services/vsc-*.test.ts
+      - name: Validate VSC migration SQL syntax (offline)
+        run: |
+          python3 -m pip install --quiet pglast==7.10
+          python3 - <<'PY'
+          from pathlib import Path
+          from pglast import parse_sql
+          migrations = sorted(Path('supabase/migrations').glob('*vsc*.sql'))
+          assert migrations, 'No VSC migration files found'
+          for migration in migrations:
+              parse_sql(migration.read_text())
+              print(f'Parsed: {migration.name}')
+          PY
       - name: Typecheck web
         working-directory: apps/web
         run: npm run typecheck
