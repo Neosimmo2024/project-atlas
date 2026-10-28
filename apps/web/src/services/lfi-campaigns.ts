@@ -1,4 +1,3 @@
-import { lfiOtherCampaignExclusions } from "./lfi-campaign-overlap";
 import { randomBytes, randomUUID } from "node:crypto";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 import type { TenantContext } from "@/types/domain";
@@ -38,8 +37,6 @@ export async function queueLfiInitialDrafts(context: TenantContext, ids: string[
  const db = createSupabaseServiceRoleClient();
  const people = await db.from("people").select("id,first_name,primary_email,postal_code,job_title,talent_types,contact_allowed,do_not_contact,status").eq("tenant_id", context.tenantId).in("id", ids);
  if (people.error || people.data.length !== ids.length || people.data.some(p => (!eligibleLfiContact(p) || !isRealEstateContact(p)))) throw new Error("La sélection contient un contact exclu, sans email ou hors Île-de-France.");
- const overlaps = await lfiOtherCampaignExclusions(db, context.tenantId, ids);
- if (overlaps.size) throw new Error("Un contact est déjà sollicité par une autre campagne.");
  for (const person of people.data) {
   const email = person.primary_email.trim().toLowerCase();
   const suppressed = await db.from("lfi_suppressions").select("email").eq("tenant_id", context.tenantId).eq("email", email).maybeSingle();
@@ -72,8 +69,6 @@ export async function dispatchLfiOne(context: TenantContext) {
   await db.from("lfi_outbox").update({status:"cancelled",completed_at:new Date().toISOString()}).eq("id",row.id);
   return { success:false, message:"Message bloqué par les exclusions ou un contrôle indisponible." };
  }
- const overlaps = await lfiOtherCampaignExclusions(db,context.tenantId,[recipient.data.person_id]);
- if(overlaps.size){await db.from("lfi_outbox").update({status:"cancelled",completed_at:new Date().toISOString()}).eq("id",row.id);return {success:false,message:"Contact déjà sollicité par une autre campagne."};}
  const unsubscribe = `${origin}/lfi/unsubscribe?token=${recipient.data.unsubscribe_token}`;
  const transport = createIonosTransport(process.env.LFI_IONOS_SMTP_PASSWORD);
  let accepted = false;

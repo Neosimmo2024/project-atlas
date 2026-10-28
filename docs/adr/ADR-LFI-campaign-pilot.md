@@ -9,9 +9,9 @@ All new tables/functions are server-only, with RLS and client grants revoked.
 The authenticated admin prepares initial email drafts for at most 20 explicit
 contact IDs belonging to the configured tenant. The project is fixed to LFI.
 Recipients must be real-estate professionals in IDF, permitted for contact,
-not rejected/archived, without an LFI suppression. Existing recruitment
-sequences and recent recruitment-email timeline events exclude overlaps.
-This is not a complete audit of campaigns sent outside Atlas.
+not rejected/archived, without an LFI suppression. NEOS recruitment sequences and recruitment-email timeline events do not exclude
+LFI contacts: participation is independent by company. Shared explicit contact
+permission and do-not-contact flags remain enforced, alongside LFI suppressions.
 
 GET unsubscribe is a confirmation page (safe for scanners). POST, including
 provider one-click POST, atomically records suppression and cancels queued
@@ -23,7 +23,7 @@ unchanged email and IDF geography, and requires an active campaign plus a
 mailbox scan less than five minutes old. Default throttle: 20/hour, 100/rolling
 24 hours, at least three minutes apart. Claimed/uncertain messages consume
 quota and are never automatically retried. The sender rechecks suppressions,
-contact eligibility and known campaign overlaps immediately before SMTP.
+contact eligibility and LFI exclusions immediately before SMTP.
 A suppression after SMTP has already started cannot recall the in-flight mail.
 
 The mailbox worker uses read-only IMAP and a durable UID/UIDVALIDITY cursor.
@@ -53,3 +53,11 @@ suppression cancellation and server-only grants. SQL fixtures roll back.
 ## Draft preparation controls
 
 Admins can save a future initial-email date before 3 December 2026, while the campaign remains draft. The UI also lets an admin explicitly confirm a selected recipient registration; this uses the existing atomic suppression function and cancels queued messages. This is manual registration reporting, not a synchronization with the training website. No scheduler or activation is enabled by these controls.
+
+## Company separation
+
+A contact may participate in both NEOS IMMO and Les Formateurs Immo campaigns.
+LFI selection, draft preparation and dispatch no longer consult recruitment
+sequences or recruitment-email events. LFI suppression, registration stops,
+duplicate protection, quotas and explicit global contact restrictions remain.
+No other company campaign data is changed by this correction.
