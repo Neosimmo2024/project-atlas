@@ -50,6 +50,14 @@ describe("Supabase middleware auth pages", () => {
     expect(updateResponse.headers.get("location")).toBeNull();
   });
 
+  it("allows only the exact signed unsubscribe route without a session lookup", async () => {
+    const response = await updateSession(request("/vsc-unsubscribe?token=opaque"));
+    expect(response.status).toBe(200); expect(createServerClientMock).not.toHaveBeenCalled();
+    expect(response.headers.get("referrer-policy")).toBe("no-referrer");
+    mockUser(null);
+    expect((await updateSession(request("/vsc-unsubscribe/admin"))).status).toBe(307);
+  });
+
   it("keeps redirecting unauthenticated application pages to login", async () => {
     mockUser(null);
 

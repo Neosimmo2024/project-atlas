@@ -6,6 +6,8 @@ on:
       - 'apps/web/src/features/vsc-campaign/**'
       - 'apps/web/src/services/vsc-*.ts'
       - 'apps/web/src/app/api/admin/vsc-*/**'
+      - 'apps/web/src/app/vsc-unsubscribe/**'
+      - 'apps/web/src/lib/supabase/middleware*'
       - 'apps/web/src/components/vsc-*.tsx'
       - 'apps/web/src/app/(app)/admin/ovh-connection/**'
       - 'supabase/migrations/*vsc*.sql'
@@ -83,7 +85,7 @@ jobs:
           do $$
           declare table_name text;
           begin
-            foreach table_name in array array['vsc_campaigns','vsc_campaign_deliveries','vsc_inbound_replies','vsc_imap_cursors']
+            foreach table_name in array array['vsc_campaigns','vsc_campaign_deliveries','vsc_inbound_replies','vsc_imap_cursors','vsc_contact_suppressions']
             loop
               if not exists (
                 select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace

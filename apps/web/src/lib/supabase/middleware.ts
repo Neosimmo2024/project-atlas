@@ -15,6 +15,13 @@ export async function updateSession(request: NextRequest) {
 
   let response = NextResponse.next({ request });
 
+  // Signed VSC opt-out has its own token and origin checks, with no login required.
+  if (request.nextUrl.pathname === "/vsc-unsubscribe") {
+    applySecurityHeaders(response.headers);
+    response.headers.set("Referrer-Policy", "no-referrer");
+    return response;
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,

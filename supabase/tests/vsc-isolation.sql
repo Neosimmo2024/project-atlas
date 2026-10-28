@@ -46,6 +46,12 @@ begin
   if (select last_uid from public.vsc_imap_cursors where tenant_id='20000000-0000-0000-0000-000000000002') <> 0 then raise exception 'Other tenant checkpoint modified'; end if;
 end $$;
 do $$ begin
+  if public.vsc_unsubscribe_contact('20000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','email') <> 2 then raise exception 'Email opt-out did not cancel pending work'; end if;
+  if public.vsc_unsubscribe_contact('20000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','email') <> 0 then raise exception 'Opt-out not idempotent'; end if;
+  begin
+    perform public.vsc_unsubscribe_contact('20000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000002','email');
+    raise exception 'Foreign contact opt-out accepted';
+  exception when foreign_key_violation then null; end;
   if not public.vsc_record_verified_reply('20000000-0000-0000-0000-000000000001','40000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','<reply@fixture.invalid>',now()) then raise exception 'Reply not recorded'; end if;
   if public.vsc_record_verified_reply('20000000-0000-0000-0000-000000000001','40000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','<reply@fixture.invalid>',now()) then raise exception 'Duplicate not idempotent'; end if;
   if (select count(*) from public.vsc_campaign_deliveries where tenant_id='20000000-0000-0000-0000-000000000001' and status='cancelled') <> 2 then raise exception 'Pending work not cancelled'; end if;
@@ -57,6 +63,8 @@ select set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001'
 set local role authenticated;
 do $$ begin
   if has_table_privilege('authenticated', 'public.vsc_imap_cursors', 'SELECT') or has_table_privilege('anon', 'public.vsc_imap_cursors', 'UPDATE') then raise exception 'Mailbox checkpoint exposed'; end if;
+  if has_function_privilege('authenticated','public.vsc_unsubscribe_contact(uuid,uuid,text)','EXECUTE') or has_function_privilege('anon','public.vsc_unsubscribe_contact(uuid,uuid,text)','EXECUTE') then raise exception 'Unsubscribe RPC exposed'; end if;
+  if (select count(*) from public.vsc_contact_suppressions) <> 1 then raise exception 'Suppression RLS failure'; end if;
   if (select count(*) from public.vsc_campaigns) <> 1 then raise exception 'Campaign RLS failure'; end if;
   if (select count(*) from public.vsc_campaign_deliveries) <> 4 then raise exception 'Delivery RLS failure'; end if;
   if (select count(*) from public.vsc_inbound_replies) <> 1 then raise exception 'Reply RLS failure'; end if;
@@ -73,7 +81,7 @@ reset role;
 update public.tenant_users set status='suspended' where user_id='10000000-0000-0000-0000-000000000001';
 set local role authenticated;
 do $$ begin
-  if exists(select 1 from public.vsc_campaigns) or exists(select 1 from public.vsc_campaign_deliveries) or exists(select 1 from public.vsc_inbound_replies) then raise exception 'Suspended member retains access'; end if;
+  if exists(select 1 from public.vsc_campaigns) or exists(select 1 from public.vsc_campaign_deliveries) or exists(select 1 from public.vsc_inbound_replies) or exists(select 1 from public.vsc_contact_suppressions) then raise exception 'Suspended member retains access'; end if;
 end $$;
 reset role;
 rollback;

@@ -8,6 +8,7 @@ vi.mock("nodemailer", () => ({ default: { createTransport: () => { throw new Err
 import { buildVscReviewPlan } from "@/features/vsc-campaign/review-plan";
 import { saveVscDraftPlan } from "./vsc-campaign-drafts";
 import { reconcileVscRepliesOnce } from "./vsc-reply-worker";
+import { unsubscribeVscContact, checkVscContactStop } from "./vsc-contact-stop";
 import { loadVscImapCursor, saveVscImapCursor } from "./vsc-imap-cursor";
 
 const enabled = process.env.VSC_DISPOSABLE_TEST_DB === "1";
@@ -76,6 +77,22 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
     await saveVscImapCursor(tenant, a, batch);
     await expect(saveVscImapCursor(tenant, b, { ...batch, lastUid: 100 })).rejects.toThrow("concurrente");
     expect((await loadVscImapCursor(tenant)).lastUid).toBe(200);
+  });
+  it("persists email opt-outs and cancels only email followups", async () => {
+    expect(await checkVscContactStop(tenant, person, "shop@fixture.invalid")).toEqual({ stopped: false });
+    expect(await unsubscribeVscContact(tenant, person, "email")).toEqual({ cancelled: 1 });
+    expect(await unsubscribeVscContact(tenant, person, "email")).toEqual({ cancelled: 0 });
+    expect(await checkVscContactStop(tenant, person, "shop@fixture.invalid")).toEqual({ stopped: true });
+    await checked(db.from("vsc_campaign_deliveries").update({ status: "draft" }).eq("tenant_id", tenant).eq("step_key", "consideration"));
+    expect((await unsubscribeVscContact(tenant, person, "email")).cancelled).toBe(1);
+    const deliveries = await checked(db.from("vsc_campaign_deliveries").select("status,channel").eq("tenant_id", tenant));
+    expect(deliveries?.find(x => x.channel === "sms")?.status).toBe("draft");
+    const foreign = await checked(db.from("vsc_campaign_deliveries").select("status").eq("tenant_id", foreignTenant)); expect(foreign?.[0].status).toBe("scheduled");
+  });
+  it("global opt-outs cancel all pending channels and reject foreign contacts", async () => {
+    expect((await unsubscribeVscContact(tenant, person, "all")).cancelled).toBe(2);
+    await expect(unsubscribeVscContact(foreignTenant, person, "all")).rejects.toThrow();
+    await expect(unsubscribeVscContact(tenant, randomUUID(), "email")).rejects.toThrow();
   });
   it("refuses another tenant without reading the mailbox", async () => {
     await expect(reconcileVscRepliesOnce(foreignTenant)).rejects.toThrow("Entreprise non autorisée"); expect(inbox).not.toHaveBeenCalled();

@@ -41,3 +41,11 @@ Scénarios : plan de brouillons persistant, réponse reconnue, annulation des re
 - Valider explicitement la planification du worker et, séparément, les envois commerciaux.
 
 Offre inchangée : 79 € HT au lieu de 159 € HT, annonce jusqu'à la vente, promotion jusqu'au 30 novembre 2026.
+
+## Désinscription VSC
+
+Le lien signé HMAC est lié à une entreprise et un contact ; il ne contient pas d'adresse email. GET affiche uniquement une confirmation. POST vérifie l'origine et la signature avant d'enregistrer une opposition persistante dans `vsc_contact_suppressions` et d'annuler atomiquement les relances en attente du canal concerné. Une opposition globale interne annule les deux canaux. Le code ne modifie pas les champs de contact partagés ni les campagnes NEOS.
+
+Le transport email exige maintenant un identifiant de contact, relit son opposition et ses réponses dans la base, vérifie l'adresse destinataire et ajoute un lien de désinscription au texte et au HTML. Une erreur de contrôle ou une configuration incomplète bloque le transport.
+
+Deux paramètres supplémentaires sont requis avant un test réel d'envoi : `VSC_UNSUBSCRIBE_SIGNING_KEY` (clé aléatoire dédiée, au moins 32 caractères, à conserver pour les liens déjà émis) et `VSC_PUBLIC_BASE_URL` (origine HTTPS de l'environnement testé). Ils sont préparés uniquement pour la branche de prévisualisation de la PR #88, avec une clé dédiée non exposée. Ils ne sont pas configurés en production. Aucun endpoint d'envoi ni scheduler n'est activé.

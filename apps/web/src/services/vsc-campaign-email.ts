@@ -1,12 +1,16 @@
 /**
  * Server-side OVH campaign transport for VendreSonCommerce.
  * Deliberately not wired to a route, scheduler or UI until the
- * database-backed approval and opt-out checks are implemented.
+ * database-backed approval and launch validation are complete.
  */
 import { createOvhTransport, OVH_SENDER } from "@/services/ovh-connection";
 import { validateVscPreflight, type VscPreflight } from "@/features/vsc-campaign/preflight";
 
+import { checkVscContactStop } from "@/services/vsc-contact-stop";
+import { createVscUnsubscribeUrl } from "@/services/vsc-unsubscribe-token";
+
 export type VscMail = {
+  personId: string;
   recipient: string;
   subject: string;
   text: string;
@@ -27,6 +31,15 @@ export async function sendApprovedVscEmail(
     return { success: false, error: "recipient_mismatch" };
   if (!mail.subject.trim() || !mail.text.trim())
     return { success: false, error: "empty_message" };
+  let unsubscribeUrl: string;
+  try {
+    if ((await checkVscContactStop(preflight.tenantId, mail.personId, mail.recipient)).stopped)
+      return { success: false, error: "contact_stopped_in_database" };
+    unsubscribeUrl = createVscUnsubscribeUrl(preflight.tenantId, mail.personId);
+  } catch { return { success: false, error: "contact_or_unsubscribe_check_unavailable" }; }
+  const footer = `<p>Ne plus recevoir nos emails : <a href="${unsubscribeUrl.replace(/&/g, "&amp;").replace(/"/g, "&quot;")}">se désinscrire</a></p>`;
+  const html = mail.html ? (/<\/body\s*>/i.test(mail.html)
+    ? mail.html.replace(/<\/body\s*>/i, footer + "</body>") : mail.html + footer) : undefined;
   const transport = createOvhTransport(password);
   try {
     const result = await transport.sendMail({
@@ -34,8 +47,8 @@ export async function sendApprovedVscEmail(
       to: mail.recipient,
       replyTo: OVH_SENDER,
       subject: mail.subject,
-      text: mail.text,
-      ...(mail.html ? { html: mail.html } : {})
+      text: mail.text + "\n\nNe plus recevoir nos emails : " + unsubscribeUrl,
+      ...(html ? { html } : {})
     });
     return { success: true, messageId: result.messageId };
   } catch {
