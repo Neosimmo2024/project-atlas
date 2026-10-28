@@ -33,7 +33,7 @@ export async function inspectVscInboxHeaders(limit = 50): Promise<VscInboundEnve
           from: envelope.from?.[0]?.address ?? null,
           inReplyTo: envelope.inReplyTo ?? null,
           references,
-          receivedAt: envelope.date?.toISOString() ?? null
+          receivedAt: envelope.date ? new Date(envelope.date).toISOString() : null
         };
         const normalized = normalizeVscInboundEnvelope(raw);
         if (normalized) result.push(normalized);
