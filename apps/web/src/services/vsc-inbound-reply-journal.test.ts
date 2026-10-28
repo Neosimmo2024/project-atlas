@@ -2,11 +2,9 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 const maybeSingle = vi.fn();
 const rpc = vi.fn();
-const from = vi.fn(() => ({
-  select: () => ({ eq: () => ({ eq: () => ({ eq: () => ({ eq: () => ({
-    eq: () => ({ maybeSingle })
-  }) }) }) }) })
-}));
+const query = { eq: vi.fn(), maybeSingle };
+query.eq.mockReturnValue(query);
+const from = vi.fn(() => ({ select: () => query }));
 vi.mock("@/lib/supabase/service-role", () => ({
   createSupabaseServiceRoleClient: () => ({ from, rpc })
 }));
