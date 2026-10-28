@@ -6,3 +6,8 @@ const LOGO_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAARAAAAD2CAYAAAAeYNg+AACkK0lEQVR
 export function lfiSignatureAttachments() {
   return [{ filename: "les-formateurs-immo.png", content: Buffer.from(LOGO_PNG_BASE64, "base64"), contentType: "image/png", contentDisposition: "inline" as const, cid: "lfi-logo" }];
 }
+
+/** Browser preview of the same signature, with the embedded email attachment resolved. */
+export function lfiSignaturePreviewHtml() {
+  return LFI_SIGNATURE_HTML.replace("cid:lfi-logo", `data:image/png;base64,${LOGO_PNG_BASE64}`);
+}
