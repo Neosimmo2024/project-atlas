@@ -30,6 +30,9 @@ jobs:
       - name: Run isolated VSC unit tests
         working-directory: apps/web
         run: npx vitest run src/features/vsc-campaign src/services/vsc-campaign-email.test.ts src/services/vsc-campaign-drafts.test.ts src/services/vsc-inbound-reply-journal.test.ts
+      - name: Run VSC service tests
+        working-directory: apps/web
+        run: npx vitest run src/services/vsc-*.test.ts
       - name: Typecheck web
         working-directory: apps/web
         run: npm run typecheck
