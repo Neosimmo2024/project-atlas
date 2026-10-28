@@ -26,6 +26,12 @@ Projet QA : `project-atlas-qa-beta-1`.
 Les variables VSC_OVH_TENANT_ID et VSC_OVH_SMTP_PASSWORD de prévisualisation ont été transférées de la branche #87 à celle de #88, sans lecture ni changement des valeurs. La collecte IMAP utilise le mot de passe IMAP dédié s'il existe, sinon celui SMTP.
 Le nouveau déploiement reste soumis au quota journalier Vercel (402 api-deployments-free-per-day). L'ancienne prévisualisation ne contient pas les nouveaux correctifs. Aucune promotion ni mise en production n'est autorisée.
 
+## Intégration applicative sur base jetable
+
+`vsc-reply-flow.integration.test.ts` exerce les vrais services TypeScript, le client REST Supabase et la RPC d'annulation. Seule la collecte OVH est simulée ; le transport email est interdit. Le test refuse tout hôte autre que Supabase local sur le port 54321, exige un indicateur explicite et crée uniquement des entreprises et contacts fictifs dans l'instance détruite en fin de CI.
+
+Scénarios : plan de brouillons persistant, réponse reconnue, annulation des relances de la bonne entreprise, doublon sans nouvel enregistrement, panne puis reprise, conflit concurrent du point de reprise et refus d'une autre entreprise. Cette vérification ne remplace pas le test réel de la boîte OVH ni celui de la prévisualisation Vercel.
+
 ## Avant une activation
 
 - Déployer le commit validé en prévisualisation lorsque le quota le permet.

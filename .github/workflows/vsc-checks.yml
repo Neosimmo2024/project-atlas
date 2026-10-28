@@ -33,7 +33,7 @@ jobs:
         run: npx vitest run src/features/vsc-campaign src/services/vsc-campaign-email.test.ts src/services/vsc-campaign-drafts.test.ts src/services/vsc-inbound-reply-journal.test.ts
       - name: Run VSC service tests
         working-directory: apps/web
-        run: npx vitest run src/services/vsc-*.test.ts
+        run: npx vitest run src/services/vsc-*.test.ts --exclude "src/**/*.integration.test.ts"
       - name: Validate VSC migration SQL syntax (offline)
         run: |
           python3 -m pip install --quiet pglast==7.21
@@ -56,6 +56,12 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
       - uses: supabase/setup-cli@v1
         with:
           version: latest
@@ -93,6 +99,20 @@ jobs:
           end $$;
           SQL
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-isolation.sql
+      - name: Run real VSC reply flow against disposable Supabase
+        working-directory: apps/web
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          source "$RUNNER_TEMP/supabase.env"
+          set +a
+          echo "::add-mask::$SERVICE_ROLE_KEY"
+          echo "::add-mask::$ANON_KEY"
+          export NEXT_PUBLIC_SUPABASE_URL="$API_URL"
+          export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          export VSC_DISPOSABLE_TEST_DB=1
+          npx vitest run src/services/vsc-reply-flow.integration.test.ts --no-file-parallelism
       - name: Stop local Supabase
         if: always()
         run: supabase stop --no-backup || true
