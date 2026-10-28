@@ -38,7 +38,7 @@ export function VscCampaignSummary() {
       <p>{summary.sent} envoyés — {summary.failed} erreurs — {summary.cancelled} annulés</p>
       <p>{summary.replies} réponses enregistrées</p>
       {summary.truncated ? <p className="muted">Résultats partiels : limite de consultation atteinte.</p> : null}
-      <p className="muted">Statistiques Atlas uniquement. Aucun envoi n'est déclenché depuis ce tableau.</p>
+      <p className="muted">Statistiques Atlas uniquement. Aucun envoi n&apos;est déclenché depuis ce tableau.</p>
     </> : null}
   </section>;
 }
