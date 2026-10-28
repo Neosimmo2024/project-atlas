@@ -38,8 +38,8 @@ export async function verifyVscReplySelfTest(context: TenantContext, resumeId?: 
       await checked(db.from("vsc_campaigns").insert({ id: testId, tenant_id: tenantId, name: TEST_NAME }));
       await checked(db.from("vsc_campaign_deliveries").insert([
         { id: originalId, tenant_id: tenantId, campaign_id: testId, person_id: personId, channel: "email", step_key: "technical-original", status: "claimed", scheduled_at: new Date().toISOString() },
-        { tenant_id: tenantId, campaign_id: testId, person_id: personId, channel: "email", step_key: "technical-followup", status: "draft", scheduled_at: new Date().toISOString() },
-        { tenant_id: tenantId, campaign_id: testId, person_id: personId, channel: "email", step_key: "technical-reply", status: "claimed", scheduled_at: new Date().toISOString() }
+        { id: randomUUID(), tenant_id: tenantId, campaign_id: testId, person_id: personId, channel: "email", step_key: "technical-followup", status: "draft", scheduled_at: new Date().toISOString() },
+        { id: randomUUID(), tenant_id: tenantId, campaign_id: testId, person_id: personId, channel: "email", step_key: "technical-reply", status: "claimed", scheduled_at: new Date().toISOString() }
       ]));
       const transport = createOvhTransport(password);
       try {

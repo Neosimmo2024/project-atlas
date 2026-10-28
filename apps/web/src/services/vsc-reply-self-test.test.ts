@@ -46,6 +46,9 @@ describe("VSC real-mailbox self-test guard", () => {
     const original = sendMail.mock.calls[0][0], reply = sendMail.mock.calls[1][0];
     expect(original.to).toBe("contact@vendresoncommerce.com"); expect(reply.to).toBe(original.to); expect(reply.inReplyTo).toBe(original.messageId); expect(reply.references).toEqual([original.messageId]);
     expect(insert).toHaveBeenCalledWith("people", expect.objectContaining({ do_not_contact: true, contact_allowed: false, source: "vsc-reply-self-test" }));
+    const rows = insert.mock.calls.find(call => call[0] === "vsc_campaign_deliveries")![1];
+    expect(rows.every((row: { id?: string }) => typeof row.id === "string" && /^[0-9a-f-]{36}$/i.test(row.id))).toBe(true);
+    expect(new Set(rows.map((row: { id: string }) => row.id)).size).toBe(3);
     expect(insert).toHaveBeenCalledWith("vsc_campaigns", expect.not.objectContaining({ state: "active" })); expect(worker).toHaveBeenCalledWith(tenant); expect(close).toHaveBeenCalled();
   });
   it("resumes reconciliation without sending or resetting the checkpoint", async () => {
