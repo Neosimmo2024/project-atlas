@@ -7,6 +7,8 @@ type Summary = {
   draft: number;
   scheduled: number;
   sent: number;
+  claimed: number;
+  uncertain: number;
   failed: number;
   cancelled: number;
   replies: number;
@@ -36,6 +38,7 @@ export function VscCampaignSummary() {
     {summary ? <>
       <p>{summary.campaigns} campagnes — {summary.draft} brouillons — {summary.scheduled} programmés</p>
       <p>{summary.sent} envoyés — {summary.failed} erreurs — {summary.cancelled} annulés</p>
+      <p>{summary.claimed} réservés ou en traitement — {summary.uncertain} résultats incertains à vérifier</p>
       <p>{summary.replies} réponses enregistrées</p>
       {summary.truncated ? <p className="muted">Résultats partiels : limite de consultation atteinte.</p> : null}
       <p className="muted">Statistiques Atlas uniquement. Aucun envoi n&apos;est déclenché depuis ce tableau.</p>

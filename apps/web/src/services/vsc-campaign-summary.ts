@@ -13,7 +13,7 @@ export async function getVscCampaignSummary(tenantId: string) {
     { data: deliveries, error: deliveryError },
     { count: replies, error: replyError }] = await Promise.all([
     supabase.from("vsc_campaigns").select("id,state").eq("tenant_id", tenantId).limit(500),
-    supabase.from("vsc_campaign_deliveries").select("id,status,channel").eq("tenant_id", tenantId).limit(5000),
+    supabase.from("vsc_campaign_deliveries").select("id,status,channel,dispatch_outcome").eq("tenant_id", tenantId).limit(5000),
     supabase.from("vsc_inbound_replies").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId)
   ]);
   if (campaignError) throw campaignError;
@@ -26,6 +26,8 @@ export async function getVscCampaignSummary(tenantId: string) {
     draft: count("draft"),
     scheduled: count("scheduled"),
     sent: count("sent"),
+    claimed: count("claimed"),
+    uncertain: (deliveries ?? []).filter(row => row.dispatch_outcome === "unknown").length,
     failed: count("failed"),
     cancelled: count("cancelled"),
     replies: replies ?? 0,

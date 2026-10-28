@@ -11,6 +11,7 @@ import { saveVscDraftPlan } from "./vsc-campaign-drafts";
 import { reconcileVscRepliesOnce } from "./vsc-reply-worker";
 import { unsubscribeVscContact, checkVscContactStop } from "./vsc-contact-stop";
 import { previewVscEmailDraft, saveVscEmailDraft, readVscEmailDraft } from "./vsc-draft-workspace";
+import { reserveVscEmail, beginVscEmail, releaseVscEmail, recordVscEmailResult } from "./vsc-email-reservations";
 import { loadVscImapCursor, saveVscImapCursor } from "./vsc-imap-cursor";
 
 const enabled = process.env.VSC_DISPOSABLE_TEST_DB === "1";
@@ -24,13 +25,19 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
   let db: SupabaseClient;
   let tenant: string, foreignTenant: string, person: string, campaign: string, foreignCampaign: string;
   let outbound: string;
-  beforeAll(() => {
+  let approvalActor: string;
+  const promotionExpired = Date.now() >= Date.parse("2026-11-30T23:00:00Z");
+  beforeAll(async () => {
     const url = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "http://invalid");
     if (url.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(url.hostname) || url.port !== "54321" || url.username || url.password)
       throw new Error("Test réservé au Supabase local jetable sur le port 54321");
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!key) throw new Error("Clé locale Supabase absente");
     db = createClient(url.origin, key, { auth: { persistSession: false, autoRefreshToken: false } });
+    // Admin creation on this disposable localhost instance sends no confirmation email.
+    const actor = await db.auth.admin.createUser({ email: `vsc-actor-${randomUUID()}@fixture.invalid`, email_confirm: true });
+    if (actor.error || !actor.data.user) throw new Error("Disposable approval fixture unavailable");
+    approvalActor = actor.data.user.id;
   });
   beforeEach(async () => {
     inbox.mockReset();
@@ -53,6 +60,73 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
   }, 30000);
   afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers(); });
 
+  async function scheduledEmail() {
+    await checked(db.from("vsc_campaigns").update({ state: "active", approved_by: approvalActor, approved_at: new Date().toISOString(), enabled_at: new Date().toISOString(), email_content: defaultVscEmailContent() }).eq("tenant_id", tenant).eq("id", campaign));
+    const row = await checked(db.from("vsc_campaign_deliveries").update({ status: "scheduled", scheduled_at: new Date(Date.now()-60000).toISOString() }).eq("tenant_id", tenant).eq("campaign_id", campaign).eq("step_key", "consideration").select("id").single());
+    if (!row) throw new Error("Scheduled fixture unavailable");
+    return row.id as string;
+  }
+  it("enforces the database clock's promotional end", async () => {
+    const id = await scheduledEmail();
+    const reservation = await reserveVscEmail(tenant, id);
+    if (promotionExpired) expect(reservation).toBeNull(); else expect(reservation).not.toBeNull();
+  });
+  it.skipIf(promotionExpired)("allows only one concurrent reservation and one concurrent provider start", async () => {
+    const id = await scheduledEmail();
+    const results = await Promise.all([reserveVscEmail(tenant, id), reserveVscEmail(tenant, id)]);
+    const reservations = results.filter(value => value !== null); expect(reservations).toHaveLength(1);
+    const reservation = reservations[0]!;
+    const starts = await Promise.all([beginVscEmail(tenant, id, reservation.claimToken), beginVscEmail(tenant, id, reservation.claimToken)]);
+    expect(starts.filter(value => value !== null)).toHaveLength(1);
+  });
+  it.skipIf(promotionExpired)("blocks a fresh opt-out after reservation and before provider intent", async () => {
+    const id = await scheduledEmail(); const reservation = await reserveVscEmail(tenant, id); expect(reservation).not.toBeNull();
+    await unsubscribeVscContact(tenant, person, "email");
+    expect(await beginVscEmail(tenant, id, reservation!.claimToken)).toBeNull();
+    const row = await checked(db.from("vsc_campaign_deliveries").select("status,dispatch_started_at").eq("tenant_id", tenant).eq("id", id).single());
+    expect(row).toEqual({ status: "cancelled", dispatch_started_at: null });
+  });
+  it.skipIf(promotionExpired)("keeps uncertain acceptance blocked with no automatic restart or release", async () => {
+    const id = await scheduledEmail(); const reservation = await reserveVscEmail(tenant, id); expect(reservation).not.toBeNull();
+    await beginVscEmail(tenant, id, reservation!.claimToken);
+    expect(await recordVscEmailResult(tenant, id, reservation!.claimToken, "unknown")).toBe(true);
+    expect(await recordVscEmailResult(tenant, id, reservation!.claimToken, "unknown")).toBe(true);
+    expect(await releaseVscEmail(tenant, id, reservation!.claimToken)).toBe(false);
+    expect(await beginVscEmail(tenant, id, reservation!.claimToken)).toBeNull();
+    expect(await reserveVscEmail(tenant, id)).toBeNull();
+    await expect(recordVscEmailResult(tenant, id, reservation!.claimToken, "rejected")).rejects.toThrow("manuellement");
+    const row = await checked(db.from("vsc_campaign_deliveries").select("status,dispatch_outcome,provider_message_id").eq("tenant_id", tenant).eq("id", id).single());
+    expect(row).toEqual({ status: "claimed", dispatch_outcome: "unknown", provider_message_id: null });
+  });
+  it.skipIf(promotionExpired)("persists a verified message identity idempotently and rejects a different one", async () => {
+    const id = await scheduledEmail(); const reservation = await reserveVscEmail(tenant, id); expect(reservation).not.toBeNull();
+    const payload = await beginVscEmail(tenant, id, reservation!.claimToken); expect(payload).not.toBeNull();
+    await expect(recordVscEmailResult(tenant, id, reservation!.claimToken, "sent", "<wrong@fixture.invalid>")).rejects.toThrow();
+    expect(await recordVscEmailResult(tenant, id, reservation!.claimToken, "sent", payload!.messageId)).toBe(true);
+    expect(await recordVscEmailResult(tenant, id, reservation!.claimToken, "sent", payload!.messageId)).toBe(true);
+    expect(await reserveVscEmail(tenant, id)).toBeNull();
+    const row = await checked(db.from("vsc_campaign_deliveries").select("status,provider_message_id").eq("tenant_id", tenant).eq("id", id).single());
+    expect(row).toEqual({ status: "sent", provider_message_id: payload!.messageId });
+  });
+  it.skipIf(promotionExpired)("releases only before start and invalidates the previous reservation token", async () => {
+    const id = await scheduledEmail(); const first = await reserveVscEmail(tenant, id); expect(first).not.toBeNull();
+    expect(await releaseVscEmail(tenant, id, first!.claimToken)).toBe(true);
+    const second = await reserveVscEmail(tenant, id); expect(second).not.toBeNull(); expect(second!.claimToken).not.toBe(first!.claimToken);
+    expect(await beginVscEmail(tenant, id, first!.claimToken)).toBeNull();
+    expect(await beginVscEmail(tenant, id, second!.claimToken)).not.toBeNull();
+    expect(await releaseVscEmail(tenant, id, second!.claimToken)).toBe(false);
+    expect(await recordVscEmailResult(tenant, id, second!.claimToken, "rejected")).toBe(true);
+    expect(await reserveVscEmail(tenant, id)).toBeNull();
+  });
+  it("does not reserve future dates or drafts that have not been approved", async () => {
+    const row = await checked(db.from("vsc_campaign_deliveries").update({ status: "scheduled", scheduled_at: new Date(Date.now()-60000).toISOString() }).eq("tenant_id", tenant).eq("step_key", "consideration").select("id").single());
+    if (!row) throw new Error("Fixture unavailable");
+    expect(await reserveVscEmail(tenant, row.id)).toBeNull();
+    const id = await scheduledEmail();
+    await checked(db.from("vsc_campaign_deliveries").update({ scheduled_at: new Date(Date.now()+3600000).toISOString() }).eq("tenant_id", tenant).eq("id", id));
+    expect(await reserveVscEmail(tenant, id)).toBeNull();
+    expect((await db.rpc("vsc_reserve_email_delivery", { p_tenant_id: foreignTenant, p_delivery_id: id })).data).toBeNull();
+  });
   it("creates an email draft atomically and reuses the same request without duplicating it", async () => {
     vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-28T12:00:00Z"));
     const draft = { campaignId: randomUUID(), name: "Email draft fixture", startDate: "2026-10-28", personIds: [person] };
