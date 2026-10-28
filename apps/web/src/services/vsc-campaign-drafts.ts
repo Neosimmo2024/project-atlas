@@ -12,7 +12,7 @@ export async function saveVscDraftPlan(input: {
   tenantId: string;
   campaignId: string;
   plan: VscPlannedDelivery[];
-}): Promise<{ inserted: number }> {
+}): Promise<{ submitted: number }> {
   if (!UUID.test(input.tenantId) || !UUID.test(input.campaignId))
     throw new Error("Identifiants invalides");
   if (input.plan.length > 500) throw new Error("Lot trop important");
@@ -29,7 +29,7 @@ export async function saveVscDraftPlan(input: {
     .eq("id", input.campaignId).eq("tenant_id", input.tenantId).maybeSingle();
   if (campaignError) throw campaignError;
   if (!campaign || campaign.state !== "draft") throw new Error("Campagne non modifiable");
-  if (!input.plan.length) return { inserted: 0 };
+  if (!input.plan.length) return { submitted: 0 };
 
   const { data: people, error: peopleError } = await supabase.from("people")
     .select("id").eq("tenant_id", input.tenantId)
@@ -48,5 +48,5 @@ export async function saveVscDraftPlan(input: {
     { onConflict: "tenant_id,campaign_id,person_id,step_key", ignoreDuplicates: true }
   );
   if (error) throw error;
-  return { inserted: input.plan.length };
+  return { submitted: input.plan.length };
 }
