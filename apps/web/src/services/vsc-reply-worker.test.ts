@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const preview = vi.fn();
-const record = vi.fn();
+const { preview, record } = vi.hoisted(() => ({ preview: vi.fn(), record: vi.fn() }));
 vi.mock("@/services/vsc-reply-reconciliation", () => ({
   previewVscReplyReconciliation: preview
 }));
