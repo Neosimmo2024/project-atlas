@@ -35,7 +35,7 @@ jobs:
         run: npx vitest run src/services/vsc-*.test.ts
       - name: Validate VSC migration SQL syntax (offline)
         run: |
-          python3 -m pip install --quiet pglast==7.10
+          python3 -m pip install --quiet pglast==7.21
           python3 - <<'PY'
           from pathlib import Path
           from pglast import parse_sql
