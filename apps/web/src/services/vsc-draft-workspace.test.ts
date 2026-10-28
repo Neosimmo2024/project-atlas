@@ -30,10 +30,16 @@ describe("VSC email draft preparation", () => {
     await expect(saveVscEmailDraft(tenant, input, preview.reviewKey)).rejects.toThrow("aperçu");
     expect(rpc.mock.calls.every(call => call[0] === "vsc_email_draft_contacts")).toBe(true);
   });
+  it("requires a new preview after editing message copy", async () => {
+    const preview = await previewVscEmailDraft(tenant, input);
+    const content = { ...preview.content, messages: preview.content.messages.map((message, index) => index === 0 ? { ...message, text: "Changed copy" } : message) };
+    await expect(saveVscEmailDraft(tenant, { ...input, content }, preview.reviewKey)).rejects.toThrow("aperçu");
+    expect(rpc.mock.calls.every(call => call[0] === "vsc_email_draft_contacts")).toBe(true);
+  });
   it("saves only the server-generated selection through the atomic draft RPC", async () => {
     const preview = await previewVscEmailDraft(tenant, input);
     rpc.mockImplementation(async (name: string) => name === "vsc_email_draft_contacts" ? { data: preview.contacts, error: null } : { data: { campaignId: input.campaignId, submitted: 2, reused: false }, error: null });
     expect((await saveVscEmailDraft(tenant, input, preview.reviewKey)).submitted).toBe(2);
-    expect(rpc).toHaveBeenCalledWith("vsc_create_email_draft", { p_tenant_id: tenant, p_campaign_id: input.campaignId, p_name: input.name, p_start_date: input.startDate, p_person_ids: [person] });
+    expect(rpc).toHaveBeenCalledWith("vsc_create_email_draft_with_content", { p_tenant_id: tenant, p_campaign_id: input.campaignId, p_name: input.name, p_start_date: input.startDate, p_person_ids: [person], p_content: preview.content });
   });
 });

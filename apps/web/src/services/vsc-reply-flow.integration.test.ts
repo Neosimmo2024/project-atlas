@@ -5,11 +5,12 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 const { inbox } = vi.hoisted(() => ({ inbox: vi.fn() }));
 vi.mock("@/services/vsc-ovh-imap", () => ({ inspectVscInboxBatch: inbox }));
 vi.mock("nodemailer", () => ({ default: { createTransport: () => { throw new Error("Transport interdit dans ce test"); } } }));
+import { defaultVscEmailContent } from "@/features/vsc-campaign/email-content";
 import { buildVscReviewPlan } from "@/features/vsc-campaign/review-plan";
 import { saveVscDraftPlan } from "./vsc-campaign-drafts";
 import { reconcileVscRepliesOnce } from "./vsc-reply-worker";
 import { unsubscribeVscContact, checkVscContactStop } from "./vsc-contact-stop";
-import { previewVscEmailDraft, saveVscEmailDraft } from "./vsc-draft-workspace";
+import { previewVscEmailDraft, saveVscEmailDraft, readVscEmailDraft } from "./vsc-draft-workspace";
 import { loadVscImapCursor, saveVscImapCursor } from "./vsc-imap-cursor";
 
 const enabled = process.env.VSC_DISPOSABLE_TEST_DB === "1";
@@ -63,6 +64,23 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
     expect(stored).toEqual({ state: "draft", approved_at: null, enabled_at: null });
     const rows = await checked(db.from("vsc_campaign_deliveries").select("status,channel").eq("tenant_id", tenant).eq("campaign_id", draft.campaignId));
     expect(rows).toEqual([{ status: "draft", channel: "email" }, { status: "draft", channel: "email" }]);
+  });
+  it("persists the reviewed copy and refuses a different copy under the same request identity", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-28T12:00:00Z"));
+    const content = defaultVscEmailContent(); content.messages[0].subject = "TEST persisted copy";
+    const draft = { campaignId: randomUUID(), name: "Copy fixture", startDate: "2026-10-28", personIds: [person], content };
+    const preview = await previewVscEmailDraft(tenant, draft);
+    await saveVscEmailDraft(tenant, draft, preview.reviewKey);
+    expect((await readVscEmailDraft(tenant, draft.campaignId)).campaign.email_content).toEqual(content);
+    const changed = defaultVscEmailContent(); changed.messages[0].subject = "TEST different copy";
+    const altered = { ...draft, content: changed };
+    const newPreview = await previewVscEmailDraft(tenant, altered);
+    await expect(saveVscEmailDraft(tenant, altered, newPreview.reviewKey)).rejects.toThrow("Sauvegarde");
+    expect((await readVscEmailDraft(tenant, draft.campaignId)).campaign.email_content).toEqual(content);
+  });
+  it("does not expose another tenant's saved draft", async () => {
+    await expect(readVscEmailDraft(tenant, foreignCampaign)).rejects.toThrow("introuvable");
+    await expect(readVscEmailDraft(foreignTenant, campaign)).rejects.toThrow("Entreprise");
   });
   it("rejects stale eligibility and changed previews without creating a campaign", async () => {
     vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-28T12:00:00Z"));

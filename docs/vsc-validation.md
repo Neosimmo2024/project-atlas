@@ -89,3 +89,11 @@ Le contrôle serveur précédant SMTP exige désormais `people.contact_allowed =
 La migration `20261028163613_vsc_atomic_email_draft.sql` ajoute deux fonctions `security invoker` à search_path vide, exécutables uniquement par service_role. La sélection utilise NOT EXISTS pour les oppositions et réponses, sans troncature d’un historique volumineux. La sauvegarde crée campagne et livraisons dans une transaction, vérifie à nouveau les contacts et conserve uniquement l’état draft. La même demande est idempotente ; un autre contenu avec le même identifiant est refusé. Un contact étranger invalide toute la transaction.
 
 Les dates restent des propositions de relecture, sans programmation chez un prestataire. Aucun nouveau droit d’activation ni transport commercial n’est introduit. Les tests SQL sont transactionnels avec ROLLBACK ; les scénarios applicatifs utilisent exclusivement Supabase local jetable.
+
+## Textes des brouillons et relecture
+
+Les trois étapes email disposent de propositions en texte simple reprenant l’offre convenue. Objets et corps sont modifiables avant aperçu, avec limites de taille et refus des retours à la ligne dans l’objet. Les messages réellement présents dans le plan sont affichés avant sauvegarde. Toute modification de texte invalide l’aperçu précédent.
+
+La migration `20261028165747_vsc_draft_email_content.sql` ajoute une copie des textes sur la campagne et une RPC invoker réservée au serveur, qui encapsule la création atomique existante. Un nouvel essai avec la même identité et les mêmes textes reste idempotent ; une autre copie sous cette identité est refusée. La version enregistrée est relue depuis la base et n’est pas régénérée à partir des modèles courants. Les anciens brouillons conservent un contenu nul et sont signalés comme tels. Aucune donnée existante n’est préremplie ou approuvée.
+
+La relecture impose le tenant VSC côté serveur et n’expose aucun brouillon d’un autre espace. La désinscription reste ajoutée par le transport seulement lors d’un envoi explicitement autorisé ; les textes préparatoires ne contiennent aucun jeton de désinscription réel. L’édition et la sauvegarde ne valent pas validation commerciale.

@@ -13,14 +13,14 @@
 
 ## Implémenté dans le code, sans parcours commercial actif
 
-- Interface `/admin/vsc-campaigns` : sélection explicite de contacts email VSC autorisés, aperçu des dates, sauvegarde atomique et idempotente de brouillons non approuvés, consultation des 20 dernières campagnes. Les plans SMS restent dans les fonctions de politique, sans interface ni transport SMS.
+- Interface `/admin/vsc-campaigns` : sélection explicite de contacts email VSC autorisés, modification des objets/textes proposés, aperçu des dates et messages, sauvegarde atomique et idempotente de brouillons non approuvés, relecture des textes conservés dans les 20 dernières campagnes. Les plans SMS restent dans les fonctions de politique, sans interface ni transport SMS.
 - Transport email OVH contrôlé avant envoi : identité, destinataire, autorisation actuelle de contact, oppositions, réponses connues, lien de désinscription et fin de promotion. Ce transport n’est raccordé à aucun endpoint d’envoi.
 - Politiques d’approbation, activation et réservation des livraisons. Elles ne constituent pas un moteur de distribution atomique déployé.
 - Règles SMS Brevo préparées. Aucun transport SMS VSC ni test réel de SMS validé dans cette recette.
 
 ## Travaux nécessaires avant une campagne réelle
 
-1. Compléter les brouillons avec les textes commerciaux et leur aperçu : l’interface actuelle prépare les contacts et les dates, sans contenu de message approuvé.
+1. Faire valider les textes et destinataires d’un pilote concret. Les propositions éditables et leur aperçu sont disponibles, sans approbation ni envoi.
 2. Préparer les textes commerciaux et les destinataires d’un pilote concret pour validation. Aucun contenu commercial de campagne n’est approuvé par la présente recette technique.
 3. Implémenter et vérifier la réservation atomique et la reprise des livraisons ; définir le traitement des résultats fournisseur ambigus afin d’éviter les renvois.
 4. Préparer une planification du worker OVH ; actuellement seul le traitement manuel est disponible. La collecte des réponses ne déclenche aucun envoi.

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getTenantContext } from "@/repositories/tenant-context";
 import { canManageOvh } from "@/services/ovh-connection";
-import { getVscDraftWorkspace, previewVscEmailDraft, saveVscEmailDraft, VscDraftInputError } from "@/services/vsc-draft-workspace";
+import { getVscDraftWorkspace, readVscEmailDraft, previewVscEmailDraft, saveVscEmailDraft, VscDraftInputError } from "@/services/vsc-draft-workspace";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "no-store" };
@@ -11,11 +11,12 @@ async function authorizedTenant() {
   const context = await getTenantContext(tenantId);
   return context && canManageOvh(context) ? tenantId : null;
 }
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const tenantId = await authorizedTenant();
     if (!tenantId) return NextResponse.json({ error: "Accès non autorisé" }, { status: 403, headers });
-    return NextResponse.json(await getVscDraftWorkspace(tenantId), { headers });
+    const campaignId = new URL(request.url).searchParams.get("campaignId");
+    return NextResponse.json(campaignId ? await readVscEmailDraft(tenantId, campaignId) : await getVscDraftWorkspace(tenantId), { headers });
   } catch { return NextResponse.json({ error: "Préparation indisponible" }, { status: 503, headers }); }
 }
 export async function POST(request: Request) {
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
     if (!request.headers.get("content-type")?.startsWith("application/json"))
       return NextResponse.json({ error: "Format invalide" }, { status: 415, headers });
     const text = await request.text();
-    if (text.length > 20000) return NextResponse.json({ error: "Requête trop grande" }, { status: 413, headers });
+    if (text.length > 30000) return NextResponse.json({ error: "Requête trop grande" }, { status: 413, headers });
     let body;
     try { body = JSON.parse(text); } catch { return NextResponse.json({ error: "Requête invalide" }, { status: 400, headers }); }
     if (!body || !["preview", "save"].includes(body.action))
