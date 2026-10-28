@@ -81,3 +81,11 @@ La planification, la persistance des brouillons et le précontrôle partagent un
 ## Autorisation de contact actuelle
 
 Le contrôle serveur précédant SMTP exige désormais `people.contact_allowed = true`, en plus de l’absence d’opposition globale, de désinscription et de réponse connue. Une autorisation fausse, absente ou illisible bloque l’envoi. Le scénario de révocation est vérifié avec une vraie mise à jour sur Supabase local jetable ; il ne modifie aucun contact réel. La préparation technique ne vaut pas autorisation de lancement : voir [la revue avant lancement](vsc-release-review.md).
+
+## Interface de préparation des brouillons email
+
+`/admin/vsc-campaigns` est réservée aux administrateurs VSC et accessible depuis le diagnostic OVH. Jusqu’à 100 contacts éligibles sont proposés ; la sélection est explicite. Le nom, la date de départ et les contacts produisent un aperçu email J0/J+20/J+40, avec retrait des étapes après le 30 novembre. Un changement de coordonnées, de sélection ou de paramètres impose un nouvel aperçu. Les textes commerciaux restent à préparer et à valider ; aucun contenu n’est envoyé.
+
+La migration `20261028163613_vsc_atomic_email_draft.sql` ajoute deux fonctions `security invoker` à search_path vide, exécutables uniquement par service_role. La sélection utilise NOT EXISTS pour les oppositions et réponses, sans troncature d’un historique volumineux. La sauvegarde crée campagne et livraisons dans une transaction, vérifie à nouveau les contacts et conserve uniquement l’état draft. La même demande est idempotente ; un autre contenu avec le même identifiant est refusé. Un contact étranger invalide toute la transaction.
+
+Les dates restent des propositions de relecture, sans programmation chez un prestataire. Aucun nouveau droit d’activation ni transport commercial n’est introduit. Les tests SQL sont transactionnels avec ROLLBACK ; les scénarios applicatifs utilisent exclusivement Supabase local jetable.

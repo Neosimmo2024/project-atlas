@@ -12,6 +12,8 @@ on:
       - 'apps/web/src/app/(app)/admin/ovh-connection/**'
       - 'supabase/migrations/*vsc*.sql'
       - 'supabase/tests/vsc-isolation.sql'
+      - 'supabase/tests/vsc-draft-workspace.sql'
+      - 'apps/web/src/app/(app)/admin/vsc-campaigns/**'
       - '.github/workflows/vsc-checks.yml'
   workflow_dispatch:
 
@@ -101,6 +103,7 @@ jobs:
           end $$;
           SQL
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-isolation.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-draft-workspace.sql
       - name: Run real VSC reply flow against disposable Supabase
         working-directory: apps/web
         shell: bash

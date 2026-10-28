@@ -9,6 +9,7 @@ import { buildVscReviewPlan } from "@/features/vsc-campaign/review-plan";
 import { saveVscDraftPlan } from "./vsc-campaign-drafts";
 import { reconcileVscRepliesOnce } from "./vsc-reply-worker";
 import { unsubscribeVscContact, checkVscContactStop } from "./vsc-contact-stop";
+import { previewVscEmailDraft, saveVscEmailDraft } from "./vsc-draft-workspace";
 import { loadVscImapCursor, saveVscImapCursor } from "./vsc-imap-cursor";
 
 const enabled = process.env.VSC_DISPOSABLE_TEST_DB === "1";
@@ -49,8 +50,46 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
       messageId: `<reply-${randomUUID()}@fixture.invalid>`, from: "shop@fixture.invalid", inReplyTo: outbound, references: [], receivedAt: "2026-10-28T12:00:00Z"
     }] });
   }, 30000);
-  afterEach(() => vi.unstubAllEnvs());
+  afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers(); });
 
+  it("creates an email draft atomically and reuses the same request without duplicating it", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-28T12:00:00Z"));
+    const draft = { campaignId: randomUUID(), name: "Email draft fixture", startDate: "2026-10-28", personIds: [person] };
+    const preview = await previewVscEmailDraft(tenant, draft);
+    expect(preview.plan.map(x => x.channel)).toEqual(["email", "email"]);
+    expect(await saveVscEmailDraft(tenant, draft, preview.reviewKey)).toEqual({ campaignId: draft.campaignId, submitted: 2, reused: false });
+    expect(await saveVscEmailDraft(tenant, draft, preview.reviewKey)).toEqual({ campaignId: draft.campaignId, submitted: 2, reused: true });
+    const stored = await checked(db.from("vsc_campaigns").select("state,approved_at,enabled_at").eq("tenant_id", tenant).eq("id", draft.campaignId).single());
+    expect(stored).toEqual({ state: "draft", approved_at: null, enabled_at: null });
+    const rows = await checked(db.from("vsc_campaign_deliveries").select("status,channel").eq("tenant_id", tenant).eq("campaign_id", draft.campaignId));
+    expect(rows).toEqual([{ status: "draft", channel: "email" }, { status: "draft", channel: "email" }]);
+  });
+  it("rejects stale eligibility and changed previews without creating a campaign", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-28T12:00:00Z"));
+    const draft = { campaignId: randomUUID(), name: "Stale draft fixture", startDate: "2026-10-28", personIds: [person] };
+    const preview = await previewVscEmailDraft(tenant, draft);
+    await expect(saveVscEmailDraft(tenant, { ...draft, name: "Changed" }, preview.reviewKey)).rejects.toThrow("aperçu");
+    await checked(db.from("people").update({ contact_allowed: false }).eq("tenant_id", tenant).eq("id", person));
+    await expect(saveVscEmailDraft(tenant, draft, preview.reviewKey)).rejects.toThrow("éligible");
+    const stored = await checked(db.from("vsc_campaigns").select("id").eq("id", draft.campaignId)); expect(stored).toEqual([]);
+  });
+  it("rolls back the entire draft if one contact belongs to another tenant", async () => {
+    const foreign = await checked(db.from("people").select("id").eq("tenant_id", foreignTenant).single());
+    if (!foreign) throw new Error("Foreign fixture missing");
+    const id = randomUUID();
+    const result = await db.rpc("vsc_create_email_draft", { p_tenant_id: tenant, p_campaign_id: id, p_name: "Rejected fixture", p_start_date: "2026-10-28", p_person_ids: [person, foreign.id] });
+    expect(result.error).not.toBeNull();
+    expect(await checked(db.from("vsc_campaigns").select("id").eq("id", id))).toEqual([]);
+    expect(await checked(db.from("vsc_campaign_deliveries").select("id").eq("campaign_id", id))).toEqual([]);
+  });
+  it("rejects a different plan under an existing draft identity", async () => {
+    const id = randomUUID();
+    const args = { p_tenant_id: tenant, p_campaign_id: id, p_name: "Immutable fixture", p_start_date: "2026-10-28", p_person_ids: [person] };
+    await checked(db.rpc("vsc_create_email_draft", args));
+    expect((await db.rpc("vsc_create_email_draft", { ...args, p_start_date: "2026-10-29" })).error).not.toBeNull();
+    const rows = await checked(db.from("vsc_campaign_deliveries").select("scheduled_at").eq("campaign_id", id).eq("tenant_id", tenant));
+    expect(rows).toHaveLength(2); expect(rows?.some(x => x.scheduled_at.startsWith("2026-10-29"))).toBe(false);
+  });
   it("persists a draft plan, records a reply and cancels only this tenant's followups", async () => {
     expect(await reconcileVscRepliesOnce(tenant)).toEqual({ inspected: 1, matched: 1, recorded: 1, hasMore: false });
     const deliveries = await checked(db.from("vsc_campaign_deliveries").select("status").eq("tenant_id", tenant));
