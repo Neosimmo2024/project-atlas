@@ -1,23 +1,22 @@
-/**
- * Safe VSC reply reconciliation worker.
- * It is intentionally NOT scheduled or exposed via a public route.
- * Only the verified-reply service may mutate pending campaign deliveries.
- */
-import { previewVscReplyReconciliation } from "@/services/vsc-reply-reconciliation";
+/** Unscheduled VSC-only worker. Never sends email or SMS. */
+import { matchVscReplyBatch } from "@/services/vsc-reply-reconciliation";
+import { inspectVscInboxBatch } from "@/services/vsc-ovh-imap";
+import { loadVscImapCursor, saveVscImapCursor } from "@/services/vsc-imap-cursor";
 import { recordVerifiedVscReply } from "@/services/vsc-inbound-reply-journal";
 
 export async function reconcileVscRepliesOnce(tenantId: string): Promise<{
-  inspected: number;
-  matched: number;
-  recorded: number;
+  inspected: number; matched: number; recorded: number; hasMore: boolean;
 }> {
-  if (!tenantId || tenantId !== process.env.VSC_OVH_TENANT_ID?.trim())
-    throw new Error("Entreprise non autorisée");
-  const preview = await previewVscReplyReconciliation(tenantId);
+  if (!tenantId || tenantId !== process.env.VSC_OVH_TENANT_ID?.trim()) throw new Error("Entreprise non autorisée");
+  const cursor = await loadVscImapCursor(tenantId);
+  const batch = await inspectVscInboxBatch(cursor);
+  const matches = await matchVscReplyBatch(tenantId, batch.envelopes);
   let recorded = 0;
-  for (const candidate of preview.matches) {
+  for (const candidate of matches) {
     const result = await recordVerifiedVscReply(candidate, tenantId);
     if (result.recorded) recorded++;
   }
-  return { inspected: preview.inspected, matched: preview.matches.length, recorded };
+  // Any IMAP, lookup or journal failure leaves the cursor unchanged; retries are idempotent.
+  await saveVscImapCursor(tenantId, cursor, batch);
+  return { inspected: batch.scanned, matched: matches.length, recorded, hasMore: batch.hasMore };
 }

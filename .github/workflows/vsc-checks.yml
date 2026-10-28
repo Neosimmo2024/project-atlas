@@ -77,7 +77,7 @@ jobs:
           do $$
           declare table_name text;
           begin
-            foreach table_name in array array['vsc_campaigns','vsc_campaign_deliveries','vsc_inbound_replies']
+            foreach table_name in array array['vsc_campaigns','vsc_campaign_deliveries','vsc_inbound_replies','vsc_imap_cursors']
             loop
               if not exists (
                 select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
