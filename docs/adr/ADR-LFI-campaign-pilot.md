@@ -49,3 +49,7 @@ automation is operational or retire Brevo at this stage.
 Validation: unit tests, production build, and transactional SQL tests for draft
 and mailbox gating, rejected contacts, atomic claims, duplicate prevention,
 suppression cancellation and server-only grants. SQL fixtures roll back.
+
+## Draft preparation controls
+
+Admins can save a future initial-email date before 3 December 2026, while the campaign remains draft. The UI also lets an admin explicitly confirm a selected recipient registration; this uses the existing atomic suppression function and cancels queued messages. This is manual registration reporting, not a synchronization with the training website. No scheduler or activation is enabled by these controls.

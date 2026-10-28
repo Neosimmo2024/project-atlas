@@ -1,3 +1,4 @@
+import { confirmLfiRegistration, planLfiDrafts } from "@/services/lfi-campaign-preparation";
 import { NextResponse } from "next/server";
 import { getTenantContext } from "@/repositories/tenant-context";
 import { canManageIonos } from "@/services/ionos-connection";
@@ -16,6 +17,8 @@ export async function POST(request:Request){
   if(body.action==="prepare")result=await prepareLfiPilot(context);
   else if(body.action==="sync")result=await syncLfiCampaignReplies(context);
   else if(body.action==="draft" && Array.isArray(body.ids) && body.ids.every((id:unknown)=>typeof id==="string" && /^[a-f0-9-]{36}$/i.test(id)))result=await queueLfiInitialDrafts(context,body.ids);
+  else if(body.action==="registered" && typeof body.recipientId==="string" && /^[a-f0-9-]{36}$/i.test(body.recipientId))result=await confirmLfiRegistration(context,body.recipientId);
+  else if(body.action==="plan" && typeof body.dueAt==="string")result=await planLfiDrafts(context,body.dueAt);
   else if(body.action==="status")result=await lfiCampaignOverview(context);
   else return NextResponse.json({error:"Action non disponible."},{status:400,headers});
   return NextResponse.json({success:true,result},{headers});
