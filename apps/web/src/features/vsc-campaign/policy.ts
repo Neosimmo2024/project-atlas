@@ -47,7 +47,7 @@ export function vscCampaignSteps(contact: VscContact): VscStep[] {
 }
 
 export function vscEligibleSteps(contact: VscContact, startDate: string): Array<VscStep & { scheduledDate: string }> {
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(startDate)) throw new Error("Date invalide");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) throw new Error("Date invalide");
   const start = new Date(startDate + "T12:00:00Z");
   if (Number.isNaN(start.getTime()) || start.toISOString().slice(0, 10) !== startDate) throw new Error("Date invalide");
   return vscCampaignSteps(contact).flatMap((step) => {
