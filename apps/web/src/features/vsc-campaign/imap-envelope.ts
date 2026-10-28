@@ -37,3 +37,12 @@ export function findVscOriginalMessageId(
   const candidates = [envelope.inReplyTo, ...envelope.references].filter((v): v is string => !!v);
   return candidates.find(value => known.has(value)) ?? null;
 }
+
+/** Read folded RFC headers without downloading or retaining message bodies. */
+export function parseVscThreadHeaders(headers: string): { inReplyTo: string | null; references: string[] } {
+  const unfolded = headers.replace(/\r?\n[ \t]+/g, " ");
+  const values = (name: string) => unfolded.split(/\r?\n/)
+    .filter(line => line.slice(0, line.indexOf(":" )).toLowerCase() === name)
+    .flatMap(line => line.slice(line.indexOf(":") + 1).match(/<[^<>\s]{1,500}>/g) ?? []);
+  return { inReplyTo: values("in-reply-to")[0] ?? null, references: [...new Set(values("references"))] };
+}

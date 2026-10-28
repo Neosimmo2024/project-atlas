@@ -9,6 +9,7 @@ on:
       - 'apps/web/src/components/vsc-*.tsx'
       - 'apps/web/src/app/(app)/admin/ovh-connection/**'
       - 'supabase/migrations/*vsc*.sql'
+      - 'supabase/tests/vsc-isolation.sql'
       - '.github/workflows/vsc-checks.yml'
   workflow_dispatch:
 
@@ -91,6 +92,7 @@ jobs:
             then raise exception 'Service role cannot invoke VSC reply RPC'; end if;
           end $$;
           SQL
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-isolation.sql
       - name: Stop local Supabase
         if: always()
         run: supabase stop --no-backup || true

@@ -3,7 +3,7 @@
  * No automatic polling, DB writes, message-body download, or dispatch.
  */
 import { ImapFlow } from "imapflow";
-import { normalizeVscInboundEnvelope, type VscInboundEnvelope } from "@/features/vsc-campaign/imap-envelope";
+import { normalizeVscInboundEnvelope, parseVscThreadHeaders, type VscInboundEnvelope } from "@/features/vsc-campaign/imap-envelope";
 import { OVH_SENDER } from "@/services/ovh-connection";
 
 export async function inspectVscInboxHeaders(limit = 50): Promise<VscInboundEnvelope[]> {
@@ -23,17 +23,17 @@ export async function inspectVscInboxHeaders(limit = 50): Promise<VscInboundEnve
       if (!total) return [];
       const from = Math.max(1, total - Math.min(Math.max(limit, 1), 200) + 1);
       for await (const message of client.fetch(`${from}:*`, {
-        envelope: true, headers: ["message-id", "in-reply-to", "references", "date"]
+        envelope: true, internalDate: true, headers: ["message-id", "in-reply-to", "references", "date"]
       })) {
         const envelope = message.envelope;
         if (!envelope) continue;
-        const references = envelope.inReplyTo ? [envelope.inReplyTo] : [];
+        const thread = parseVscThreadHeaders(message.headers?.toString("utf8") ?? "");
         const raw: VscInboundEnvelope = {
           messageId: envelope.messageId ?? null,
           from: envelope.from?.[0]?.address ?? null,
-          inReplyTo: envelope.inReplyTo ?? null,
-          references,
-          receivedAt: envelope.date ? new Date(envelope.date).toISOString() : null
+          inReplyTo: thread.inReplyTo ?? envelope.inReplyTo ?? null,
+          references: thread.references,
+          receivedAt: message.internalDate ? new Date(message.internalDate).toISOString() : null
         };
         const normalized = normalizeVscInboundEnvelope(raw);
         if (normalized) result.push(normalized);
