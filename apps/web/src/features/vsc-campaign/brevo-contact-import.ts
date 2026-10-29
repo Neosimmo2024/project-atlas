@@ -27,7 +27,7 @@ export function normalizeVscImportEmail(value: unknown): string | null {
   if (!/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+$/.test(local)) return null;
   if (!domain.split(".").every(label => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label))) return null;
   if (domain.split(".").at(-1)!.length < 2) return null;
-  if (email.endsWith("@mailin-sms.com")) return null; // Brevo's synthetic SMS identifier, not an email address.
+  if (domain === "mailin-sms.com" || domain.endsWith(".mailin-sms.com")) return null; // Includes Brevo's landline identifiers.
   return email;
 }
 export function isVscFrenchMobile(phone: string | null) { return !!phone && /^\+33[67][0-9]{8}$/.test(phone); }
@@ -43,7 +43,13 @@ export function normalizeVscBrevoContact(contact: BrevoContact) {
   const first_name = first(a, ["PRENOM", "FIRSTNAME", "FIRST_NAME"]), last_name = first(a, ["NOM", "LASTNAME", "LAST_NAME"]);
   const company = first(a, ["COMPANY_NAME", "COMPANY", "ENTREPRISE", "SOCIETE"]);
   const email = normalizeVscImportEmail(contact.email);
-  const phone = normalizeVscImportPhone(a.SMS);
+  const attributePhone = normalizeVscImportPhone(a.SMS);
+  const providerIdentifier = typeof contact.email === "string" ? contact.email.trim().toLowerCase() : "";
+  const identifierParts = providerIdentifier.split("@");
+  const identifierPhone = identifierParts.length === 2 && ["mailin-sms.com", "landline.mailin-sms.com"].includes(identifierParts[1]) && /^[+0-9]+$/.test(identifierParts[0])
+    ? normalizeVscImportPhone(identifierParts[0]) : null;
+  if (attributePhone && identifierPhone && attributePhone !== identifierPhone) throw new Error("Coordonnées téléphoniques Brevo contradictoires");
+  const phone = attributePhone ?? identifierPhone;
   const name = (company ?? [first_name, last_name].filter(Boolean).join(" ")) || email || phone || `Contact Brevo ${contact.id}`;
   const postal_code = first(a, ["ZIP_CODE", "CODE_POSTAL", "POSTAL_CODE"]);
   const commentFields = ["COMPANY_NAME", "ADDRESS", "WEBSITE", "SOURCE_URL", "SIRET_NUMBER", "VSC_ORIGINE", "VSC_VAGUE", "VSC_DETAILS"];
@@ -51,6 +57,8 @@ export function normalizeVscBrevoContact(contact: BrevoContact) {
   const modified = typeof contact.modifiedAt === "string" && Number.isFinite(Date.parse(contact.modifiedAt)) ? new Date(contact.modifiedAt).toISOString() : null;
   return {
     source_id: contact.id, email, phone, display_name: name.slice(0, 200), first_name, last_name,
+    phone_source: attributePhone ? "sms_attribute" : identifierPhone ? "brevo_sms_identifier" : null,
+    provider_sms_identifier: identifierPhone ? providerIdentifier : null,
     city: first(a, ["CITY", "VILLE"]), postal_code: postal_code?.slice(0, 20) ?? null,
     department: postal_code && /^\d{5}$/.test(postal_code) ? postal_code.slice(0, /^9[78]/.test(postal_code) ? 3 : 2) : null,
     comments, email_blocked: contact.emailBlacklisted !== false, sms_blocked: contact.smsBlacklisted !== false,

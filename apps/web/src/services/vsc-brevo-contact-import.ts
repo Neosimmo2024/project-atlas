@@ -96,7 +96,7 @@ async function readSource(tenantId: string) {
     const parts = rawEmail.split("@");
     if (/^[+0-9]+$/.test(parts[0]) && parts.length === 2) numericEmailDomains.set(parts[1], (numericEmailDomains.get(parts[1]) ?? 0) + 1);
   }
-  const coordinateAudit = { phoneFields, rejectedPhoneFormats: [...phoneFormats].slice(0, 10).map(([format, count]) => ({ format, count })), numericEmailDomains: [...numericEmailDomains].slice(0, 10).map(([domain, count]) => ({ domain, count })) };
+  const coordinateAudit = { phoneFields, recoveredIdentifierPhones: normalized.filter(row => row.phone_source === "brevo_sms_identifier").length, rejectedPhoneFormats: [...phoneFormats].slice(0, 10).map(([format, count]) => ({ format, count })), numericEmailDomains: [...numericEmailDomains].slice(0, 10).map(([domain, count]) => ({ domain, count })) };
   return { groups, sourceSummary: { ...sourceSummary, missingStatuses }, coordinateAudit, lists: [...memberships.values()].sort((a, b) => a.id - b.id) };
 }
 async function targetSnapshot(tenantId: string) {

@@ -26,6 +26,10 @@ begin
   perform public.vsc_import_brevo_contacts(t,'14000000-0000-0000-0000-000000000002',jsonb_build_array(g));
   raise exception 'Unauthorized actor accepted';
  exception when raise_exception then if sqlerrm='Unauthorized actor accepted' then raise; end if; end;
+ begin
+  perform public.vsc_import_brevo_contacts(t,actor,jsonb_build_array(g||'{"email":"33988460814@landline.mailin-sms.com"}'::jsonb));
+  raise exception 'Technical landline email accepted';
+ exception when raise_exception then if sqlerrm='Technical landline email accepted' then raise; end if; end;
  r:=public.vsc_import_brevo_contacts(t,actor,jsonb_build_array(g));
  if (r->>'created')::int<>1 then raise exception 'Create failed: %',r; end if;
  p:=(g->>'person_id')::uuid;
