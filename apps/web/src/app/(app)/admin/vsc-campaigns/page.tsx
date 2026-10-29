@@ -6,6 +6,7 @@ import { VscDispatchReview } from "@/components/vsc-dispatch-review";
 import { VscSmsPreview } from "@/components/vsc-sms-preview";
 import { VscBrevoSmsStatus } from "@/components/vsc-brevo-sms-status";
 import { VscSmsDraftContacts } from "@/components/vsc-sms-draft-contacts";
+import { VscBrevoContactImport } from "@/components/vsc-brevo-contact-import";
 import { getTenantContext } from "@/repositories/tenant-context";
 import { canManageOvh } from "@/services/ovh-connection";
 import { vscDraftToday } from "@/services/vsc-draft-workspace";
@@ -20,6 +21,7 @@ export default async function VscCampaignsPage() {
     <p>79 € HT au lieu de 159 € HT, annonce jusqu’à la vente. Promotion jusqu’au 30 novembre 2026.</p>
     <p>Les dates sont proposées pour relecture. Aucun email ni SMS n’est envoyé ou programmé chez un prestataire.</p>
     <Link href="/admin/ovh-connection">Connexion OVH et suivi des réponses</Link>
+    <VscBrevoContactImport />
     <VscDraftWorkspace today={vscDraftToday()} />
     <VscDispatchReview tenantId={context.tenantId} />
     <VscSmsPreview today={vscDraftToday()} />

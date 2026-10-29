@@ -22,6 +22,8 @@ import { getVscDispatchReview } from "./vsc-dispatch-review";
 import { saveVscSmsCopy, listVscSmsCopies } from "./vsc-sms-copy-drafts";
 import { defaultVscSmsContent } from "@/features/vsc-campaign/sms-content";
 import { getVscSmsDraftContacts } from "./vsc-sms-draft-contacts";
+import { importVscBrevoContactGroups, vscBrevoImportPersonId } from "./vsc-brevo-contact-import";
+import { normalizeVscBrevoContact, groupVscBrevoContacts } from "@/features/vsc-campaign/brevo-contact-import";
 
 const enabled = process.env.VSC_DISPOSABLE_TEST_DB === "1";
 async function checked<T>(request: PromiseLike<{ data: T; error: { message: string } | null }>): Promise<T> {
@@ -68,6 +70,34 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
     }] });
   }, 30000);
   afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers(); });
+
+  async function importOwner() {
+    const role = await checked(db.from("roles").select("id").eq("slug", "owner").single());
+    await checked(db.from("tenant_users").insert({ tenant_id: tenant, user_id: approvalActor, role_id: role!.id }));
+  }
+  it("imports concurrent identical source snapshots exactly once without sending or creating campaigns", async () => {
+    await importOwner();
+    const groups = groupVscBrevoContacts([normalizeVscBrevoContact({ id: 1, email: "import@fixture.invalid", emailBlacklisted: false, smsBlacklisted: true, attributes: { SMS: "0612345678" } })], id => vscBrevoImportPersonId(tenant, id));
+    const results = await Promise.all([importVscBrevoContactGroups(tenant, approvalActor, groups), importVscBrevoContactGroups(tenant, approvalActor, groups)]);
+    expect(results.reduce((n,r)=>n+r.created,0)).toBe(1); expect(results.reduce((n,r)=>n+r.matched,0)).toBe(1);
+    expect(await checked(db.from("people").select("id").eq("tenant_id",tenant))).toHaveLength(2);
+    expect(await checked(db.from("vsc_brevo_contact_links").select("provider_id").eq("tenant_id",tenant))).toHaveLength(1);
+    expect(await checked(db.from("vsc_campaigns").select("id").eq("tenant_id",tenant))).toHaveLength(1);
+    expect(await checked(db.from("vsc_campaign_deliveries").select("id").eq("tenant_id",tenant))).toHaveLength(3);
+    expect(smtp.send).not.toHaveBeenCalled(); expect(inbox).not.toHaveBeenCalled();
+  });
+  it("preserves Atlas refusal and source exclusions across a later subscribed source snapshot", async () => {
+    await importOwner();
+    await checked(db.from("people").update({ contact_allowed: false }).eq("tenant_id",tenant).eq("id",person));
+    const groups = (blocked: boolean) => groupVscBrevoContacts([normalizeVscBrevoContact({ id: 2, email: "shop@fixture.invalid", emailBlacklisted: blocked, smsBlacklisted: false })], id => vscBrevoImportPersonId(tenant,id));
+    const stopped = await importVscBrevoContactGroups(tenant,approvalActor,groups(true)); expect(stopped.cancelled).toBe(2);
+    await importVscBrevoContactGroups(tenant,approvalActor,groups(false));
+    expect(await checked(db.from("people").select("contact_allowed").eq("tenant_id",tenant).eq("id",person).single())).toMatchObject({contact_allowed:false});
+    expect(await checked(db.from("vsc_contact_suppressions").select("channel").eq("tenant_id",tenant).eq("person_id",person))).toContainEqual({channel:"email"});
+    expect(await checked(db.from("vsc_brevo_contact_links").select("email_blocked").eq("tenant_id",tenant).single())).toMatchObject({email_blocked:true});
+    expect(await checked(db.from("vsc_campaign_deliveries").select("status").eq("tenant_id",foreignTenant))).toEqual([{status:"scheduled"}]);
+    expect(smtp.send).not.toHaveBeenCalled();
+  });
 
   async function scheduledEmail() {
     await checked(db.from("vsc_campaigns").update({ state: "active", approved_by: approvalActor, approved_at: new Date().toISOString(), enabled_at: new Date().toISOString(), email_content: defaultVscEmailContent() }).eq("tenant_id", tenant).eq("id", campaign));

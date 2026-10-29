@@ -17,6 +17,7 @@ on:
       - 'supabase/tests/vsc-email-reservations.sql'
       - 'supabase/tests/vsc-sms-copies.sql'
       - 'supabase/tests/vsc-sms-contacts.sql'
+      - 'supabase/tests/vsc-brevo-contact-import.sql'
       - 'apps/web/src/app/(app)/admin/vsc-campaigns/**'
       - '.github/workflows/vsc-checks.yml'
   workflow_dispatch:
@@ -91,7 +92,7 @@ jobs:
           do $$
           declare table_name text;
           begin
-            foreach table_name in array array['vsc_campaigns','vsc_campaign_deliveries','vsc_inbound_replies','vsc_imap_cursors','vsc_contact_suppressions']
+            foreach table_name in array array['vsc_campaigns','vsc_campaign_deliveries','vsc_inbound_replies','vsc_imap_cursors','vsc_contact_suppressions','vsc_brevo_contact_links']
             loop
               if not exists (
                 select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
@@ -111,6 +112,7 @@ jobs:
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-email-reservations.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-sms-copies.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-sms-contacts.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-brevo-contact-import.sql
       - name: Run real VSC reply flow against disposable Supabase
         working-directory: apps/web
         shell: bash

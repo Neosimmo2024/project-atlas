@@ -56,3 +56,7 @@ Cette liste ne sauvegarde aucune sélection et ne transmet aucun destinataire à
 L’utilisateur a ouvert son compte VSC dédié dans le navigateur. Le profil contact@vendresoncommerce.com affiche 912 contacts et la campagne VSC historique « Promo -50% — Email 1 » du 26 octobre. Cette observation remplace l’ambiguïté de la session précédente ; aucun nouveau compte n’est nécessaire. Une clé API nommée VENDRESONCOMMERCE est déjà active. Les crédits SMS affichés sont à zéro ; aucun achat ni envoi n’a été lancé.
 
 Le secret Vercel existant porte le nom `BREVO_VSC_API_KEY` et était limité à l’ancienne branche `feature/tenant-switcher-vendresoncommerce`. Il a été rattaché à `feature/vsc-campaign-engine-foundation`, en preview uniquement, sans lecture, rotation ou remplacement de sa valeur. Le diagnostic utilise désormais ce nom existant, sans repli vers la clé générale de recrutement. Aucun paramètre de production ni secret NEOS/LFI n’a été changé.
+
+## Contacts Brevo VSC — import de préparation
+
+L’interface administrateur VSC possède un rapprochement avec aperçu puis import des contacts/exclusions existants du compte Brevo dédié. L’opération est limitée à la base QA de la prévisualisation ; aucune écriture sur Brevo ou NEOS IMMO, aucune nouvelle campagne/livraison et aucun envoi. L’historique des anciennes campagnes Brevo reste à rapprocher avant un futur lancement. Les conflits d’identité sont conservés pour vérification et ne déclenchent aucune fusion automatique.
