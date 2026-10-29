@@ -7,6 +7,7 @@ on:
       - 'apps/web/src/services/vsc-*.ts'
       - 'apps/web/src/app/api/admin/vsc-*/**'
       - 'apps/web/src/app/api/cron/vsc-replies/**'
+      - 'apps/web/src/app/api/cron/vsc-sms-stops/**'
       - 'apps/web/src/app/vsc-unsubscribe/**'
       - 'apps/web/src/lib/supabase/middleware*'
       - 'apps/web/src/components/vsc-*.tsx'

@@ -60,3 +60,5 @@ Le secret Vercel existant porte le nom `BREVO_VSC_API_KEY` et était limité à 
 ## Contacts Brevo VSC — import de préparation
 
 L’interface administrateur VSC possède un rapprochement avec aperçu puis import des contacts/exclusions existants du compte Brevo dédié. L’opération est limitée à la base QA de la prévisualisation ; aucune écriture sur Brevo ou NEOS IMMO, aucune nouvelle campagne/livraison et aucun envoi. L’historique des anciennes campagnes Brevo reste à rapprocher avant un futur lancement. Les conflits d’identité sont conservés pour vérification et ne déclenchent aucune fusion automatique.
+
+Entrée de polling STOP SMS préparée : `/api/cron/vsc-sms-stops`, indépendante et désactivée par défaut. Nécessite le flag `VSC_SMS_STOPS_CRON_ENABLED=true`, `CRON_SECRET` et un `VSC_SMS_STOPS_ACTOR_ID` owner/admin actif du tenant VSC. Aucun calendrier ni variable distante installé ; QA uniquement. À recetter avec un acteur révoqué et le contrôle du compte dédié avant planification. Aucun envoi autorisé par ce point d’entrée.
