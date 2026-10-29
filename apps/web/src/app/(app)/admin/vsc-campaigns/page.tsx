@@ -2,6 +2,7 @@ import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { VscDraftWorkspace } from "@/components/vsc-draft-workspace";
+import { VscDispatchReview } from "@/components/vsc-dispatch-review";
 import { getTenantContext } from "@/repositories/tenant-context";
 import { canManageOvh } from "@/services/ovh-connection";
 import { vscDraftToday } from "@/services/vsc-draft-workspace";
@@ -17,5 +18,6 @@ export default async function VscCampaignsPage() {
     <p>Les dates sont proposées pour relecture. Aucun email ni SMS n’est envoyé ou programmé chez un prestataire.</p>
     <Link href="/admin/ovh-connection">Connexion OVH et suivi des réponses</Link>
     <VscDraftWorkspace today={vscDraftToday()} />
+    <VscDispatchReview tenantId={context.tenantId} />
   </div>;
 }

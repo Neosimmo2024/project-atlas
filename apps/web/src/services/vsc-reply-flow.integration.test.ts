@@ -18,6 +18,7 @@ import { unsubscribeVscContact, checkVscContactStop } from "./vsc-contact-stop";
 import { previewVscEmailDraft, saveVscEmailDraft, readVscEmailDraft } from "./vsc-draft-workspace";
 import { reserveVscEmail, beginVscEmail, releaseVscEmail, recordVscEmailResult } from "./vsc-email-reservations";
 import { loadVscImapCursor, saveVscImapCursor } from "./vsc-imap-cursor";
+import { getVscDispatchReview } from "./vsc-dispatch-review";
 
 const enabled = process.env.VSC_DISPOSABLE_TEST_DB === "1";
 async function checked<T>(request: PromiseLike<{ data: T; error: { message: string } | null }>): Promise<T> {
@@ -78,6 +79,22 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
     smtp.enabled = true;
     smtp.send.mockImplementation(async (mail: { messageId: string; envelope: { to: string[] } }) => ({ messageId: mail.messageId, accepted: mail.envelope.to, rejected: [], response: "250 accepted by simulated SMTP" }));
   }
+  it.skipIf(promotionExpired)("reads unfinished and uncertain attempts without changing state or exposing reservation secrets", async () => {
+    const id = await scheduledEmail();
+    const reservation = await reserveVscEmail(tenant, id); expect(reservation).not.toBeNull();
+    expect((await getVscDispatchReview(tenant)).rows).toEqual([]);
+    await beginVscEmail(tenant, id, reservation!.claimToken);
+    const started = await getVscDispatchReview(tenant);
+    expect(started.rows).toHaveLength(1); expect(started.rows[0]).toMatchObject({ deliveryId: id, outcome: "sending", messageId: `<vsc-${id}@vendresoncommerce.com>` });
+    expect(JSON.stringify(started)).not.toContain(reservation!.claimToken);
+    await recordVscEmailResult(tenant, id, reservation!.claimToken, "unknown");
+    const uncertain = await getVscDispatchReview(tenant);
+    expect(uncertain.rows).toHaveLength(1); expect(uncertain.rows[0].outcome).toBe("unknown");
+    await expect(getVscDispatchReview(foreignTenant)).rejects.toThrow("non autorisée");
+    const row = await checked(db.from("vsc_campaign_deliveries").select("status,dispatch_outcome,claim_token").eq("tenant_id", tenant).eq("id", id).single());
+    expect(row).toEqual({ status: "claimed", dispatch_outcome: "unknown", claim_token: reservation!.claimToken });
+    expect(smtp.send).not.toHaveBeenCalled();
+  });
   it("leaves the delivery untouched while commercial dispatch is disabled", async () => {
     const id = await scheduledEmail();
     vi.stubEnv("VSC_EMAIL_DISPATCH_ENABLED", "");
