@@ -6,6 +6,7 @@ on:
       - 'apps/web/src/features/vsc-campaign/**'
       - 'apps/web/src/services/vsc-*.ts'
       - 'apps/web/src/app/api/admin/vsc-*/**'
+      - 'apps/web/src/app/api/cron/vsc-replies/**'
       - 'apps/web/src/app/vsc-unsubscribe/**'
       - 'apps/web/src/lib/supabase/middleware*'
       - 'apps/web/src/components/vsc-*.tsx'
@@ -38,7 +39,7 @@ jobs:
         run: npx vitest run src/features/vsc-campaign src/services/vsc-campaign-email.test.ts src/services/vsc-campaign-drafts.test.ts src/services/vsc-inbound-reply-journal.test.ts
       - name: Run VSC service tests
         working-directory: apps/web
-        run: npx vitest run src/services/vsc-*.test.ts --exclude "src/**/*.integration.test.ts"
+        run: npx vitest run src/services/vsc-*.test.ts src/lib/supabase/middleware.test.ts --exclude "src/**/*.integration.test.ts"
       - name: Validate VSC migration SQL syntax (offline)
         run: |
           python3 -m pip install --quiet pglast==7.21
