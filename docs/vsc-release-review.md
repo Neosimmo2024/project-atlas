@@ -13,10 +13,10 @@
 
 ## Implémenté dans le code, sans parcours commercial actif
 
-- Interface `/admin/vsc-campaigns` : sélection explicite de contacts email VSC autorisés, modification des objets/textes proposés, aperçu des dates et messages, sauvegarde atomique et idempotente de brouillons non approuvés, relecture des textes conservés dans les 20 dernières campagnes. Les plans SMS restent dans les fonctions de politique, sans interface ni transport SMS.
+- Interface `/admin/vsc-campaigns` : sélection explicite de contacts email VSC autorisés, modification des objets/textes proposés, aperçu des dates et messages, sauvegarde atomique et idempotente de brouillons non approuvés, relecture des textes conservés dans les 20 dernières campagnes. Un espace de propositions SMS et de simulation des dates est disponible, sans sélection de destinataires, sauvegarde SMS ni transport.
 - Transport email OVH contrôlé avant envoi : identité, destinataire, autorisation actuelle de contact, oppositions, réponses connues, lien de désinscription et fin de promotion. Ce transport n’est raccordé à aucun endpoint d’envoi.
 - Réservation atomique des livraisons email, passage unique au début de tentative, libération uniquement avant tentative et résultat incertain bloqué. Ces primitives sont réservées au serveur et raccordées à un adaptateur SMTP désactivé par défaut, sans endpoint d’envoi ni scheduler. Les politiques d’approbation et d’activation restent sans interface de lancement.
-- Règles SMS Brevo préparées. Aucun transport SMS VSC ni test réel de SMS validé dans cette recette.
+- Règles SMS Brevo et propositions éditables préparées : aperçu email+mobile J+5 ou mobile seul J0/J+15/J+30/J+45, limité au 30 novembre. Estimation GSM-7/Unicode et segments, STOP VSC laissé explicitement non configuré. Les modifications SMS restent dans la page. Aucun transport SMS VSC ni test réel validé dans cette recette.
 
 ## Travaux nécessaires avant une campagne réelle
 

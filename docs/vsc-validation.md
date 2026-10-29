@@ -141,3 +141,14 @@ La page `/admin/vsc-campaigns`, après contrôle du rôle propriétaire/administ
 La procédure demande de chercher une preuve d’acceptation/refus correspondant au messageId exact auprès d’OVH. L’absence dans le dossier Envoyés ne constitue pas une preuve de non-envoi SMTP. Sans preuve concluante, conserver le blocage. La page ne propose aucune mutation, résolution ou commande de renvoi ; une future résolution manuelle auditée reste à préparer. Aucun nouvel accès public ni droit SQL n’est ajouté.
 
 La requête de lecture équivalente a été exécutée sur le QA VSC : aucun cas en attente. Aucun enregistrement distant n’a été créé ou modifié. Les tests unitaires vérifient le périmètre, la minimisation des données, la troncature et les erreurs. Un scénario d’intégration sur Supabase local jetable vérifie reserved exclu, sending puis unknown visibles, refus d’un autre tenant et conservation du jeton/statut après lecture ; aucun SMTP appelé.
+
+
+## Préparation SMS sans transport — 29 octobre 2026
+
+La page administrateur `/admin/vsc-campaigns` propose cinq textes SMS éditables et un aperçu du parcours : email+mobile à J+5 du premier email, ou mobile seul à J0/J+15/J+30/J+45. Les dates invalides, passées ou après la promotion sont refusées ; les étapes après le 30 novembre sont retirées. Toute modification des textes, de la date ou du parcours retire l’aperçu précédent. Aucun destinataire n’est saisi ni sélectionné, aucun appel Brevo n’est effectué, aucune sauvegarde SMS n’est proposée. Les modifications restent explicitement dans la page jusqu’à son rechargement.
+
+Les propositions reprennent 79 EUR HT au lieu de 159 EUR HT, annonce jusqu’à la vente et fin au 30 novembre 2026. Elles utilisent une ponctuation GSM simple. Le repère `[numero STOP VSC]` n’est pas un numéro opérationnel ; le dispositif du compte VSC doit être confirmé séparément. Aucun numéro STOP NEOS n’est réutilisé. Expéditeur, textes et dispositif STOP restent à valider avant raccordement au transport et test sur un numéro autorisé.
+
+Le compteur est une estimation locale du texte exact, repère STOP inclus : GSM-7 160 unités puis 153 par segment, Unicode UTF-16 70 puis 67. Les extensions GSM comptent deux unités ; les caractères d’extension et paires emoji ne sont pas coupés entre segments. Le prix et le décompte final restent à vérifier chez Brevo. Références : [limites de longueur Brevo](https://help.brevo.com/hc/fr/articles/208718649) et [restrictions SMS par pays](https://help.brevo.com/hc/en-us/articles/11884482521234).
+
+708 tests locaux et TypeScript réussis. Les tests ajoutés couvrent les textes, l’absence de réutilisation du STOP NEOS, les deux cadences, les dates limites, la validation du contenu et les frontières GSM/Unicode/emoji. Aucune base distante ni campagne NEOS modifiée par cette étape.

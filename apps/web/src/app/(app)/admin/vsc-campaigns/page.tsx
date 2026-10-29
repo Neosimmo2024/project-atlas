@@ -3,6 +3,7 @@ import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { VscDraftWorkspace } from "@/components/vsc-draft-workspace";
 import { VscDispatchReview } from "@/components/vsc-dispatch-review";
+import { VscSmsPreview } from "@/components/vsc-sms-preview";
 import { getTenantContext } from "@/repositories/tenant-context";
 import { canManageOvh } from "@/services/ovh-connection";
 import { vscDraftToday } from "@/services/vsc-draft-workspace";
@@ -19,5 +20,6 @@ export default async function VscCampaignsPage() {
     <Link href="/admin/ovh-connection">Connexion OVH et suivi des réponses</Link>
     <VscDraftWorkspace today={vscDraftToday()} />
     <VscDispatchReview tenantId={context.tenantId} />
+    <VscSmsPreview today={vscDraftToday()} />
   </div>;
 }
