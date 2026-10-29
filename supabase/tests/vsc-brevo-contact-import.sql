@@ -38,6 +38,16 @@ begin
  if not exists(select 1 from public.vsc_brevo_contact_links where tenant_id=t and provider_id=1 and source_status_snapshot->>'sms_blocked'='true') then raise exception 'Source provenance lost'; end if;
  r:=public.vsc_import_brevo_contacts(t,actor,jsonb_build_array(g));
  if (r->>'created')::int<>0 or (r->>'matched')::int<>1 then raise exception 'Retry duplicated'; end if;
+ -- Historical evidence cannot create an OVH send or a second initial email.
+ perform public.vsc_record_brevo_history(t,actor,jsonb_build_array(jsonb_build_object('provider_id',1,'person_id',p,'email','shop@fixture.invalid','sentAt','2026-10-26T09:48:00Z','delivered',true,'hardBounce',false,'softBounce',false,'emailBlocked',false)));
+ if not public.vsc_initial_email_reviewed(t,p,'shop@fixture.invalid') then raise exception 'History guard missing'; end if;
+ if public.vsc_initial_email_reviewed('24000000-0000-0000-0000-000000000002',p,'shop@fixture.invalid') then raise exception 'History crosses tenant'; end if;
+ if exists(select 1 from public.vsc_email_draft_contacts(t) where id=p) then raise exception 'Historical recipient offered initial email'; end if;
+ begin
+  perform public.vsc_create_email_draft(t,'44000000-0000-0000-0000-000000000099','Duplicate initial','2026-10-29',array[p]);
+  raise exception 'Historical initial draft accepted';
+ exception when raise_exception then if sqlerrm='Historical initial draft accepted' then raise; end if; end;
+ if exists(select 1 from public.vsc_campaigns where id='44000000-0000-0000-0000-000000000099') then raise exception 'Rejected draft partially committed'; end if;
  -- Changing provider status never removes a previous opposition.
  g:=jsonb_set(g,'{sms_blocked}','false');
  perform public.vsc_import_brevo_contacts(t,actor,jsonb_build_array(g));
@@ -65,6 +75,7 @@ begin
 end $$;
 reset role;
 do $$ begin
+ if has_function_privilege('authenticated','public.vsc_record_brevo_history(uuid,uuid,jsonb)','EXECUTE') or has_function_privilege('anon','public.vsc_record_brevo_history(uuid,uuid,jsonb)','EXECUTE') then raise exception 'History RPC exposed'; end if;
  if has_function_privilege('authenticated','public.vsc_import_brevo_contacts(uuid,uuid,jsonb)','EXECUTE') or has_function_privilege('anon','public.vsc_import_brevo_contacts(uuid,uuid,jsonb)','EXECUTE') then raise exception 'Import RPC exposed'; end if;
  if has_table_privilege('authenticated','public.vsc_brevo_contact_links','INSERT') or has_table_privilege('service_role','public.vsc_brevo_contact_links','DELETE') then raise exception 'Excessive grants'; end if;
  if exists(select 1 from pg_proc where proname in ('vsc_import_brevo_contacts','vsc_import_normalize_phone') and prosecdef) then raise exception 'Definer function forbidden'; end if;

@@ -100,6 +100,19 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
     expect(smtp.send).not.toHaveBeenCalled();
   });
 
+  it("blocks a new initial OVH reservation after historical Brevo evidence, without blocking follow-up reservation", async () => {
+    await importOwner();
+    const groups=groupVscBrevoContacts([normalizeVscBrevoContact({id:3,email:"shop@fixture.invalid",emailBlacklisted:false,smsBlacklisted:false})],id=>vscBrevoImportPersonId(tenant,id));
+    await importVscBrevoContactGroups(tenant,approvalActor,groups);
+    await checked(db.rpc("vsc_record_brevo_history",{p_tenant_id:tenant,p_actor_id:approvalActor,p_entries:[{provider_id:3,person_id:person,email:"shop@fixture.invalid",sentAt:"2026-10-26T09:48:00Z",delivered:true,hardBounce:false,softBounce:false,emailBlocked:false}]}));
+    const followup=await scheduledEmail();
+    const initial=await checked(db.from("vsc_campaign_deliveries").update({status:"scheduled",provider_message_id:null,scheduled_at:new Date(Date.now()-60000).toISOString()}).eq("tenant_id",tenant).eq("step_key","offer").select("id").single());
+    expect(await reserveVscEmail(tenant,initial!.id)).toBeNull();
+    expect(await reserveVscEmail(tenant,followup)).not.toBeNull();
+    expect(await checked(db.rpc("vsc_email_draft_contacts",{p_tenant_id:tenant}))).toEqual([]);
+    expect(smtp.send).not.toHaveBeenCalled();
+  });
+
   async function scheduledEmail() {
     await checked(db.from("vsc_campaigns").update({ state: "active", approved_by: approvalActor, approved_at: new Date().toISOString(), enabled_at: new Date().toISOString(), email_content: defaultVscEmailContent() }).eq("tenant_id", tenant).eq("id", campaign));
     const row = await checked(db.from("vsc_campaign_deliveries").update({ status: "scheduled", scheduled_at: new Date(Date.now()-60000).toISOString() }).eq("tenant_id", tenant).eq("campaign_id", campaign).eq("step_key", "consideration").select("id").single());

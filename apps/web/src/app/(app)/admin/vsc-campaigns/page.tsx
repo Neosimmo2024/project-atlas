@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { VscBrevoHistory } from "@/components/vsc-brevo-history";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { VscDraftWorkspace } from "@/components/vsc-draft-workspace";
@@ -22,6 +23,7 @@ export default async function VscCampaignsPage() {
     <p>Les dates sont proposées pour relecture. Aucun email ni SMS n’est envoyé ou programmé chez un prestataire.</p>
     <Link href="/admin/ovh-connection">Connexion OVH et suivi des réponses</Link>
     <VscBrevoContactImport />
+    <VscBrevoHistory />
     <VscDraftWorkspace today={vscDraftToday()} />
     <VscDispatchReview tenantId={context.tenantId} />
     <VscSmsPreview today={vscDraftToday()} />
