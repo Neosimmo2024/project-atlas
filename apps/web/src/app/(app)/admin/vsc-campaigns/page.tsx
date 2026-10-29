@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { VscHistoricalReplies } from "@/components/vsc-historical-replies";
 import { VscBrevoHistory } from "@/components/vsc-brevo-history";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -24,6 +25,7 @@ export default async function VscCampaignsPage() {
     <Link href="/admin/ovh-connection">Connexion OVH et suivi des réponses</Link>
     <VscBrevoContactImport />
     <VscBrevoHistory />
+    <VscHistoricalReplies />
     <VscDraftWorkspace today={vscDraftToday()} />
     <VscDispatchReview tenantId={context.tenantId} />
     <VscSmsPreview today={vscDraftToday()} />

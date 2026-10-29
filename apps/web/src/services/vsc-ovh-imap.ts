@@ -104,3 +104,34 @@ export async function getVscInboxCheckpoint() {
     } finally { lock.release(); }
   });
 }
+
+/** Independent historical audit. Read-only search, never reads/writes the regular cursor. */
+export async function inspectVscHistoricalInbox(cursor: {uidValidity:string|null;lastUid:number}) {
+  if(!Number.isSafeInteger(cursor.lastUid)||cursor.lastUid<0||cursor.lastUid>4294967295||
+    (cursor.uidValidity!==null&&!/^[1-9]\d*$/.test(cursor.uidValidity))) throw new Error('État historique invalide');
+  return withVscImapSession(async client=>{
+    const lock=await client.getMailboxLock('INBOX',{readOnly:true});
+    try{
+      if(!client.mailbox)throw new Error('INBOX indisponible');
+      const uidValidity=client.mailbox.uidValidity.toString();
+      if(cursor.lastUid>0&&cursor.uidValidity!==uidValidity)throw new Error('La boîte a changé : recommencez l’audit historique');
+      const found=await client.search({since:new Date('2026-10-26T00:00:00Z')},{uid:true});
+      if(!Array.isArray(found)||found.length>5000||found.some(uid=>!Number.isSafeInteger(uid)||uid<=0||uid>4294967295))throw new Error('Recherche historique incomplète');
+      const ids=[...new Set(found)].filter(uid=>uid>cursor.lastUid).sort((a,b)=>a-b);
+      const selected=ids.slice(0,200),envelopes: {messageId:string;from:string;subject:string;receivedAt:string;hasThread:boolean;automated:boolean}[]=[];
+      let scanned=0,invalid=0;
+      if(selected.length)for await(const message of client.fetch(selected,{envelope:true,internalDate:true,headers:['message-id','in-reply-to','references','auto-submitted','x-autoreply','x-autorespond','precedence']},{uid:true})){
+        scanned++;
+        const e=message.envelope,from=e?.from?.[0]?.address?.trim().toLowerCase(),messageId=e?.messageId?.trim();
+        const date=message.internalDate?new Date(message.internalDate):null;
+        if(!from||!/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(from)||!messageId||!/^<[^<>\s]{1,500}>$/.test(messageId)||!date||!Number.isFinite(date.getTime())){invalid++;continue;}
+        const headers=(message.headers?.toString('utf8')??'').replace(/\r?\n[ \t]+/g,' ');
+        const values=(key:string)=>headers.split(/\r?\n/).filter(l=>l.slice(0,l.indexOf(':')).toLowerCase()===key).map(l=>l.slice(l.indexOf(':')+1).trim().toLowerCase());
+        const automated=values('auto-submitted').some(v=>v!==''&&v!=='no')||values('x-autoreply').some(Boolean)||values('x-autorespond').some(Boolean)||values('precedence').some(v=>['bulk','list','junk'].includes(v));
+        const thread=parseVscThreadHeaders(headers);
+        envelopes.push({messageId,from,receivedAt:date.toISOString(),subject:(e?.subject??'').replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,300),hasThread:!!thread.inReplyTo||thread.references.length>0,automated});
+      }
+      return {scanned,invalid,envelopes,hasMore:ids.length>selected.length,cursor:{uidValidity,lastUid:selected.at(-1)??cursor.lastUid},since:'2026-10-26',checkedAt:new Date().toISOString()};
+    }finally{lock.release();}
+  });
+}
