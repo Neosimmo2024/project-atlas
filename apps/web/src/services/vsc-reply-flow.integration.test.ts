@@ -2,8 +2,8 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-const { inbox, smtp } = vi.hoisted(() => ({ inbox: vi.fn(), smtp: { enabled: false, send: vi.fn(), close: vi.fn() } }));
-vi.mock("@/services/vsc-ovh-imap", () => ({ inspectVscInboxBatch: inbox }));
+const { inbox, historicalInbox, smtp } = vi.hoisted(() => ({ inbox: vi.fn(), historicalInbox: vi.fn(), smtp: { enabled: false, send: vi.fn(), close: vi.fn() } }));
+vi.mock("@/services/vsc-ovh-imap", () => ({ inspectVscInboxBatch: inbox, inspectVscHistoricalInbox: historicalInbox }));
 vi.mock("nodemailer", () => ({ default: { createTransport: () => {
   if (!smtp.enabled) throw new Error("Transport interdit dans ce test");
   return { sendMail: smtp.send, close: smtp.close };
@@ -25,6 +25,7 @@ import { getVscSmsDraftContacts } from "./vsc-sms-draft-contacts";
 import { importVscBrevoContactGroups, vscBrevoImportPersonId } from "./vsc-brevo-contact-import";
 import { normalizeVscBrevoContact, groupVscBrevoContacts } from "@/features/vsc-campaign/brevo-contact-import";
 
+import { reconcileVscHistoricalInboundOnce } from "./vsc-historical-inbound-worker";
 import { previewVscSmsAudience, saveVscSmsAudience } from "./vsc-sms-audience";
 
 const enabled = process.env.VSC_DISPOSABLE_TEST_DB === "1";
@@ -53,7 +54,7 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
     approvalActor = actor.data.user.id;
   });
   beforeEach(async () => {
-    inbox.mockReset(); smtp.enabled = false; smtp.send.mockReset(); smtp.close.mockReset();
+    inbox.mockReset(); historicalInbox.mockReset(); smtp.enabled = false; smtp.send.mockReset(); smtp.close.mockReset();
     tenant = randomUUID(); foreignTenant = randomUUID(); person = randomUUID(); campaign = randomUUID(); foreignCampaign = randomUUID(); outbound = `<sent-${randomUUID()}@fixture.invalid>`;
     const foreignPerson = randomUUID();
     vi.stubEnv("VSC_OVH_TENANT_ID", tenant);
@@ -77,6 +78,23 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
     const role = await checked(db.from("roles").select("id").eq("slug", "owner").single());
     await checked(db.from("tenant_users").insert({ tenant_id: tenant, user_id: approvalActor, role_id: role!.id }));
   }
+  it("holds historical inbound without inventing a verified reply and keeps checkpoints isolated", async () => {
+    await importOwner();
+    const groups=groupVscBrevoContacts([normalizeVscBrevoContact({id:9,email:"shop@fixture.invalid",emailBlacklisted:false,smsBlacklisted:false,attributes:{SMS:"0612345678"}})],id=>vscBrevoImportPersonId(tenant,id));
+    await importVscBrevoContactGroups(tenant,approvalActor,groups);
+    await checked(db.rpc("vsc_record_brevo_history",{p_tenant_id:tenant,p_actor_id:approvalActor,p_entries:[{provider_id:9,person_id:person,email:"shop@fixture.invalid",sentAt:"2026-10-26T09:48:00Z",delivered:true,hardBounce:false,softBounce:false,emailBlocked:false}]}));
+    historicalInbox.mockResolvedValue({scanned:1,invalid:0,hasMore:false,cursor:{uidValidity:"77",lastUid:100},checkedAt:new Date().toISOString(),envelopes:[{messageId:"<historical-inbound@fixture.invalid>",from:"shop@fixture.invalid",receivedAt:"2026-10-27T10:00:00Z",subject:"Une question",hasThread:false,automated:false}]});
+    expect(await reconcileVscHistoricalInboundOnce(tenant,approvalActor)).toMatchObject({held:1,cancelled:2,exactThreadVerified:false,sendingEnabled:false});
+    expect(await checked(db.from("vsc_inbound_replies").select("id").eq("tenant_id",tenant))).toHaveLength(0);
+    expect(await checked(db.from("vsc_imap_cursors").select("tenant_id").eq("tenant_id",tenant))).toHaveLength(0);
+    expect(await checked(db.from("vsc_historical_inbound_holds").select("person_id").eq("tenant_id",tenant))).toEqual([{person_id:person}]);
+    expect(await checked(db.from("vsc_campaign_deliveries").select("status").eq("tenant_id",foreignTenant))).toEqual([{status:"scheduled"}]);
+    expect((await getVscSmsDraftContacts(tenant)).contacts).toHaveLength(0);
+    historicalInbox.mockResolvedValue({scanned:0,invalid:0,hasMore:false,cursor:{uidValidity:"77",lastUid:100},checkedAt:new Date().toISOString(),envelopes:[]});
+    expect(await reconcileVscHistoricalInboundOnce(tenant,approvalActor)).toMatchObject({held:0,cancelled:0});
+    expect(historicalInbox).toHaveBeenLastCalledWith({uidValidity:"77",lastUid:100});
+    expect(smtp.send).not.toHaveBeenCalled();
+  });
   it("saves a concurrent canonical SMS selection once and rejects it after a STOP", async () => {
     await importOwner();
     await checked(db.from("people").update({primary_phone:"0612345678"}).eq("tenant_id",tenant).eq("id",person));

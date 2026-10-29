@@ -1,3 +1,4 @@
+import { VscHistoricalInboundSync } from '@/components/vsc-historical-inbound-sync';
 import Link from "next/link";
 import { VscSmsAudience } from "@/components/vsc-sms-audience";
 import { VscBrevoSmsStops } from "@/components/vsc-brevo-sms-stops";
@@ -29,6 +30,7 @@ export default async function VscCampaignsPage() {
     <VscBrevoContactImport />
     <VscBrevoHistory />
     <VscHistoricalReplies />
+      <VscHistoricalInboundSync />
     <VscHistoricalFollowup />
     <VscDraftWorkspace today={vscDraftToday()} />
     <VscDispatchReview tenantId={context.tenantId} />

@@ -8,6 +8,7 @@ on:
       - 'apps/web/src/app/api/admin/vsc-*/**'
       - 'apps/web/src/app/api/cron/vsc-replies/**'
       - 'apps/web/src/app/api/cron/vsc-sms-stops/**'
+      - 'apps/web/src/app/api/cron/vsc-historical-inbound/**'
       - 'apps/web/src/app/vsc-unsubscribe/**'
       - 'apps/web/src/lib/supabase/middleware*'
       - 'apps/web/src/components/vsc-*.tsx'
@@ -22,6 +23,7 @@ on:
       - 'supabase/tests/vsc-historical-followup.sql'
       - 'supabase/tests/vsc-brevo-sms-stops.sql'
       - 'supabase/tests/vsc-sms-audience.sql'
+      - 'supabase/tests/vsc-historical-inbound.sql'
       - 'apps/web/src/app/(app)/admin/vsc-campaigns/**'
       - '.github/workflows/vsc-checks.yml'
   workflow_dispatch:
@@ -120,6 +122,7 @@ jobs:
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-historical-followup.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-brevo-sms-stops.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-sms-audience.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-historical-inbound.sql
       - name: Run real VSC reply flow against disposable Supabase
         working-directory: apps/web
         shell: bash
