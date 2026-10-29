@@ -113,6 +113,21 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
     expect(smtp.send).not.toHaveBeenCalled();
   });
 
+  it.skipIf(Date.now()>=Date.parse("2026-11-15T08:30:00Z"))("saves concurrent historical J20 plans once, without an initial email or activation",async()=>{
+    await importOwner();
+    const groups=groupVscBrevoContacts([normalizeVscBrevoContact({id:4,email:"shop@fixture.invalid",emailBlacklisted:false,smsBlacklisted:false})],id=>vscBrevoImportPersonId(tenant,id));
+    await importVscBrevoContactGroups(tenant,approvalActor,groups);
+    await checked(db.rpc("vsc_record_brevo_history",{p_tenant_id:tenant,p_actor_id:approvalActor,p_entries:[{provider_id:4,person_id:person,email:"shop@fixture.invalid",sentAt:"2026-10-26T09:48:00Z",delivered:true,hardBounce:false,softBounce:false,emailBlocked:false}]}));
+    const contacts=await checked(db.rpc("vsc_historical_followup_contacts",{p_tenant_id:tenant}));
+    expect(contacts).toHaveLength(1);
+    const draft=randomUUID(),params={p_tenant_id:tenant,p_actor_id:approvalActor,p_campaign_id:draft,p_name:"Historical fixture",p_plan:contacts!.map((c:{id:string;email:string;scheduled_at:string})=>({id:c.id,email:c.email,scheduled_at:c.scheduled_at})),p_content:defaultVscEmailContent()};
+    const results=await Promise.all([checked(db.rpc("vsc_save_historical_followup",params)),checked(db.rpc("vsc_save_historical_followup",params))]);
+    expect(results.filter(r=>r.reused===false)).toHaveLength(1);expect(results.filter(r=>r.reused===true)).toHaveLength(1);
+    expect(await checked(db.from("vsc_campaign_deliveries").select("step_key,status,historical_brevo_campaign_id,scheduled_at").eq("tenant_id",tenant).eq("campaign_id",draft))).toEqual([{step_key:"consideration",status:"draft",historical_brevo_campaign_id:2,scheduled_at:"2026-11-15T08:30:00+00:00"}]);
+    expect(await checked(db.from("vsc_campaigns").select("state,approved_at,enabled_at").eq("tenant_id",tenant).eq("id",draft).single())).toEqual({state:"draft",approved_at:null,enabled_at:null});
+    expect(await checked(db.rpc("vsc_historical_followup_contacts",{p_tenant_id:tenant}))).toEqual([]);expect(smtp.send).not.toHaveBeenCalled();
+  });
+
   async function scheduledEmail() {
     await checked(db.from("vsc_campaigns").update({ state: "active", approved_by: approvalActor, approved_at: new Date().toISOString(), enabled_at: new Date().toISOString(), email_content: defaultVscEmailContent() }).eq("tenant_id", tenant).eq("id", campaign));
     const row = await checked(db.from("vsc_campaign_deliveries").update({ status: "scheduled", scheduled_at: new Date(Date.now()-60000).toISOString() }).eq("tenant_id", tenant).eq("campaign_id", campaign).eq("step_key", "consideration").select("id").single());
