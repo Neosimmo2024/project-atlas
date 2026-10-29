@@ -12,10 +12,29 @@ export async function syncLfiCampaignReplies(context: TenantContext) {
  // Clear freshness before inspecting: an interrupted scan must block the dispatcher.
  const cleared=await db.from("lfi_campaigns").update({mailbox_checked_at:null}).eq("id",cfg.data.id);
  if(cleared.error)throw new Error("Contrôle indisponible.");
- const recipients=await db.from("lfi_recipients").select("id,email").eq("campaign_id",cfg.data.id).eq("status","ready").limit(1001);
- if(recipients.error || recipients.data.length > 1000)throw new Error("Contrôle indisponible.");
- const outbox=await db.from("lfi_outbox").select("recipient_id,message_id,claimed_at").eq("tenant_id",context.tenantId).in("status",["claimed","accepted","uncertain"]).order("claimed_at").limit(10001);
- if(outbox.error || outbox.data.length>10000)throw new Error("Contrôle de volume requis.");
+ // Keyset pagination avoids both the API's default row cap and a campaign-size cap.
+ const recipients: {data: {id:string;email:string}[]}={data:[]};
+ let recipientCursor: string | undefined;
+ for(;;){
+  let query=db.from("lfi_recipients").select("id,email").eq("tenant_id",context.tenantId).eq("campaign_id",cfg.data.id).eq("status","ready").order("id").limit(500);
+  if(recipientCursor)query=query.gt("id",recipientCursor);
+  const page=await query;
+  if(page.error || !page.data)throw new Error("Contrôle des destinataires indisponible.");
+  recipients.data.push(...page.data);
+  if(page.data.length<500)break;
+  recipientCursor=page.data[page.data.length-1].id;
+ }
+ const outbox: {data: {id:string;recipient_id:string;message_id:string;claimed_at:string|null}[]}={data:[]};
+ let outboxCursor: string | undefined;
+ for(;;){
+  let query=db.from("lfi_outbox").select("id,recipient_id,message_id,claimed_at").eq("tenant_id",context.tenantId).in("status",["claimed","accepted","uncertain"]).order("id").limit(500);
+  if(outboxCursor)query=query.gt("id",outboxCursor);
+  const page=await query;
+  if(page.error || !page.data)throw new Error("Contrôle des messages indisponible.");
+  outbox.data.push(...page.data);
+  if(page.data.length<500)break;
+  outboxCursor=page.data[page.data.length-1].id;
+ }
  const imap=new ImapFlow({host:"imap.ionos.fr",port:993,secure:true,auth:{user:IONOS_SENDER,pass:process.env.LFI_IONOS_SMTP_PASSWORD},tls:{minVersion:"TLSv1.2",rejectUnauthorized:true},logger:false,disableAutoIdle:true,connectionTimeout:8000,greetingTimeout:8000,socketTimeout:10000,maxLiteralSize:600000,maxResponseSize:4000000});
  imap.on("error",()=>imap.close());
  const timeout=setTimeout(()=>imap.close(),25000);
@@ -42,7 +61,7 @@ export async function syncLfiCampaignReplies(context: TenantContext) {
     const sender=message.envelope?.from?.[0]?.address?.toLowerCase();
     const recipient=recipients.data.find(r=>r.email===sender);
     const sent=recipient?outbox.data.filter(o=>o.recipient_id===recipient.id):[];
-    if(recipient && sent.some(o=>message.envelope?.inReplyTo===o.message_id || (message.internalDate instanceof Date && message.internalDate.getTime()>=Date.parse(o.claimed_at)))) await stop(recipient.email,"replied");
+    if(recipient && sent.some(o=>message.envelope?.inReplyTo===o.message_id || (message.internalDate instanceof Date && message.internalDate.getTime()>=Date.parse(o.claimed_at ?? "")))) await stop(recipient.email,"replied");
     if(sender && /mailer-daemon|postmaster/.test(sender))pendingBounces.push(message.uid);
    }
    // Never issue another IMAP command inside the fetch iterator.
