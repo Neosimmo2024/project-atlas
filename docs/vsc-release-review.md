@@ -42,3 +42,10 @@ Le navigateur affiche le profil contact@vendresoncommerce.com et le nom « vendr
 Un diagnostic administrateur en lecture seule utilise exclusivement `VSC_BREVO_API_KEY` et GET /v3/account. Aucun repli vers `BREVO_API_KEY` de recrutement. Le contrôle compare l’email du compte à contact@vendresoncommerce.com, sans exposer l’identité d’un autre compte, les crédits ou les détails du fournisseur. Un résultat positif vérifie seulement l’identité du compte, pas son isolation. Les métadonnées Vercel vérifiées sans déchiffrement ne contiennent aucune clé VSC dédiée ; aucune clé n’a été créée ou copiée.
 
 Brevo documente le remplacement automatique de [STOP_CODE] par un code propre au canal lors de l’envoi. Les nouveaux modèles utilisent ce repère au lieu de [numero STOP VSC]. Les versions enregistrées restent inchangées. Le traitement des désinscriptions dans Atlas et la recette réelle restent à finaliser ; aucun envoi SMS n’est raccordé.
+
+
+## Préparation des contacts mobiles — 29 octobre 2026
+
+Une liste de consultation des mobiles VSC est disponible dans la page des campagnes, réservée aux propriétaires/administrateurs VSC. Elle normalise les 06/07 français saisis sous forme nationale, +33 ou 0033, regroupe les variantes d’un numéro et exclut les mobiles portant une opposition globale/SMS ou une réponse sur une fiche VSC liée. Aucun contact NEOS n’est pris en compte. Une opposition email seule retire la disponibilité email sans exclure le SMS.
+
+Cette liste ne sauvegarde aucune sélection et ne transmet aucun destinataire à Brevo. Elle reste une préparation, sans contrôle des futures réponses SMS du fournisseur, sans création de livraison et sans envoi. Les contrôles devront être refaits lors de la future sauvegarde des destinataires et avant toute tentative. Le QA VSC ne contient actuellement aucun mobile éligible.

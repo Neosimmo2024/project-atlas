@@ -5,6 +5,7 @@ import { VscDraftWorkspace } from "@/components/vsc-draft-workspace";
 import { VscDispatchReview } from "@/components/vsc-dispatch-review";
 import { VscSmsPreview } from "@/components/vsc-sms-preview";
 import { VscBrevoSmsStatus } from "@/components/vsc-brevo-sms-status";
+import { VscSmsDraftContacts } from "@/components/vsc-sms-draft-contacts";
 import { getTenantContext } from "@/repositories/tenant-context";
 import { canManageOvh } from "@/services/ovh-connection";
 import { vscDraftToday } from "@/services/vsc-draft-workspace";
@@ -15,13 +16,14 @@ export default async function VscCampaignsPage() {
   const context = tenantId ? await getTenantContext(tenantId) : null;
   if (!context || !canManageOvh(context)) return <div className="page stack"><EmptyState title="Préparation indisponible" body="Cette page est réservée aux administrateurs VendreSonCommerce." /></div>;
   return <div className="page stack">
-    <PageHeader eyebrow="VendreSonCommerce" title="Préparer une campagne email" subtitle="Brouillons à relire avant toute activation" />
+    <PageHeader eyebrow="VendreSonCommerce" title="Préparer les campagnes" subtitle="Brouillons email et SMS à relire avant toute activation" />
     <p>79 € HT au lieu de 159 € HT, annonce jusqu’à la vente. Promotion jusqu’au 30 novembre 2026.</p>
     <p>Les dates sont proposées pour relecture. Aucun email ni SMS n’est envoyé ou programmé chez un prestataire.</p>
     <Link href="/admin/ovh-connection">Connexion OVH et suivi des réponses</Link>
     <VscDraftWorkspace today={vscDraftToday()} />
     <VscDispatchReview tenantId={context.tenantId} />
     <VscSmsPreview today={vscDraftToday()} />
+    <VscSmsDraftContacts tenantId={context.tenantId} />
     <VscBrevoSmsStatus />
   </div>;
 }

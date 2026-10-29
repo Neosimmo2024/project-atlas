@@ -174,3 +174,14 @@ Le profil du navigateur indique contact@vendresoncommerce.com mais les listes mo
 Les métadonnées Vercel, lues sans déchiffrement, confirment l’absence de clé dédiée. Aucun paramètre de compte ni variable n’a été créé. Les nouveaux modèles utilisent [STOP_CODE] conformément à la documentation Brevo, qui annonce son remplacement automatique au moment de l’envoi ; aucun numéro NEOS n’est recopié, aucune ancienne version n’est réécrite. Le compteur reste une estimation incluant le repère, pas une facturation garantie.
 
 Références : [compte Brevo](https://developers.brevo.com/reference/get-account), [désinscription SMS](https://help.brevo.com/hc/fr/articles/115001945670). Les tests couvrent tenant, rôle, clé dédiée sans repli, requête GET bornée, absence de fuite, identité différente et erreurs sans reprise automatique.
+
+
+## Contacts mobiles VSC en lecture seule — 29 octobre 2026
+
+Migration `20261029101159_vsc_sms_draft_contacts.sql`, créée avec le CLI. Deux fonctions invoker à search_path vide, exécutables uniquement par service_role : normalisation des mobiles français et sélection tenant-scopée. Les formats 06/07, +336/+337 et 00336/00337 sont reconnus après retrait des espaces, points, parenthèses et tirets. Numéros fixes, étrangers, incomplets, multiples, extensions textuelles et notation +33(0) sont refusés plutôt que réparés automatiquement.
+
+La sélection exige contact_allowed=true et do_not_contact=false, puis recherche sur toutes les fiches du même tenant ayant le même mobile normalisé les oppositions all/sms, do_not_contact et journaux de réponse. Une opposition ou réponse sur une variante exclut le numéro entier. Les variantes restantes sont regroupées ; préférence à une fiche disposant d’un email valide et non opposé, puis UUID pour un ordre déterministe. Les oppositions email seules ne bloquent pas le mobile. Aucun champ partagé ni statut de contact n’est modifié.
+
+La réponse est limitée à 101 lignes pour afficher au maximum 100 contacts et signaler une liste partielle. Noms, mobiles normalisés et indication de parcours sont affichés seulement après autorisation propriétaire/administrateur VSC de la page. Toute erreur donne une indisponibilité distincte d’une liste vide. Aucun endpoint d’envoi, aucune sélection persistante ni appel Brevo. Le titre de page couvre désormais les préparations email et SMS.
+
+Migration et tests SQL transactionnels réussis sur la base isolée puis le QA ; fixtures annulées. Scénarios : normalisation, cas refusés, dédoublonnage, préférence email, opposition SMS sur alias, opposition globale sur alias, réponse sur alias, opposition email seule, même numéro dans un autre tenant et droits RPC. La requête réelle QA retourne zéro mobile éligible. Aucun nouvel avis de sécurité sur les deux fonctions lors du contrôle isolé. Un test d’intégration REST sur base locale jetable ajoute une variante du mobile, vérifie le regroupement puis l’exclusion après opposition sur l’alias, sans SMTP.

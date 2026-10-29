@@ -21,6 +21,7 @@ import { loadVscImapCursor, saveVscImapCursor } from "./vsc-imap-cursor";
 import { getVscDispatchReview } from "./vsc-dispatch-review";
 import { saveVscSmsCopy, listVscSmsCopies } from "./vsc-sms-copy-drafts";
 import { defaultVscSmsContent } from "@/features/vsc-campaign/sms-content";
+import { getVscSmsDraftContacts } from "./vsc-sms-draft-contacts";
 
 const enabled = process.env.VSC_DISPOSABLE_TEST_DB === "1";
 async function checked<T>(request: PromiseLike<{ data: T; error: { message: string } | null }>): Promise<T> {
@@ -81,6 +82,17 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
     smtp.enabled = true;
     smtp.send.mockImplementation(async (mail: { messageId: string; envelope: { to: string[] } }) => ({ messageId: mail.messageId, accepted: mail.envelope.to, rejected: [], response: "250 accepted by simulated SMTP" }));
   }
+  it("reads deduplicated VSC mobiles and honors an opposition on another formatting of the same number", async () => {
+    await checked(db.from("people").update({ primary_phone: "06 12 34 56 78" }).eq("tenant_id", tenant).eq("id", person));
+    const alias = randomUUID();
+    await checked(db.from("people").insert({ id: alias, tenant_id: tenant, display_name: "Alias fixture", primary_phone: "+33612345678", contact_allowed: true }));
+    const result = await getVscSmsDraftContacts(tenant);
+    expect(result.contacts).toHaveLength(1); expect(result.contacts[0]).toMatchObject({ id: person, mobile: "+33612345678", has_email: true });
+    await unsubscribeVscContact(tenant, alias, "sms");
+    expect((await getVscSmsDraftContacts(tenant)).contacts).toEqual([]);
+    await expect(getVscSmsDraftContacts(foreignTenant)).rejects.toThrow("non autorisée");
+    expect(smtp.send).not.toHaveBeenCalled();
+  });
   it.skipIf(promotionExpired)("persists immutable SMS copy versions without recipients or deliveries and handles concurrent retries", async () => {
     const input = { id: randomUUID(), name: "SMS copy fixture", startDate: new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date()), hasEmail: false, messages: defaultVscSmsContent() };
     const before = await checked(db.from("vsc_campaign_deliveries").select("id").eq("tenant_id", tenant));
