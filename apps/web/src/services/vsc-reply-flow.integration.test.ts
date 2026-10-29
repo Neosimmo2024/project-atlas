@@ -128,6 +128,19 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
     expect(await checked(db.rpc("vsc_historical_followup_contacts",{p_tenant_id:tenant}))).toEqual([]);expect(smtp.send).not.toHaveBeenCalled();
   });
 
+  it("applies a provider SMS STOP to phone aliases, preserves email drafts and never reactivates it",async()=>{
+    await importOwner();await checked(db.from("people").update({primary_phone:"06 12 34 56 78"}).eq("tenant_id",tenant).eq("id",person));
+    const alias=randomUUID();await checked(db.from("people").insert({id:alias,tenant_id:tenant,display_name:"SMS alias",primary_phone:"+33612345678",contact_allowed:true}));
+    const groups=groupVscBrevoContacts([normalizeVscBrevoContact({id:5,email:"shop@fixture.invalid",attributes:{SMS:"0612345678"},emailBlacklisted:false,smsBlacklisted:false})],id=>vscBrevoImportPersonId(tenant,id));
+    // The import stages the ambiguous identity, retaining both canonical phone candidates for STOP propagation.
+    await importVscBrevoContactGroups(tenant,approvalActor,groups);
+    await checked(db.from("vsc_campaign_deliveries").insert({tenant_id:tenant,campaign_id:campaign,person_id:alias,channel:"sms",step_key:"alias-sms",scheduled_at:"2026-11-01T12:00:00Z",status:"draft"}));
+    const first=await checked(db.rpc("vsc_apply_brevo_sms_stops",{p_tenant_id:tenant,p_actor_id:approvalActor,p_source_ids:[5]}));expect(first.cancelled).toBe(2);expect(first.peopleStopped).toBe(2);
+    const email=await checked(db.from("vsc_campaign_deliveries").select("status").eq("tenant_id",tenant).eq("channel","email"));expect(email!.map(r=>r.status).sort()).toEqual(["draft","sent"]);
+    const second=await checked(db.rpc("vsc_apply_brevo_sms_stops",{p_tenant_id:tenant,p_actor_id:approvalActor,p_source_ids:[]}));expect(second.cancelled).toBe(0);expect(second.peopleStopped).toBe(2);
+    expect((await getVscSmsDraftContacts(tenant)).contacts).toEqual([]);expect(smtp.send).not.toHaveBeenCalled();
+  });
+
   async function scheduledEmail() {
     await checked(db.from("vsc_campaigns").update({ state: "active", approved_by: approvalActor, approved_at: new Date().toISOString(), enabled_at: new Date().toISOString(), email_content: defaultVscEmailContent() }).eq("tenant_id", tenant).eq("id", campaign));
     const row = await checked(db.from("vsc_campaign_deliveries").update({ status: "scheduled", scheduled_at: new Date(Date.now()-60000).toISOString() }).eq("tenant_id", tenant).eq("campaign_id", campaign).eq("step_key", "consideration").select("id").single());
