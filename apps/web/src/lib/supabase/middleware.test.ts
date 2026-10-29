@@ -70,6 +70,14 @@ describe("Supabase middleware auth pages", () => {
     expect(projectsResponse.headers.get("location")).toBe("http://localhost:3000/login");
   });
 
+  it("skips session lookup only for the exact machine-authenticated reply endpoint", async () => {
+    expect((await updateSession(request("/api/cron/vsc-replies"))).status).toBe(200);
+    expect(createServerClientMock).not.toHaveBeenCalled();
+    mockUser(null);
+    await updateSession(request("/api/cron/vsc-replies/other"));
+    expect(createServerClientMock).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps redirecting authenticated users away from login only", async () => {
     mockUser({ id: "user-a" });
 

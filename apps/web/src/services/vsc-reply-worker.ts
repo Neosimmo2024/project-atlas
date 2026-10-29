@@ -1,4 +1,4 @@
-/** Unscheduled VSC-only worker. Never sends email or SMS. */
+/** VSC-only reply worker, callable manually or by the gated scheduler entry point. Never sends email or SMS. */
 import { matchVscReplyBatch } from "@/services/vsc-reply-reconciliation";
 import { inspectVscInboxBatch } from "@/services/vsc-ovh-imap";
 import { loadVscImapCursor, saveVscImapCursor } from "@/services/vsc-imap-cursor";

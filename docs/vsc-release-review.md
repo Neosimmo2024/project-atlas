@@ -22,7 +22,7 @@
 
 1. Faire valider les textes, les destinataires et la cadence d’un pilote concret. Les propositions éditables et leur aperçu sont disponibles, sans approbation ni envoi.
 2. Valider l’adaptateur réservé sur un pilote technique explicitement autorisé avant toute activation commerciale et préparer la procédure humaine de traitement des cas incertains. Le parcours intégré est testé sur une base jetable avec SMTP simulé ; il ne constitue pas une recette réelle d’envoi commercial. Aucun rapprochement ou renvoi automatique des cas incertains n’est activé.
-3. Préparer une planification du worker OVH ; actuellement seul le traitement manuel est disponible. La collecte des réponses ne déclenche aucun envoi.
+3. Recetter puis installer une planification du worker OVH. Le point d’entrée serveur `/api/cron/vsc-replies` est préparé mais désactivé ; aucun calendrier n’est installé. La collecte des réponses ne déclenche aucun envoi.
 4. Terminer séparément le parcours SMS VSC, ses oppositions et sa vérification sur un numéro de test autorisé.
 5. Présenter la campagne et les résultats complets avant toute approbation de lancement.
 

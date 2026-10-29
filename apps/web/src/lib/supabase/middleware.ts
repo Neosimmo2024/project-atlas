@@ -15,6 +15,12 @@ export async function updateSession(request: NextRequest) {
 
   let response = NextResponse.next({ request });
 
+  // This exact machine endpoint verifies its own bearer secret and enable flag.
+  if (request.nextUrl.pathname === "/api/cron/vsc-replies") {
+    applySecurityHeaders(response.headers);
+    return response;
+  }
+
   // Signed VSC opt-out has its own token and origin checks, with no login required.
   if (request.nextUrl.pathname === "/vsc-unsubscribe") {
     applySecurityHeaders(response.headers);
