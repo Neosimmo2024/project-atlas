@@ -25,6 +25,8 @@ import { getVscSmsDraftContacts } from "./vsc-sms-draft-contacts";
 import { importVscBrevoContactGroups, vscBrevoImportPersonId } from "./vsc-brevo-contact-import";
 import { normalizeVscBrevoContact, groupVscBrevoContacts } from "@/features/vsc-campaign/brevo-contact-import";
 
+import { previewVscSmsAudience, saveVscSmsAudience } from "./vsc-sms-audience";
+
 const enabled = process.env.VSC_DISPOSABLE_TEST_DB === "1";
 async function checked<T>(request: PromiseLike<{ data: T; error: { message: string } | null }>): Promise<T> {
   const result = await request;
@@ -75,6 +77,21 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
     const role = await checked(db.from("roles").select("id").eq("slug", "owner").single());
     await checked(db.from("tenant_users").insert({ tenant_id: tenant, user_id: approvalActor, role_id: role!.id }));
   }
+  it("saves a concurrent canonical SMS selection once and rejects it after a STOP", async () => {
+    await importOwner();
+    await checked(db.from("people").update({primary_phone:"0612345678"}).eq("tenant_id",tenant).eq("id",person));
+    const preview = await previewVscSmsAudience(tenant);
+    expect(preview).toMatchObject({recipients:1,emailMobile:1,mobileOnly:0,sendingEnabled:false});
+    const saved = await Promise.all([saveVscSmsAudience(tenant,approvalActor,preview.reviewKey),saveVscSmsAudience(tenant,approvalActor,preview.reviewKey)]);
+    expect(saved[0].id).toBe(saved[1].id);
+    expect(saved.filter(x=>x.reused)).toHaveLength(1);
+    expect(await checked(db.from("vsc_sms_audience_drafts").select("id").eq("tenant_id",tenant))).toHaveLength(1);
+    expect(await checked(db.from("vsc_campaigns").select("id").eq("tenant_id",tenant))).toHaveLength(1);
+    expect(await checked(db.from("vsc_campaign_deliveries").select("id").eq("tenant_id",tenant))).toHaveLength(3);
+    await unsubscribeVscContact(tenant,person,"sms");
+    await expect(saveVscSmsAudience(tenant,approvalActor,preview.reviewKey)).rejects.toThrow("Sélection modifiée");
+    expect(smtp.send).not.toHaveBeenCalled();
+  });
   it("imports concurrent identical source snapshots exactly once without sending or creating campaigns", async () => {
     await importOwner();
     const groups = groupVscBrevoContacts([normalizeVscBrevoContact({ id: 1, email: "import@fixture.invalid", emailBlacklisted: false, smsBlacklisted: true, attributes: { SMS: "0612345678" } })], id => vscBrevoImportPersonId(tenant, id));
