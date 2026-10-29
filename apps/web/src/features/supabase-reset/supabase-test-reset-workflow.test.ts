@@ -95,7 +95,7 @@ describe("Supabase test reset workflow", () => {
     }
   });
 
-  it("tracks canonical repository migrations through 0021 while keeping the remote reset lock at validated 0019", () => {
+  it("tracks repository migrations including the IONOS test journal while keeping the remote reset lock at validated 0019", () => {
     const migrations = readdirSync(resolve(root, "supabase/migrations")).filter((name) => name.endsWith(".sql")).sort();
     expect(migrations).toEqual([
       "0001_core.sql",
@@ -118,7 +118,10 @@ describe("Supabase test reset workflow", () => {
       "0018_recruitment_initial_email_sequence.sql",
       "0019_recruitment_email_template_management.sql",
       "0020_recruitment_sequence_engine.sql",
-      "0021_csv_import_direct_write_hardening.sql"
+      "0021_csv_import_direct_write_hardening.sql",
+      "20261026154824_ionos_delivery_test.sql",
+      "20261026161901_lfi_campaign_queue.sql",
+      "20261026162554_lfi_rejected_contact_exclusion.sql"
     ]);
     expect(workflow).toContain("Refusing reset: migration set is not exactly 0001 through 0019.");
     expect(workflow).not.toContain("Refusing reset: migration set is not exactly 0001 through 0021.");
