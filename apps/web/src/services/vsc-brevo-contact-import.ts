@@ -83,7 +83,21 @@ async function readSource(tenantId: string) {
   }
   const sourceSummary = summarizeVscBrevoGroups(normalized, groups);
   const missingStatuses = normalized.filter(row => !row.email_status_known || !row.sms_status_known).length;
-  return { groups, sourceSummary: { ...sourceSummary, missingStatuses }, lists: [...memberships.values()].sort((a, b) => a.id - b.id) };
+  const phoneFormats = new Map<string, number>(), numericEmailDomains = new Map<string, number>();
+  let phoneFields = 0;
+  for (let index = 0; index < contacts.length; index++) {
+    const value = contacts[index].attributes?.SMS;
+    if (value !== undefined && value !== null && value !== "") {
+      phoneFields++;
+      const shape = `${typeof value}:${String(value).replace(/[0-9]/g, "0").slice(0, 40)}`;
+      if (!normalizeVscBrevoContact(contacts[index]).phone) phoneFormats.set(shape, (phoneFormats.get(shape) ?? 0) + 1);
+    }
+    const rawEmail = contacts[index].email?.trim().toLowerCase() ?? "";
+    const parts = rawEmail.split("@");
+    if (/^[+0-9]+$/.test(parts[0]) && parts.length === 2) numericEmailDomains.set(parts[1], (numericEmailDomains.get(parts[1]) ?? 0) + 1);
+  }
+  const coordinateAudit = { phoneFields, rejectedPhoneFormats: [...phoneFormats].slice(0, 10).map(([format, count]) => ({ format, count })), numericEmailDomains: [...numericEmailDomains].slice(0, 10).map(([domain, count]) => ({ domain, count })) };
+  return { groups, sourceSummary: { ...sourceSummary, missingStatuses }, coordinateAudit, lists: [...memberships.values()].sort((a, b) => a.id - b.id) };
 }
 async function targetSnapshot(tenantId: string) {
   const db = createSupabaseServiceRoleClient();
@@ -113,7 +127,7 @@ export async function previewVscBrevoContactImport(tenantId: string) {
   const data = await prepared(tenantId);
   return {
     summary: { ...data.sourceSummary, existingAtlasContacts: data.target.people.length, existingSourceLinks: data.target.links.length },
-    lists: data.lists, reviewKey: data.reviewKey, sendingEnabled: false as const
+    lists: data.lists, coordinateAudit: data.coordinateAudit, reviewKey: data.reviewKey, sendingEnabled: false as const
   };
 }
 function validReviewKey(value: unknown, expected: string) {

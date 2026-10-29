@@ -90,12 +90,13 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
     await importOwner();
     await checked(db.from("people").update({ contact_allowed: false }).eq("tenant_id",tenant).eq("id",person));
     const groups = (blocked: boolean) => groupVscBrevoContacts([normalizeVscBrevoContact({ id: 2, email: "shop@fixture.invalid", emailBlacklisted: blocked, smsBlacklisted: false })], id => vscBrevoImportPersonId(tenant,id));
-    const stopped = await importVscBrevoContactGroups(tenant,approvalActor,groups(true)); expect(stopped.cancelled).toBe(2);
+    const stopped = await importVscBrevoContactGroups(tenant,approvalActor,groups(true)); expect(stopped.cancelled).toBe(1);
     await importVscBrevoContactGroups(tenant,approvalActor,groups(false));
     expect(await checked(db.from("people").select("contact_allowed").eq("tenant_id",tenant).eq("id",person).single())).toMatchObject({contact_allowed:false});
     expect(await checked(db.from("vsc_contact_suppressions").select("channel").eq("tenant_id",tenant).eq("person_id",person))).toContainEqual({channel:"email"});
     expect(await checked(db.from("vsc_brevo_contact_links").select("email_blocked").eq("tenant_id",tenant).single())).toMatchObject({email_blocked:true});
     expect(await checked(db.from("vsc_campaign_deliveries").select("status").eq("tenant_id",foreignTenant))).toEqual([{status:"scheduled"}]);
+    expect(await checked(db.from("vsc_campaign_deliveries").select("status").eq("tenant_id",tenant).eq("channel","sms"))).toEqual([{status:"draft"}]);
     expect(smtp.send).not.toHaveBeenCalled();
   });
 

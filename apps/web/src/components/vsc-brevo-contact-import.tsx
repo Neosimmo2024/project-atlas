@@ -38,6 +38,9 @@ export function VscBrevoContactImport() {
       <p>{preview.summary.sourceEmailBlocked} exclusions email sources — {preview.summary.sourceSmsBlocked} exclusions SMS sources — {preview.summary.sourceGlobalBlocked} oppositions globales</p>
       <p>{preview.summary.emailCandidates} candidats email et {preview.summary.smsCandidates} candidats SMS français avant les contrôles Atlas ; {preview.summary.nonMobilePhones} fiches avec numéro fixe ou autre numéro non proposé aux SMS français.</p>
       <p>{preview.summary.existingAtlasContacts} contacts déjà présents dans Atlas VSC — {preview.summary.existingSourceLinks} identités Brevo déjà rapprochées</p>
+      <p>{preview.coordinateAudit.phoneFields} champs téléphone reçus de Brevo.</p>
+      {preview.coordinateAudit.rejectedPhoneFormats.map(item => <p key={item.format}>{item.count} téléphones non normalisés, format masqué : {item.format}</p>)}
+      {preview.coordinateAudit.numericEmailDomains.map(item => <p key={item.domain}>{item.count} identifiants email à partie numérique sur le domaine {item.domain} : leur nature doit être vérifiée avant utilisation.</p>)}
       {preview.summary.missingStatuses > 0 ? <p>{preview.summary.missingStatuses} contacts ont un statut de canal incomplet : le canal inconnu sera bloqué.</p> : null}
       <h4>Listes sources</h4>
       <ul>{preview.lists.map(list => <li key={list.id}>#{list.id} {list.name} — {list.contacts} contacts, {list.emailBlocked} exclusions email, {list.smsBlocked} exclusions SMS</li>)}</ul>
