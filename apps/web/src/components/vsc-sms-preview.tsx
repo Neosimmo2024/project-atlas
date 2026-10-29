@@ -45,7 +45,7 @@ export function VscSmsPreview({ today }: { today: string }) {
     <p>Propositions à relire. Enregistrez une version après aperçu pour conserver vos textes. Aucun destinataire n’est sélectionné et aucun SMS n’est envoyé.</p>
     <fieldset className="stack" disabled={saving}><legend>Version de brouillon SMS</legend>
     <label>Nom de la version SMS<input value={name} maxLength={150} onChange={event => { setName(event.target.value); invalidate(); }} /></label>
-    <p>Le numéro de désinscription STOP doit être confirmé dans le compte Brevo VendreSonCommerce. Le repère [numero STOP VSC] reste volontairement dans les propositions.</p>
+    <p>Brevo remplace [STOP_CODE] par son numéro de désinscription lors de l’envoi. Ce repère est inclus dans les nouveaux modèles ; les anciennes versions enregistrées ne sont pas modifiées. Le traitement des STOP dans Atlas reste à raccorder.</p>
     <label>Date de départ du parcours SMS<input type="date" min={today} max="2026-11-30" value={startDate} onChange={event => { setStartDate(event.target.value); invalidate(); }} /></label>
     <label>Type de parcours SMS<select value={hasEmail ? "email-mobile" : "mobile"} onChange={event => { setHasEmail(event.target.value === "email-mobile"); invalidate(); }}>
       <option value="email-mobile">Email et mobile : SMS à J+5 du premier email</option>

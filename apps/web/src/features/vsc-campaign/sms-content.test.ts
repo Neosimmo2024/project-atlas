@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { defaultVscSmsContent, estimateVscSms, previewVscSms, VSC_SMS_STOP_PLACEHOLDER } from "./sms-content";
 describe("VSC review-only SMS preparation", () => {
   const input = () => ({ today: "2026-10-29", startDate: "2026-10-29", hasEmail: true, messages: defaultVscSmsContent() });
-  it("keeps the agreed offer and a VSC-specific unconfigured STOP placeholder in all five proposals", () => {
+  it("keeps the agreed offer and the official Brevo STOP token in all five proposals", () => {
+    expect(VSC_SMS_STOP_PLACEHOLDER).toBe("[STOP_CODE]");
     const messages = defaultVscSmsContent(); expect(messages).toHaveLength(5);
     for (const message of messages) {
       for (const part of ["79 EUR HT au lieu de 159 EUR HT", "jusqu'a la vente", "30 novembre 2026", "vendresoncommerce.com", VSC_SMS_STOP_PLACEHOLDER]) expect(message.text).toContain(part);

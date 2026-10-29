@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { VscDraftWorkspace } from "@/components/vsc-draft-workspace";
 import { VscDispatchReview } from "@/components/vsc-dispatch-review";
 import { VscSmsPreview } from "@/components/vsc-sms-preview";
+import { VscBrevoSmsStatus } from "@/components/vsc-brevo-sms-status";
 import { getTenantContext } from "@/repositories/tenant-context";
 import { canManageOvh } from "@/services/ovh-connection";
 import { vscDraftToday } from "@/services/vsc-draft-workspace";
@@ -21,5 +22,6 @@ export default async function VscCampaignsPage() {
     <VscDraftWorkspace today={vscDraftToday()} />
     <VscDispatchReview tenantId={context.tenantId} />
     <VscSmsPreview today={vscDraftToday()} />
+    <VscBrevoSmsStatus />
   </div>;
 }

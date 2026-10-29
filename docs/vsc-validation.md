@@ -163,3 +163,14 @@ La table `vsc_sms_copy_drafts` conserve uniquement nom, date de départ, type de
 Le bouton d’enregistrement exige un aperçu et un nom. Une erreur ambiguë conserve l’identifiant pour réessai identique ; une modification le retire et impose un nouvel aperçu. Les champs sont bloqués pendant la sauvegarde. Les vingt dernières versions sont proposées à la relecture ; les textes chargés proviennent de la base. Une modification puis sauvegarde crée une nouvelle version sans écraser l’ancienne. Une panne de liste après sauvegarde ne transforme pas celle-ci en demande de nouvel enregistrement.
 
 713 tests locaux et TypeScript réussis. Tests de route ajoutés : origine, rôle, configuration, format, taille, tenant imposé, cache et erreur sans réessai automatique. Le scénario d’intégration ajouté exerce deux sauvegardes concurrentes avec REST Supabase local jetable, relecture, conflit d’identité et absence de nouvelle livraison ou de SMTP. Le transport SMS, les destinataires et le dispositif STOP VSC restent à finaliser.
+
+
+## Diagnostic Brevo VSC et repère STOP officiel — 29 octobre 2026
+
+Le profil du navigateur indique contact@vendresoncommerce.com mais les listes montrent aussi des campagnes NEOS IMMO après rechargement (email et SMS). Ne pas déduire d’un nom de profil que les données sont séparées ; aucune campagne existante n’a été modifiée. La séparation du compte fournisseur et celle du tenant Atlas restent deux contrôles distincts.
+
+`inspectVscBrevoSmsAccount` utilise uniquement la clé serveur `VSC_BREVO_API_KEY`, jamais la clé générale de recrutement. Clé absente : aucun appel réseau. Sinon : GET fixe https://api.brevo.com/v3/account, sans cache, sans redirection et avec délai de 8 secondes. Le résultat indique clé absente, identité vérifiée, autre identité ou vérification indisponible. Aucun nom, email tiers, crédit, réponse brute ou secret n’est renvoyé. Tous les résultats maintiennent dispatchEnabled=false. La route est réservée aux propriétaires/administrateurs VSC et ne modifie aucune donnée.
+
+Les métadonnées Vercel, lues sans déchiffrement, confirment l’absence de clé dédiée. Aucun paramètre de compte ni variable n’a été créé. Les nouveaux modèles utilisent [STOP_CODE] conformément à la documentation Brevo, qui annonce son remplacement automatique au moment de l’envoi ; aucun numéro NEOS n’est recopié, aucune ancienne version n’est réécrite. Le compteur reste une estimation incluant le repère, pas une facturation garantie.
+
+Références : [compte Brevo](https://developers.brevo.com/reference/get-account), [désinscription SMS](https://help.brevo.com/hc/fr/articles/115001945670). Les tests couvrent tenant, rôle, clé dédiée sans repli, requête GET bornée, absence de fuite, identité différente et erreurs sans reprise automatique.

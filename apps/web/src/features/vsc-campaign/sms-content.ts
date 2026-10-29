@@ -4,7 +4,7 @@ import { isVscCalendarDate, vscEligibleSteps, VSC_OFFER_END } from "./policy";
 export const VSC_SMS_STEPS = ["sms-reminder", "sms-initial", "sms-followup-1", "sms-followup-2", "sms-followup-3"] as const;
 export type VscSmsStep = typeof VSC_SMS_STEPS[number];
 export type VscSmsMessage = { stepKey: VscSmsStep; text: string };
-export const VSC_SMS_STOP_PLACEHOLDER = "[numero STOP VSC]";
+export const VSC_SMS_STOP_PLACEHOLDER = "[STOP_CODE]";
 
 export function defaultVscSmsContent(): VscSmsMessage[] {
   const offer = "79 EUR HT au lieu de 159 EUR HT, annonce jusqu'a la vente. Offre jusqu'au 30 novembre 2026.";

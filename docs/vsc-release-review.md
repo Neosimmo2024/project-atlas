@@ -16,7 +16,7 @@
 - Interface `/admin/vsc-campaigns` : sélection explicite de contacts email VSC autorisés, modification des objets/textes proposés, aperçu des dates et messages, sauvegarde atomique et idempotente de brouillons non approuvés, relecture des textes conservés dans les 20 dernières campagnes. Un espace de propositions SMS et de simulation des dates est disponible, avec sauvegarde de versions immuables, sans sélection de destinataires ni transport.
 - Transport email OVH contrôlé avant envoi : identité, destinataire, autorisation actuelle de contact, oppositions, réponses connues, lien de désinscription et fin de promotion. Ce transport n’est raccordé à aucun endpoint d’envoi.
 - Réservation atomique des livraisons email, passage unique au début de tentative, libération uniquement avant tentative et résultat incertain bloqué. Ces primitives sont réservées au serveur et raccordées à un adaptateur SMTP désactivé par défaut, sans endpoint d’envoi ni scheduler. Les politiques d’approbation et d’activation restent sans interface de lancement.
-- Règles SMS Brevo et propositions éditables préparées : aperçu email+mobile J+5 ou mobile seul J0/J+15/J+30/J+45, limité au 30 novembre. Estimation GSM-7/Unicode et segments, STOP VSC laissé explicitement non configuré. Les textes, la date et le parcours peuvent être conservés par versions immuables après aperçu, puis relus après rechargement. Aucun transport SMS VSC ni test réel validé dans cette recette.
+- Règles SMS Brevo et propositions éditables préparées : aperçu email+mobile J+5 ou mobile seul J0/J+15/J+30/J+45, limité au 30 novembre. Estimation GSM-7/Unicode et segments, Repère Brevo officiel [STOP_CODE] dans les nouveaux modèles ; anciens textes conservés sans réécriture. Les textes, la date et le parcours peuvent être conservés par versions immuables après aperçu, puis relus après rechargement. Aucun transport SMS VSC ni test réel validé dans cette recette.
 
 ## Travaux nécessaires avant une campagne réelle
 
@@ -33,3 +33,12 @@
 ## Limites de la recette
 
 Les tests techniques réels ont visé uniquement notre propre boîte contact. Aucun prospect externe ni numéro de téléphone n’a reçu de message. Les données fictives de QA ont été nettoyées ; le point de reprise IMAP est conservé. La réussite de la CI et du diagnostic OVH ne vaut ni approbation d’une campagne ni validation de l’ensemble du parcours commercial.
+
+
+## Vérification du compte SMS — 29 octobre 2026
+
+Le navigateur affiche le profil contact@vendresoncommerce.com et le nom « vendresoncomemrce », mais aussi des campagnes NEOS IMMO dans les listes email et SMS après rechargement. Cette observation ne prouve pas la séparation des données Brevo. Aucune de ces campagnes n’a été ouverte en édition, modifiée, suspendue ou envoyée. Le raccordement SMS VSC doit donc encore confirmer la séparation des listes et des retours.
+
+Un diagnostic administrateur en lecture seule utilise exclusivement `VSC_BREVO_API_KEY` et GET /v3/account. Aucun repli vers `BREVO_API_KEY` de recrutement. Le contrôle compare l’email du compte à contact@vendresoncommerce.com, sans exposer l’identité d’un autre compte, les crédits ou les détails du fournisseur. Un résultat positif vérifie seulement l’identité du compte, pas son isolation. Les métadonnées Vercel vérifiées sans déchiffrement ne contiennent aucune clé VSC dédiée ; aucune clé n’a été créée ou copiée.
+
+Brevo documente le remplacement automatique de [STOP_CODE] par un code propre au canal lors de l’envoi. Les nouveaux modèles utilisent ce repère au lieu de [numero STOP VSC]. Les versions enregistrées restent inchangées. Le traitement des désinscriptions dans Atlas et la recette réelle restent à finaliser ; aucun envoi SMS n’est raccordé.
