@@ -19,6 +19,8 @@ import { previewVscEmailDraft, saveVscEmailDraft, readVscEmailDraft } from "./vs
 import { reserveVscEmail, beginVscEmail, releaseVscEmail, recordVscEmailResult } from "./vsc-email-reservations";
 import { loadVscImapCursor, saveVscImapCursor } from "./vsc-imap-cursor";
 import { getVscDispatchReview } from "./vsc-dispatch-review";
+import { saveVscSmsCopy, listVscSmsCopies } from "./vsc-sms-copy-drafts";
+import { defaultVscSmsContent } from "@/features/vsc-campaign/sms-content";
 
 const enabled = process.env.VSC_DISPOSABLE_TEST_DB === "1";
 async function checked<T>(request: PromiseLike<{ data: T; error: { message: string } | null }>): Promise<T> {
@@ -79,6 +81,17 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
     smtp.enabled = true;
     smtp.send.mockImplementation(async (mail: { messageId: string; envelope: { to: string[] } }) => ({ messageId: mail.messageId, accepted: mail.envelope.to, rejected: [], response: "250 accepted by simulated SMTP" }));
   }
+  it.skipIf(promotionExpired)("persists immutable SMS copy versions without recipients or deliveries and handles concurrent retries", async () => {
+    const input = { id: randomUUID(), name: "SMS copy fixture", startDate: new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date()), hasEmail: false, messages: defaultVscSmsContent() };
+    const before = await checked(db.from("vsc_campaign_deliveries").select("id").eq("tenant_id", tenant));
+    await Promise.all([saveVscSmsCopy(tenant, input), saveVscSmsCopy(tenant, input)]);
+    const copies = await listVscSmsCopies(tenant);
+    expect(copies.drafts).toHaveLength(1); expect(copies.drafts[0].messages).toEqual(input.messages);
+    await expect(saveVscSmsCopy(tenant, { ...input, name: "Changed identity" })).rejects.toThrow("autre contenu");
+    await expect(listVscSmsCopies(foreignTenant)).rejects.toThrow("non autorisée");
+    expect(await checked(db.from("vsc_campaign_deliveries").select("id").eq("tenant_id", tenant))).toHaveLength(before!.length);
+    expect(smtp.send).not.toHaveBeenCalled();
+  });
   it.skipIf(promotionExpired)("reads unfinished and uncertain attempts without changing state or exposing reservation secrets", async () => {
     const id = await scheduledEmail();
     const reservation = await reserveVscEmail(tenant, id); expect(reservation).not.toBeNull();
