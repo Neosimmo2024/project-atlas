@@ -3,14 +3,14 @@ import { inspectVscBrevoSmsAccount } from "./vsc-brevo-sms-status";
 const tenant = "20000000-0000-0000-0000-000000000001";
 const fetchMock = vi.fn();
 describe("VSC read-only Brevo SMS account check", () => {
-  beforeEach(() => { vi.stubGlobal("fetch", fetchMock); fetchMock.mockReset(); vi.stubEnv("VSC_OVH_TENANT_ID", tenant); vi.stubEnv("VSC_BREVO_API_KEY", "synthetic-vsc-test-key"); });
+  beforeEach(() => { vi.stubGlobal("fetch", fetchMock); fetchMock.mockReset(); vi.stubEnv("VSC_OVH_TENANT_ID", tenant); vi.stubEnv("BREVO_VSC_API_KEY", "synthetic-vsc-test-key"); });
   afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
   it("rejects absent, malformed and foreign tenants before provider access", async () => {
     for (const id of ["", "invalid", "20000000-0000-0000-0000-000000000002"]) await expect(inspectVscBrevoSmsAccount(id)).rejects.toThrow("non autorisée");
     expect(fetchMock).not.toHaveBeenCalled();
   });
   it("does not fall back to the recruitment key", async () => {
-    vi.stubEnv("VSC_BREVO_API_KEY", ""); vi.stubEnv("BREVO_API_KEY", "synthetic-recruitment-key");
+    vi.stubEnv("BREVO_VSC_API_KEY", ""); vi.stubEnv("BREVO_API_KEY", "synthetic-recruitment-key");
     expect(await inspectVscBrevoSmsAccount(tenant)).toEqual({ state: "missing_key", dispatchEnabled: false }); expect(fetchMock).not.toHaveBeenCalled();
   });
   it("uses only a bounded noncached account GET and returns no account details or key", async () => {

@@ -4,7 +4,7 @@ export async function inspectVscBrevoSmsAccount(tenantId: string): Promise<VscBr
   if (!tenantId || tenantId !== process.env.VSC_OVH_TENANT_ID?.trim() || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tenantId))
     throw new Error("Entreprise non autorisée");
   // Never reuse BREVO_API_KEY, which belongs to the separate recruitment integration.
-  const key = process.env.VSC_BREVO_API_KEY?.trim();
+  const key = process.env.BREVO_VSC_API_KEY?.trim();
   if (!key) return { state: "missing_key", dispatchEnabled: false };
   try {
     const response = await fetch("https://api.brevo.com/v3/account", {

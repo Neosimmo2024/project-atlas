@@ -49,3 +49,10 @@ Brevo documente le remplacement automatique de [STOP_CODE] par un code propre au
 Une liste de consultation des mobiles VSC est disponible dans la page des campagnes, réservée aux propriétaires/administrateurs VSC. Elle normalise les 06/07 français saisis sous forme nationale, +33 ou 0033, regroupe les variantes d’un numéro et exclut les mobiles portant une opposition globale/SMS ou une réponse sur une fiche VSC liée. Aucun contact NEOS n’est pris en compte. Une opposition email seule retire la disponibilité email sans exclure le SMS.
 
 Cette liste ne sauvegarde aucune sélection et ne transmet aucun destinataire à Brevo. Elle reste une préparation, sans contrôle des futures réponses SMS du fournisseur, sans création de livraison et sans envoi. Les contrôles devront être refaits lors de la future sauvegarde des destinataires et avant toute tentative. Le QA VSC ne contient actuellement aucun mobile éligible.
+
+
+## Compte Brevo dédié retrouvé — 29 octobre 2026
+
+L’utilisateur a ouvert son compte VSC dédié dans le navigateur. Le profil contact@vendresoncommerce.com affiche 912 contacts et la campagne VSC historique « Promo -50% — Email 1 » du 26 octobre. Cette observation remplace l’ambiguïté de la session précédente ; aucun nouveau compte n’est nécessaire. Une clé API nommée VENDRESONCOMMERCE est déjà active. Les crédits SMS affichés sont à zéro ; aucun achat ni envoi n’a été lancé.
+
+Le secret Vercel existant porte le nom `BREVO_VSC_API_KEY` et était limité à l’ancienne branche `feature/tenant-switcher-vendresoncommerce`. Il a été rattaché à `feature/vsc-campaign-engine-foundation`, en preview uniquement, sans lecture, rotation ou remplacement de sa valeur. Le diagnostic utilise désormais ce nom existant, sans repli vers la clé générale de recrutement. Aucun paramètre de production ni secret NEOS/LFI n’a été changé.
