@@ -281,6 +281,16 @@ Migration 20261029174054_vsc_historical_inbound_holds.sql : testée sur isolée 
 
 Entrée machine préparée `/api/cron/vsc-historical-inbound`, exigeant `VSC_HISTORICAL_INBOUND_CRON_ENABLED=true`, `CRON_SECRET` et `VSC_HISTORICAL_INBOUND_ACTOR_ID` serveur. QA seulement ; aucun calendrier ou drapeau distant installé. Le traitement continu n’est donc pas encore actif. Test d’intégration local jetable ajouté au parcours réel des services/RPC avec IMAP simulé : historique prouvé, message sans fil exact, mise en pause et annulation, séparation du checkpoint et du journal exact, autre entreprise inchangée et reprise vide.
 
-La recette propriétaire des nouveaux boutons sur la preview reste à faire : le navigateur connecté est actuellement indisponible. Les compteurs réels ne doivent pas être présentés comme ayant été retraités par ce nouveau worker avant cette recette.
+La recette propriétaire des nouveaux boutons a été effectuée le 30 octobre ; ses résultats sont consignés ci-dessous. Aucun calendrier automatique n’a été installé.
 
 Validation locale du lot : 810 tests réussis et TypeScript valide. Contrôle SQL QA avant recette réelle : 0 mise en pause historique, 0 checkpoint historique créé, 449 emails draft, 0 livraison SMS ; dernière modification NEOS inchangée (2026-10-29T11:21:18.5703Z).
+
+## Recette réelle du 30 octobre et dernier email de promotion
+
+Session propriétaire reconnectée. Nouveau traitement historique réellement exécuté à 07:35:37.310Z : 24 messages examinés, 0 mise en pause, 0 annulation, 0 message automatique issu d’un expéditeur historique. Checkpoint historique UIDVALIDITY 1249993821, UID 169014, version 1. Deuxième passage à 07:36:18.645Z : 0 message relu, version 2, même UID. Le curseur des réponses exactes reste version 5 / UID 169005 / updated_at 2026-10-28T15:49:01.313Z. Le worker historique n’a donc pas modifié le point de reprise exact.
+
+Synchronisation STOP Brevo à 07:36:28.532Z : 912 contacts lus, 0 blocage SMS, 0 statut inconnu, 0 annulation. Sélection SMS relue : 143 mobiles, 113 avec email utilisable, 30 mobiles seuls ; version du 29 octobre conservée. Toujours 449 emails draft, aucun SMS créé et NEOS inchangé.
+
+Nouveau brouillon de dernier jour, distinct du J+20 : date fixe **30 novembre 2026, 9 h 30 Europe/Paris (08:30 UTC)**, étape last-chance, historique Brevo #2 conservé. Les candidats viennent uniquement des anciens envois prouvés et de leurs coordonnées actuelles, après contrôle des permissions, oppositions et réponses. Aucun nouvel email initial ou J+40 de décembre. Copie : « Dernier jour : votre annonce jusqu’à la vente à 79 € HT », offre 79 € HT au lieu de 159 € HT, annonce jusqu’à la vente, fin au 30 novembre, réponse à contact@vendresoncommerce.com. Aucun envoi ni approbation.
+
+Migration 20261030073804_vsc_last_day_draft.sql : deux RPC invoker/service uniquement, administrateur actif obligatoire, verrou transactionnel, lots de 100, unicité historique/personne/étape, vérification fraîche du plan et de la date et refus d’écrasement. Tests SQL transactionnels validés sur isolée puis QA : exclusions, absence de duplication, brouillon inactif, date décembre refusée et droits/tenant. Aucun nouvel avis de sécurité sur ces RPC. Aperçu SQL QA avant sauvegarde : 449 candidats, tous au 30 novembre à 08:30 UTC. Test d’intégration REST ajouté pour vérifier la sauvegarde réelle et l’absence d’un nouveau premier email sur base locale jetable.

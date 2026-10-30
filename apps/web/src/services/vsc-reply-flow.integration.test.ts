@@ -25,6 +25,7 @@ import { getVscSmsDraftContacts } from "./vsc-sms-draft-contacts";
 import { importVscBrevoContactGroups, vscBrevoImportPersonId } from "./vsc-brevo-contact-import";
 import { normalizeVscBrevoContact, groupVscBrevoContacts } from "@/features/vsc-campaign/brevo-contact-import";
 
+import { previewVscLastDayDraft, saveVscLastDayDraft } from "./vsc-last-day-draft";
 import { reconcileVscHistoricalInboundOnce } from "./vsc-historical-inbound-worker";
 import { previewVscSmsAudience, saveVscSmsAudience } from "./vsc-sms-audience";
 
@@ -78,6 +79,24 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
     const role = await checked(db.from("roles").select("id").eq("slug", "owner").single());
     await checked(db.from("tenant_users").insert({ tenant_id: tenant, user_id: approvalActor, role_id: role!.id }));
   }
+  it.skipIf(Date.now()>=Date.parse("2026-11-30T08:30:00Z"))("prepares the final promotional email on November 30 without duplicating the historical initial email", async () => {
+    await importOwner();
+    const groups=groupVscBrevoContacts([normalizeVscBrevoContact({id:10,email:"shop@fixture.invalid",emailBlacklisted:false,smsBlacklisted:false,attributes:{}})],id=>vscBrevoImportPersonId(tenant,id));
+    await importVscBrevoContactGroups(tenant,approvalActor,groups);
+    await checked(db.rpc("vsc_record_brevo_history",{p_tenant_id:tenant,p_actor_id:approvalActor,p_entries:[{provider_id:10,person_id:person,email:"shop@fixture.invalid",sentAt:"2026-10-26T09:48:00Z",delivered:true,hardBounce:false,softBounce:false,emailBlocked:false}]}));
+    const preview=await previewVscLastDayDraft(tenant);
+    expect(preview).toMatchObject({count:1,sendingEnabled:false,message:{stepKey:"last-chance"}});
+    expect(Date.parse(preview.dates[0])).toBe(Date.parse("2026-11-30T08:30:00Z"));
+    const saved=await saveVscLastDayDraft(tenant,approvalActor,preview.reviewKey);
+    expect(saved.submitted).toBe(1);
+    const rows=await checked(db.from("vsc_campaign_deliveries").select("step_key,status,historical_brevo_campaign_id,scheduled_at,provider_message_id").eq("tenant_id",tenant).eq("campaign_id",saved.campaigns[0]));
+    expect(rows).toHaveLength(1);expect(rows![0]).toMatchObject({step_key:"last-chance",status:"draft",historical_brevo_campaign_id:2,provider_message_id:null});
+    expect(Date.parse(rows![0].scheduled_at)).toBe(Date.parse("2026-11-30T08:30:00Z"));
+    expect((await previewVscLastDayDraft(tenant)).count).toBe(0);
+    await expect(saveVscLastDayDraft(tenant,approvalActor,preview.reviewKey)).rejects.toThrow("changé");
+    expect(await checked(db.from("vsc_campaign_deliveries").select("id").eq("tenant_id",tenant).eq("step_key","offer"))).toHaveLength(1);
+    expect(smtp.send).not.toHaveBeenCalled();
+  });
   it("holds historical inbound without inventing a verified reply and keeps checkpoints isolated", async () => {
     await importOwner();
     const groups=groupVscBrevoContacts([normalizeVscBrevoContact({id:9,email:"shop@fixture.invalid",emailBlacklisted:false,smsBlacklisted:false,attributes:{SMS:"0612345678"}})],id=>vscBrevoImportPersonId(tenant,id));

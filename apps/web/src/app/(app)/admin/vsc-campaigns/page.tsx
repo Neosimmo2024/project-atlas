@@ -1,3 +1,4 @@
+import { VscLastDayDraft } from '@/components/vsc-last-day-draft';
 import { VscHistoricalInboundSync } from '@/components/vsc-historical-inbound-sync';
 import Link from "next/link";
 import { VscSmsAudience } from "@/components/vsc-sms-audience";
@@ -32,6 +33,7 @@ export default async function VscCampaignsPage() {
     <VscHistoricalReplies />
       <VscHistoricalInboundSync />
     <VscHistoricalFollowup />
+    <VscLastDayDraft />
     <VscDraftWorkspace today={vscDraftToday()} />
     <VscDispatchReview tenantId={context.tenantId} />
     <VscSmsPreview today={vscDraftToday()} />
