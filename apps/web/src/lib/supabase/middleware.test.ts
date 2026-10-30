@@ -50,6 +50,14 @@ describe("Supabase middleware auth pages", () => {
     expect(updateResponse.headers.get("location")).toBeNull();
   });
 
+  it("allows only the exact signed unsubscribe route without a session lookup", async () => {
+    const response = await updateSession(request("/vsc-unsubscribe?token=opaque"));
+    expect(response.status).toBe(200); expect(createServerClientMock).not.toHaveBeenCalled();
+    expect(response.headers.get("referrer-policy")).toBe("strict-origin");
+    mockUser(null);
+    expect((await updateSession(request("/vsc-unsubscribe/admin"))).status).toBe(307);
+  });
+
   it("keeps redirecting unauthenticated application pages to login", async () => {
     mockUser(null);
 
@@ -60,6 +68,14 @@ describe("Supabase middleware auth pages", () => {
     expect(response.headers.get("location")).toBe("http://localhost:3000/login");
     expect(projectsResponse.status).toBe(307);
     expect(projectsResponse.headers.get("location")).toBe("http://localhost:3000/login");
+  });
+
+  it("skips session lookup only for the exact machine-authenticated reply endpoint", async () => {
+    expect((await updateSession(request("/api/cron/vsc-replies"))).status).toBe(200);
+    expect(createServerClientMock).not.toHaveBeenCalled();
+    mockUser(null);
+    await updateSession(request("/api/cron/vsc-replies/other"));
+    expect(createServerClientMock).toHaveBeenCalledTimes(1);
   });
 
   it("keeps redirecting authenticated users away from login only", async () => {

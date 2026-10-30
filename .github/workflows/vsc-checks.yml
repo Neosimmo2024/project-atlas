@@ -1,0 +1,144 @@
+name: VSC isolated checks
+
+on:
+  pull_request:
+    paths:
+      - 'apps/web/src/features/vsc-campaign/**'
+      - 'apps/web/src/services/vsc-*.ts'
+      - 'apps/web/src/app/api/admin/vsc-*/**'
+      - 'apps/web/src/app/api/cron/vsc-replies/**'
+      - 'apps/web/src/app/api/cron/vsc-sms-stops/**'
+      - 'apps/web/src/app/api/cron/vsc-historical-inbound/**'
+      - 'apps/web/src/app/vsc-unsubscribe/**'
+      - 'apps/web/src/lib/supabase/middleware*'
+      - 'apps/web/src/components/vsc-*.tsx'
+      - 'apps/web/src/app/(app)/admin/ovh-connection/**'
+      - 'supabase/migrations/*vsc*.sql'
+      - 'supabase/tests/vsc-isolation.sql'
+      - 'supabase/tests/vsc-draft-workspace.sql'
+      - 'supabase/tests/vsc-email-reservations.sql'
+      - 'supabase/tests/vsc-sms-copies.sql'
+      - 'supabase/tests/vsc-sms-contacts.sql'
+      - 'supabase/tests/vsc-brevo-contact-import.sql'
+      - 'supabase/tests/vsc-historical-followup.sql'
+      - 'supabase/tests/vsc-brevo-sms-stops.sql'
+      - 'supabase/tests/vsc-sms-audience.sql'
+      - 'supabase/tests/vsc-historical-inbound.sql'
+      - 'supabase/tests/vsc-last-day-draft.sql'
+      - 'apps/web/src/app/(app)/admin/vsc-campaigns/**'
+      - '.github/workflows/vsc-checks.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  vsc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run isolated VSC unit tests
+        working-directory: apps/web
+        run: npx vitest run src/features/vsc-campaign src/services/vsc-campaign-email.test.ts src/services/vsc-campaign-drafts.test.ts src/services/vsc-inbound-reply-journal.test.ts
+      - name: Run VSC service tests
+        working-directory: apps/web
+        run: npx vitest run src/services/vsc-*.test.ts src/lib/supabase/middleware.test.ts --exclude "src/**/*.integration.test.ts"
+      - name: Validate VSC migration SQL syntax (offline)
+        run: |
+          python3 -m pip install --quiet pglast==7.21
+          python3 - <<'PY'
+          from pathlib import Path
+          from pglast import parse_sql
+          migrations = sorted(Path('supabase/migrations').glob('*vsc*.sql'))
+          assert migrations, 'No VSC migration files found'
+          for migration in migrations:
+              parse_sql(migration.read_text())
+              print(f'Parsed: {migration.name}')
+          PY
+      - name: Typecheck web
+        working-directory: apps/web
+        run: npm run typecheck
+
+  vsc-migrations:
+    name: VSC isolated Supabase migration smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Start disposable local Supabase
+        run: supabase start > /dev/null
+      - name: Apply all local migrations
+        run: supabase migration up --local
+      - name: Verify VSC schema, RLS, and RPC grants
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase status -o env > "$RUNNER_TEMP/supabase.env"
+          set -a
+          source "$RUNNER_TEMP/supabase.env"
+          set +a
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          declare table_name text;
+          begin
+            foreach table_name in array array['vsc_campaigns','vsc_campaign_deliveries','vsc_inbound_replies','vsc_imap_cursors','vsc_contact_suppressions','vsc_brevo_contact_links']
+            loop
+              if not exists (
+                select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+                where n.nspname='public' and c.relname=table_name and c.relrowsecurity
+              ) then raise exception 'VSC RLS missing: %', table_name; end if;
+            end loop;
+            if has_function_privilege('authenticated',
+              'public.vsc_record_verified_reply(uuid,uuid,uuid,text,timestamptz)', 'EXECUTE')
+            then raise exception 'Authenticated role can invoke VSC reply RPC'; end if;
+            if not has_function_privilege('service_role',
+              'public.vsc_record_verified_reply(uuid,uuid,uuid,text,timestamptz)', 'EXECUTE')
+            then raise exception 'Service role cannot invoke VSC reply RPC'; end if;
+          end $$;
+          SQL
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-isolation.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-draft-workspace.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-email-reservations.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-sms-copies.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-sms-contacts.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-brevo-contact-import.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-historical-followup.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-brevo-sms-stops.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-sms-audience.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-historical-inbound.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-last-day-draft.sql
+      - name: Run real VSC reply flow against disposable Supabase
+        working-directory: apps/web
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          source "$RUNNER_TEMP/supabase.env"
+          set +a
+          echo "::add-mask::$SERVICE_ROLE_KEY"
+          echo "::add-mask::$ANON_KEY"
+          export NEXT_PUBLIC_SUPABASE_URL="$API_URL"
+          export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          export VSC_DISPOSABLE_TEST_DB=1
+          npx vitest run src/services/vsc-reply-flow.integration.test.ts --no-file-parallelism
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop --no-backup || true

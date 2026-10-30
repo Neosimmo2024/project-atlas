@@ -95,7 +95,7 @@ describe("Supabase test reset workflow", () => {
     }
   });
 
-  it("tracks repository migrations including the IONOS test journal while keeping the remote reset lock at validated 0019", () => {
+  it("tracks repository migrations including IONOS and VSC journals while keeping the remote reset lock at validated 0019", () => {
     const migrations = readdirSync(resolve(root, "supabase/migrations")).filter((name) => name.endsWith(".sql")).sort();
     expect(migrations).toEqual([
       "0001_core.sql",
@@ -119,7 +119,27 @@ describe("Supabase test reset workflow", () => {
       "0019_recruitment_email_template_management.sql",
       "0020_recruitment_sequence_engine.sql",
       "0021_csv_import_direct_write_hardening.sql",
-      "20261026154824_ionos_delivery_test.sql"
+      "20261026154824_ionos_delivery_test.sql",
+      "20261028090000_vsc_campaign_drafts.sql",
+      "20261028090102_vsc_imap_cursor.sql",
+      "20261028091000_vsc_inbound_reply_journal.sql",
+      "20261028092000_vsc_verified_reply_stop.sql",
+      "20261028092919_vsc_service_role_grants.sql",
+      "20261028094904_vsc_contact_suppressions.sql",
+      "20261028163613_vsc_atomic_email_draft.sql",
+      "20261028165747_vsc_draft_email_content.sql",
+      "20261028180046_vsc_email_delivery_claims.sql",
+      "20261029083236_vsc_sms_copy_drafts.sql",
+      "20261029101159_vsc_sms_draft_contacts.sql",
+      "20261029143725_vsc_brevo_contact_import.sql",
+      "20261029151249_vsc_brevo_identifier_guard.sql",
+      "20261029152442_vsc_brevo_historical_email.sql",
+      "20261029155132_vsc_historical_followup_draft.sql",
+      "20261029161248_vsc_brevo_sms_stops.sql",
+      "20261029164220_vsc_sms_audience_drafts.sql",
+      "20261029165433_vsc_sms_audience_indexes.sql",
+      "20261029174054_vsc_historical_inbound_holds.sql",
+      "20261030073804_vsc_last_day_draft.sql"
     ]);
     expect(workflow).toContain("Refusing reset: migration set is not exactly 0001 through 0019.");
     expect(workflow).not.toContain("Refusing reset: migration set is not exactly 0001 through 0021.");

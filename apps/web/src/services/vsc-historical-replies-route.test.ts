@@ -1,0 +1,10 @@
+import {beforeEach,afterEach,describe,expect,it,vi} from 'vitest';
+const {context,manage,audit}=vi.hoisted(()=>({context:vi.fn(),manage:vi.fn(),audit:vi.fn()}));
+vi.mock('@/repositories/tenant-context',()=>({getTenantContext:context}));vi.mock('@/services/ovh-connection',()=>({canManageOvh:manage}));vi.mock('@/services/vsc-historical-reply-audit',()=>({auditVscHistoricalReplies:audit}));
+import {POST} from '@/app/api/admin/vsc-historical-replies/route';
+const req=(body='{}',origin='https://fixture.invalid',type='application/json')=>new Request('https://fixture.invalid/api/admin/vsc-historical-replies',{method:'POST',headers:{origin,'content-type':type},body});
+describe('Historical audit authorization',()=>{beforeEach(()=>{vi.resetAllMocks();vi.stubEnv('VSC_OVH_TENANT_ID','vsc');context.mockResolvedValue({tenantId:'vsc'});manage.mockReturnValue(true);audit.mockResolvedValue({readOnly:true});});afterEach(()=>vi.unstubAllEnvs());
+ it('rejects another origin, missing session or non-administrator before inspection',async()=>{expect((await POST(req('{}','https://foreign.invalid'))).status).toBe(403);context.mockResolvedValueOnce(null);expect((await POST(req())).status).toBe(403);manage.mockReturnValue(false);expect((await POST(req())).status).toBe(403);expect(audit).not.toHaveBeenCalled();});
+ it('uses the fixed VSC tenant and bounds the cursor request',async()=>{expect((await POST(req('{'))).status).toBe(400);expect((await POST(req('x'.repeat(1001)))).status).toBe(413);expect((await POST(req('{}',undefined,'text/plain'))).status).toBe(415);const response=await POST(req('{"tenant":"foreign","cursor":{"uidValidity":"42","lastUid":200}}'));expect(response.status).toBe(200);expect(response.headers.get('cache-control')).toBe('no-store');expect(audit).toHaveBeenCalledExactlyOnceWith('vsc',{uidValidity:'42',lastUid:200});});
+ it('masks failures and does not retry an interrupted mailbox session',async()=>{audit.mockRejectedValue(new Error('private'));const response=await POST(req());expect(response.status).toBe(503);expect(await response.text()).not.toContain('private');expect(audit).toHaveBeenCalledTimes(1);});
+});
