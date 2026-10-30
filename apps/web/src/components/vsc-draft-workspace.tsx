@@ -11,7 +11,7 @@ type Preview = { content: VscEmailContent; plan: VscPlannedDelivery[]; reviewKey
 const stepLabels: Record<string, string> = { offer: "Présentation de l’offre", consideration: "Relance à J+20", "last-chance": "Relance à J+40" };
 function EmailCopyReview({ content, steps }: { content: VscEmailContent; steps: Set<string> }) {
   return <div className="stack">{content.messages.filter(message => steps.has(message.stepKey)).map(message => <article key={message.stepKey} className="card stack">
-    <h4>{stepLabels[message.stepKey]}</h4><p><strong>Objet : {message.subject}</strong></p>
+    <h4>{message.stepKey === "last-chance" ? "Dernier email" : stepLabels[message.stepKey]}</h4><p><strong>Objet : {message.subject}</strong></p>
     <p style={{ whiteSpace: "pre-wrap" }}>{message.text}</p>
   </article>)}<p className="muted">Le lien personnel de désinscription sera ajouté par le transport lors d’un envoi autorisé. Aucun lien de test n’est inclus dans ces textes.</p></div>;
 }
@@ -123,6 +123,7 @@ export function VscDraftWorkspace({ today }: { today: string }) {
       {savedReview ? <div className="stack" aria-label="Textes du brouillon enregistré">
         <h3>{savedReview.campaign.name}</h3>
         <p>{savedReview.deliveries.length} livraisons enregistrées — état : {savedReview.campaign.state === "draft" ? "brouillon non approuvé" : savedReview.campaign.state}.</p>
+        {[...new Set(savedReview.deliveries.map(item => item.scheduled_at))].map(date => <p key={date}>Date conservée : {new Intl.DateTimeFormat("fr-FR", { dateStyle: "full", timeStyle: "short", timeZone: "Europe/Paris" }).format(new Date(date))}</p>)}
         {savedReview.limited ? <p>Affichage partiel : seules les 500 premières livraisons sont consultées.</p> : null}
         {savedReview.campaign.email_content ? <EmailCopyReview content={savedReview.campaign.email_content} steps={new Set(savedReview.deliveries.filter(item => item.channel === "email").map(item => item.step_key))} /> : <p>Ce brouillon ancien n’a pas de textes enregistrés.</p>}
         <p>Cette relecture montre les textes conservés lors de la sauvegarde. Elle ne déclenche aucun envoi.</p>
