@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TenantContext } from "@/types/domain";
 const m = vi.hoisted(() => ({ db: vi.fn(), rpc: vi.fn(), transport: vi.fn(), send: vi.fn(), close: vi.fn(), update: vi.fn() }));
 vi.mock("@/lib/supabase/service-role", () => ({ createSupabaseServiceRoleClient: m.db }));
-vi.mock("./ionos-connection", async original => ({ ...await original<typeof import("./ionos-connection")>(), createIonosTransport: m.transport }));
+vi.mock("./brevo-smtp", async original => ({ ...await original<typeof import("./brevo-smtp")>(), createBrevoSmtpTransport: m.transport }));
 import { dispatchLfiOne } from "./lfi-campaigns";
 const tenantId = "11111111-1111-4111-8111-111111111111";
 const context = { tenantId, role: "owner", userId: "test" } as TenantContext;
@@ -12,7 +12,7 @@ let saveError: boolean;
 beforeEach(() => {
  vi.clearAllMocks(); suppressed=false; rejected=false; saveError=false;
  vi.stubEnv("LFI_IONOS_TENANT_ID", tenantId);
- vi.stubEnv("LFI_IONOS_SMTP_PASSWORD", "test-only");
+ vi.stubEnv("LFI_BREVO_SMTP_PASSWORD", "test-only");
  vi.stubEnv("LFI_CAMPAIGN_PUBLIC_ORIGIN", "https://atlas.example.invalid");
  m.rpc.mockResolvedValue({data:[{id:"message",recipient_id:"recipient",message_id:"<test@example.invalid>",subject:"Formation",body_text:"Bonjour"}],error:null});
  m.send.mockResolvedValue({accepted:["person@example.invalid"]});
@@ -25,7 +25,7 @@ beforeEach(() => {
  }});
 });
 afterEach(()=>vi.unstubAllEnvs());
-describe("LFI campaign delivery safety",()=>{
+describe("LFI campaign delivery safety through Brevo",()=>{
  it("rejects another tenant before querying or sending",async()=>{
   await expect(dispatchLfiOne({...context,tenantId:"other"})).rejects.toThrow();
   expect(m.db).not.toHaveBeenCalled();expect(m.transport).not.toHaveBeenCalled();
