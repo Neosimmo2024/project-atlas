@@ -20,8 +20,9 @@ function validReservation(value: VscEmailReservation, id: string) {
     && typeof p.text === "string" && p.text.trim().length > 0 && p.text.length <= 6000 && !p.text.includes("\u0000")
     && p.messageId === `<vsc-${id}@vendresoncommerce.com>`;
 }
-export async function dispatchReservedVscEmail(tenantId: string, deliveryId: string): Promise<VscDispatchResult> {
-  if (process.env.VSC_EMAIL_DISPATCH_ENABLED !== "true") return { state: "disabled" };
+export async function dispatchReservedVscEmail(tenantId: string, deliveryId: string, mode: "scheduled" | "manual" = "scheduled"): Promise<VscDispatchResult> {
+  const manualProductionSend = mode === "manual" && process.env.VERCEL_ENV === "production";
+  if (!manualProductionSend && process.env.VSC_EMAIL_DISPATCH_ENABLED !== "true") return { state: "disabled" };
   let reservation: VscEmailReservation | null;
   try { reservation = await reserveVscEmail(tenantId, deliveryId); }
   catch { return { state: "review_required", reason: "reservation_unconfirmed" }; }
@@ -55,7 +56,7 @@ export async function dispatchReservedVscEmail(tenantId: string, deliveryId: str
     try {
       const fresh = await refreshVscEmail(tenantId, deliveryId, token);
       if (!samePayload(reservation.payload, begun) || !samePayload(reservation.payload, fresh)
-        || process.env.VSC_EMAIL_DISPATCH_ENABLED !== "true" || !isVscOfferCurrent(new Date())) {
+        || (!manualProductionSend && process.env.VSC_EMAIL_DISPATCH_ENABLED !== "true") || !isVscOfferCurrent(new Date())) {
         const result = await persist("rejected", "stopped_before_smtp");
         return result.state === "rejected" ? { state: "blocked", reason: "stopped_before_smtp" } : result;
       }
