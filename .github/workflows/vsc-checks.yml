@@ -12,6 +12,7 @@ on:
       - 'apps/web/src/app/vsc-unsubscribe/**'
       - 'apps/web/src/lib/supabase/middleware*'
       - 'apps/web/src/components/vsc-*.tsx'
+      - 'apps/web/.env.example'
       - 'apps/web/src/app/(app)/admin/ovh-connection/**'
       - 'supabase/migrations/*vsc*.sql'
       - 'supabase/tests/vsc-isolation.sql'
