@@ -1,4 +1,4 @@
-/** Disabled by default. No endpoint, UI or scheduler calls this adapter. */
+/** Manual production actions may call this adapter for one reviewed delivery; scheduled dispatch remains disabled by default. */
 import { createOvhTransport, OVH_SENDER } from "@/services/ovh-connection";
 import { createVscUnsubscribeUrl } from "@/services/vsc-unsubscribe-token";
 import { reserveVscEmail, beginVscEmail, refreshVscEmail, releaseVscEmail, recordVscEmailResult, type VscEmailReservation, type VscReservedPayload } from "@/services/vsc-email-reservations";
