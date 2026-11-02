@@ -25,6 +25,7 @@ import { getVscSmsDraftContacts } from "./vsc-sms-draft-contacts";
 import { importVscBrevoContactGroups, vscBrevoImportPersonId } from "./vsc-brevo-contact-import";
 import { normalizeVscBrevoContact, groupVscBrevoContacts } from "@/features/vsc-campaign/brevo-contact-import";
 
+import { previewVscSmsCalendar } from "./vsc-sms-calendar";
 import { previewVscLastDayDraft, saveVscLastDayDraft } from "./vsc-last-day-draft";
 import { reconcileVscHistoricalInboundOnce } from "./vsc-historical-inbound-worker";
 import { previewVscSmsAudience, saveVscSmsAudience } from "./vsc-sms-audience";
@@ -79,6 +80,18 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
     const role = await checked(db.from("roles").select("id").eq("slug", "owner").single());
     await checked(db.from("tenant_users").insert({ tenant_id: tenant, user_id: approvalActor, role_id: role!.id }));
   }
+  it.skipIf(Date.now()>=Date.parse("2026-11-30T23:00:00Z"))("reads the real historical SMS date without writing a campaign or moving J5", async () => {
+    await importOwner();
+    const groups=groupVscBrevoContacts([normalizeVscBrevoContact({id:11,email:"shop@fixture.invalid",emailBlacklisted:false,smsBlacklisted:false,attributes:{SMS:"0612345678"}})],id=>vscBrevoImportPersonId(tenant,id));
+    await importVscBrevoContactGroups(tenant,approvalActor,groups);
+    await checked(db.rpc("vsc_record_brevo_history",{p_tenant_id:tenant,p_actor_id:approvalActor,p_entries:[{provider_id:11,person_id:person,email:"shop@fixture.invalid",sentAt:"2026-10-26T09:48:00Z",delivered:true,hardBounce:false,softBounce:false,emailBlocked:false}]}));
+    const calendar=await previewVscSmsCalendar(tenant);
+    expect(calendar).toMatchObject({emailMobile:1,mobileOnly:0,unknownHistory:0,sendingEnabled:false,readOnly:true});
+    expect(calendar.emailReminders[0]).toMatchObject({date:"2026-10-31",count:1});
+    expect(await checked(db.from("vsc_campaigns").select("id").eq("tenant_id",tenant))).toHaveLength(1);
+    expect(await checked(db.from("vsc_campaign_deliveries").select("id").eq("tenant_id",tenant))).toHaveLength(3);
+    expect(smtp.send).not.toHaveBeenCalled();
+  });
   it.skipIf(Date.now()>=Date.parse("2026-11-30T08:30:00Z"))("prepares the final promotional email on November 30 without duplicating the historical initial email", async () => {
     await importOwner();
     const groups=groupVscBrevoContacts([normalizeVscBrevoContact({id:10,email:"shop@fixture.invalid",emailBlacklisted:false,smsBlacklisted:false,attributes:{}})],id=>vscBrevoImportPersonId(tenant,id));

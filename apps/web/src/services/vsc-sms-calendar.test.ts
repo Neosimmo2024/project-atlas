@@ -1,0 +1,15 @@
+import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
+const {rpc,from,limit,eq}=vi.hoisted(()=>({rpc:vi.fn(),from:vi.fn(),limit:vi.fn(),eq:vi.fn()}));
+vi.mock('@/lib/supabase/service-role',()=>({createSupabaseServiceRoleClient:()=>({rpc,from})}));
+vi.mock('./vsc-draft-workspace',()=>({vscDraftToday:()=> '2026-11-02'}));
+import {previewVscSmsCalendar} from './vsc-sms-calendar';
+const tenant='20000000-0000-0000-0000-000000000001',person='10000000-0000-0000-0000-000000000001';
+const contact={id:person,mobile:'+33612345678',has_email:true};
+describe('VSC SMS calendar server preview',()=>{
+ beforeEach(()=>{vi.resetAllMocks();vi.stubEnv('VSC_OVH_TENANT_ID',tenant);vi.stubEnv('VERCEL_ENV','preview');vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL','https://mahgxumwucxehsooijag.supabase.co');rpc.mockResolvedValue({data:[contact],error:null});const q={select:vi.fn().mockReturnThis(),eq,in:vi.fn().mockReturnThis(),order:vi.fn().mockReturnThis(),limit};eq.mockReturnValue(q);from.mockReturnValue(q);limit.mockResolvedValue({data:[{person_id:person,history_campaign_2:{sentAt:'2026-10-25T23:30:00Z'}}],error:null});});afterEach(()=>vi.unstubAllEnvs());
+ it('derives the historical date in Paris and returns no private contact coordinates or IDs',async()=>{const r=await previewVscSmsCalendar(tenant);expect(r.emailReminders[0]).toMatchObject({date:'2026-10-31',count:1,overdue:true});expect(JSON.stringify(r)).not.toContain(person);expect(JSON.stringify(r)).not.toContain('+33612345678');expect(eq).toHaveBeenCalledWith('tenant_id',tenant);expect(rpc).toHaveBeenCalledExactlyOnceWith('vsc_sms_audience_contacts',{p_tenant_id:tenant});});
+ it('blocks production, foreign tenant and invalid date before querying contacts',async()=>{await expect(previewVscSmsCalendar(person)).rejects.toThrow();await expect(previewVscSmsCalendar(tenant,'2026-12-05')).rejects.toThrow();vi.stubEnv('VERCEL_ENV','production');await expect(previewVscSmsCalendar(tenant)).rejects.toThrow();expect(rpc).not.toHaveBeenCalled();});
+ it('reports missing history rather than using the current date',async()=>{limit.mockResolvedValue({data:[],error:null});expect((await previewVscSmsCalendar(tenant)).unknownHistory).toBe(1);});
+ it('refuses duplicates, incomplete selection pages, malformed timestamps and foreign source identities',async()=>{rpc.mockResolvedValueOnce({data:[contact,contact],error:null});await expect(previewVscSmsCalendar(tenant)).rejects.toThrow();rpc.mockResolvedValueOnce({data:Array(1000).fill(contact),error:null});await expect(previewVscSmsCalendar(tenant)).rejects.toThrow();for(const row of [{person_id:person,history_campaign_2:{sentAt:'bad'}},{person_id:tenant,history_campaign_2:{sentAt:'2026-10-26T10:00:00Z'}}]){limit.mockResolvedValue({data:[row],error:null});await expect(previewVscSmsCalendar(tenant)).rejects.toThrow();}});
+ it('does not perform a history read for mobile-only contacts',async()=>{rpc.mockResolvedValue({data:[{...contact,has_email:false}],error:null});const r=await previewVscSmsCalendar(tenant);expect(r.mobileOnly).toBe(1);expect(r.mobileOnlySteps).toHaveLength(5);expect(from).not.toHaveBeenCalled();});
+});

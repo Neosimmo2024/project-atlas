@@ -1,3 +1,4 @@
+import { VscSmsCalendar } from '@/components/vsc-sms-calendar';
 import { VscLastDayDraft } from '@/components/vsc-last-day-draft';
 import { VscHistoricalInboundSync } from '@/components/vsc-historical-inbound-sync';
 import Link from "next/link";
@@ -54,5 +55,6 @@ export default async function VscCampaignsPage() {
     <VscBrevoSmsStatus />
     <VscBrevoSmsStops />
     <VscSmsAudience />
+    <VscSmsCalendar today={vscDraftToday()} />
   </div>;
 }
