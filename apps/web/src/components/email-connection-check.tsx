@@ -21,8 +21,8 @@ export function EmailConnectionCheck({ configured }: { configured: boolean }) {
     }
   }
 
-  return <section className="card stack" aria-label="Vérification IONOS">
-    <p>{configured ? "Les identifiants sont renseignés. Vous pouvez vérifier la connexion." : "Les identifiants doivent encore être renseignés dans la configuration sécurisée du serveur."}</p>
+  return <section className="card stack" aria-label="Vérification email Brevo et IONOS">
+    <p>{configured ? "La clé SMTP Brevo est renseignée. Vous pouvez vérifier la connexion." : "La clé SMTP Brevo doit être renseignée dans la configuration sécurisée du serveur."}</p>
     <button className="button" type="button" disabled={!configured || busy} onClick={() => checkConnection()}>
       {busy ? "Vérification en cours…" : "Vérifier la connexion"}
     </button>
@@ -35,7 +35,7 @@ export function EmailConnectionCheck({ configured }: { configured: boolean }) {
     </button>
     <hr />
     <h2>Vérifier les réponses</h2>
-    <p>Répondez « Bien reçu » au dernier mail de test avec le logo, puis vérifiez ici que votre réponse est arrivée dans la boîte contact.</p>
+    <p>Répondez « Bien reçu » au mail de test envoyé par Brevo, puis vérifiez ici que votre réponse est arrivée dans la boîte contact IONOS.</p>
     <button className="button" type="button" disabled={!configured || busy} onClick={() => checkConnection("reply")}>
       {busy ? "Vérification en cours…" : "Vérifier ma réponse au test"}
     </button>
