@@ -14,7 +14,10 @@ async function reconcile(tenant:string,actor:string,allowProduction:boolean){
  const previous=await db.from('vsc_historical_imap_cursors').select('uid_validity,last_uid,version').eq('tenant_id',tenant).single();
  if(previous.error||!previous.data)throw new Error('Point de reprise indisponible');
  const row=previous.data;
- const audit=await auditVscHistoricalReplies(tenant,{uidValidity:row.uid_validity,lastUid:Number(row.last_uid)},{allowProduction});
+ const cursor={uidValidity:row.uid_validity,lastUid:Number(row.last_uid)};
+ const audit=allowProduction
+  ? await auditVscHistoricalReplies(tenant,cursor,{allowProduction:true})
+  : await auditVscHistoricalReplies(tenant,cursor);
  if(audit.invalid||audit.ambiguous)throw new Error('Messages incomplets ou expéditeurs ambigus : examen nécessaire, point de reprise conservé');
  const messages=audit.candidates.map(c=>({personId:c.personId,from:c.from,messageId:c.messageId,receivedAt:c.receivedAt}));
  const {data,error}=await db.rpc('vsc_apply_historical_inbound_batch',{p_tenant_id:tenant,p_actor_id:actor,p_version:row.version,p_uid_validity:audit.cursor.uidValidity,p_last_uid:audit.cursor.lastUid,p_messages:messages});
