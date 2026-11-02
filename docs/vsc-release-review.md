@@ -11,20 +11,22 @@
 - Isolation par entreprise, droits RPC serveur et refus d’accès aux membres suspendus testés sur base isolée et en CI.
 - Prévisualisation Vercel disponible. Les secrets et migrations VSC de QA sont préparés ; aucune configuration de production changée.
 
-## Implémenté dans le code, sans parcours commercial actif
+## Implémenté dans le code, sans envoi automatique
 
-- Interface `/admin/vsc-campaigns` : sélection explicite de contacts email VSC autorisés, modification des objets/textes proposés, aperçu des dates et messages, sauvegarde atomique et idempotente de brouillons non approuvés, relecture des textes conservés dans les 20 dernières campagnes. Un espace de propositions SMS et de simulation des dates est disponible, avec sauvegarde de versions immuables, sans sélection de destinataires ni transport.
-- Transport email OVH contrôlé avant envoi : identité, destinataire, autorisation actuelle de contact, oppositions, réponses connues, lien de désinscription et fin de promotion. Ce transport n’est raccordé à aucun endpoint d’envoi.
-- Réservation atomique des livraisons email, passage unique au début de tentative, libération uniquement avant tentative et résultat incertain bloqué. Ces primitives sont réservées au serveur et raccordées à un adaptateur SMTP désactivé par défaut, sans endpoint d’envoi ni scheduler. Les politiques d’approbation et d’activation restent sans interface de lancement.
-- Règles SMS Brevo et propositions éditables préparées : aperçu email+mobile J+5 ou mobile seul J0/J+15/J+30/J+45, limité au 30 novembre. Estimation GSM-7/Unicode et segments, Repère Brevo officiel [STOP_CODE] dans les nouveaux modèles ; anciens textes conservés sans réécriture. Les textes, la date et le parcours peuvent être conservés par versions immuables après aperçu, puis relus après rechargement. Aucun transport SMS VSC ni test réel validé dans cette recette.
+- Interface `/admin/vsc-campaigns) : sélection explicite de contacts email VSC autorisés, modification des objets/textes proposés, aperçu des dates et messages, sauvegarde atomique et idempotente de brouillons non approuvés, relecture des textes conservés. Un espace de propositions SMS et de simulation des dates est disponible, avec sauvegarde de versions immuables, sans transport SMS.
+- Revue manuelle email : un administrateur sélectionne une campagne et voit le destinataire, le texte et la date de chaque livraison. En production configurée, un clic confirmé approuve/active la campagne, puis traite uniquement la livraison choisie. Les autres livraisons restent en brouillon. Aucun calendrier email ou scheduler ne déclenche l’adaptateur.
+- Chaque clic revalide la même origine, le rôle owner/admin, l’empreinte de l’aperçu, l’éligibilité fraîche du contact, la date, la promotion, l’authentification SMTP, l’accès IMAP et la génération du lien de désinscription. Une incertitude SMTP reste en revue humaine et n’est jamais renvoyée automatiquement.
+- La revue et le bouton restent désactivés hors production ou sans configuration OVH/désinscription. Les clés dédiées restent privées et aucun repli vers NEOS n’est autorisé.
+- Règles SMS Brevo et propositions éditables préparées : aperçu email+mobile J+5 ou mobile seul J0/J+15/J+30/J+45, limité au 30 novembre. Estimation GSM-7/Unicode et segments, repère Brevo officiel [STOP_CODE] dans les nouveaux modèles ; anciens textes conservés sans réécriture. Aucun transport SMS VSC ni test réel validé dans cette recette.
 
 ## Travaux nécessaires avant une campagne réelle
 
-1. Faire valider les textes, les destinataires et la cadence d’un pilote concret. Les propositions éditables et leur aperçu sont disponibles, sans approbation ni envoi.
-2. Valider l’adaptateur réservé sur un pilote technique explicitement autorisé avant toute activation commerciale et finaliser la résolution humaine auditée des cas incertains. Une liste de lecture et une procédure de vérification sont disponibles dans la page des campagnes ; aucune modification de résultat ni relance n’y est possible. Le parcours intégré est testé sur une base jetable avec SMTP simulé ; il ne constitue pas une recette réelle d’envoi commercial. Aucun rapprochement ou renvoi automatique des cas incertains n’est activé.
-3. Recetter puis installer une planification du worker OVH. Le point d’entrée serveur `/api/cron/vsc-replies` est préparé mais désactivé ; aucun calendrier n’est installé. La collecte des réponses ne déclenche aucun envoi.
+1. Faire valider les textes, les destinataires et la cadence d’un pilote concret. Les campagnes déjà enregistrées restent des brouillons.
+2. Configurer en production les identifiants OVH et la clé de désinscription VSC, puis recetter le parcours manuel sur un destinataire pilote autorisé. Vérifier les résultats incertains avant toute autre action ; aucun renvoi automatique n’est activé.
+3. Recetter séparément le worker de réponses OVH et installer son calendrier uniquement si une surveillance continue est souhaitée. Il ne déclenche aucun envoi.
 4. Terminer séparément le parcours SMS VSC, ses oppositions et sa vérification sur un numéro de test autorisé.
-5. Présenter la campagne et les résultats complets avant toute approbation de lancement.
+5. Présenter la campagne et les résultats complets avant toute activation. Chaque envoi ultérieur restera manuel et unitaire.
+
 
 ## Offre et limites de calendrier
 
