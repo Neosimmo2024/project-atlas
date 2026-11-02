@@ -25,6 +25,9 @@ import { getVscSmsDraftContacts } from "./vsc-sms-draft-contacts";
 import { importVscBrevoContactGroups, vscBrevoImportPersonId } from "./vsc-brevo-contact-import";
 import { normalizeVscBrevoContact, groupVscBrevoContacts } from "@/features/vsc-campaign/brevo-contact-import";
 
+vi.mock("@/features/vsc-campaign/sms-dispatch-time",()=>({isVscSmsDispatchTime:()=>true}));
+import { dispatchReservedVscSms } from "./vsc-reserved-brevo-sms-dispatch";
+import { reserveVscSms } from "./vsc-sms-reservations";
 import { previewVscSmsCalendar } from "./vsc-sms-calendar";
 import { previewVscLastDayDraft, saveVscLastDayDraft } from "./vsc-last-day-draft";
 import { reconcileVscHistoricalInboundOnce } from "./vsc-historical-inbound-worker";
@@ -74,12 +77,47 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
       messageId: `<reply-${randomUUID()}@fixture.invalid>`, from: "shop@fixture.invalid", inReplyTo: outbound, references: [], receivedAt: "2026-10-28T12:00:00Z"
     }] });
   }, 30000);
-  afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers(); });
+  afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
   async function importOwner() {
     const role = await checked(db.from("roles").select("id").eq("slug", "owner").single());
     await checked(db.from("tenant_users").insert({ tenant_id: tenant, user_id: approvalActor, role_id: role!.id }));
   }
+  async function smsFixture(providerFails=false) {
+    await importOwner();
+    const groups=groupVscBrevoContacts([normalizeVscBrevoContact({id:12,email:"shop@fixture.invalid",emailBlacklisted:false,smsBlacklisted:false,attributes:{SMS:"0612345678"}})],id=>vscBrevoImportPersonId(tenant,id));
+    await importVscBrevoContactGroups(tenant,approvalActor,groups);
+    const row=await checked(db.from("vsc_campaign_deliveries").select("id").eq("tenant_id",tenant).eq("channel","sms").single());
+    await checked(db.from("vsc_campaigns").update({state:"active",approved_by:approvalActor,approved_at:new Date().toISOString(),enabled_at:new Date().toISOString(),sms_content:{version:1,messages:[{stepKey:"sms-reminder",promotional:false,text:"VendreSonCommerce : decouvrez nos forfaits. STOP au [STOP_CODE]"}]}}).eq("tenant_id",tenant).eq("id",campaign));
+    await checked(db.from("vsc_campaign_deliveries").update({status:"scheduled",scheduled_at:new Date().toISOString()}).eq("tenant_id",tenant).eq("id",row!.id));
+    vi.stubEnv("VSC_SMS_DISPATCH_ENABLED","true");vi.stubEnv("BREVO_VSC_API_KEY","synthetic-only");
+    const actualFetch=globalThis.fetch,posts=vi.fn();
+    vi.stubGlobal("fetch",async(input:RequestInfo|URL,init?:RequestInit)=>{
+      const url=String(input);
+      if(!url.startsWith("https://api.brevo.com/"))return actualFetch(input,init);
+      if(url==='https://api.brevo.com/v3/account')return new Response(JSON.stringify({email:"contact@vendresoncommerce.com"}));
+      if(url.startsWith('https://api.brevo.com/v3/contacts?'))return new Response(JSON.stringify({count:1,contacts:[{id:12,smsBlacklisted:false}]}));
+      if(url==='https://api.brevo.com/v3/transactionalSMS/send'){posts(init);if(providerFails)throw new Error("Simulated timeout");return new Response(JSON.stringify({messageId:1511882900100020}),{status:201});}
+      throw new Error("Unexpected provider URL");
+    });
+    return {delivery:row!.id,posts};
+  }
+  it("submits a reserved SMS once under concurrency with simulated Brevo and preserves the other tenant",async()=>{
+    const {delivery,posts}=await smsFixture();
+    const results=await Promise.all([dispatchReservedVscSms(tenant,delivery,approvalActor),dispatchReservedVscSms(tenant,delivery,approvalActor)]);
+    expect(results.map(r=>r.state).sort()).toEqual(["accepted","not_eligible"]);expect(posts).toHaveBeenCalledTimes(1);
+    expect(await reserveVscSms(tenant,delivery)).toBeNull();
+    expect(await checked(db.from("vsc_campaign_deliveries").select("status,provider_message_id,dispatch_outcome").eq("tenant_id",tenant).eq("id",delivery).single())).toMatchObject({status:"sent",provider_message_id:"1511882900100020",dispatch_outcome:"sent"});
+    expect(await checked(db.from("vsc_campaign_deliveries").select("status").eq("tenant_id",foreignTenant))).toEqual([{status:"scheduled"}]);
+    expect(smtp.send).not.toHaveBeenCalled();
+  });
+  it("keeps a timed-out SMS locked and never makes a second provider attempt",async()=>{
+    const {delivery,posts}=await smsFixture(true);
+    expect((await dispatchReservedVscSms(tenant,delivery,approvalActor)).state).toBe("review_required");
+    expect((await dispatchReservedVscSms(tenant,delivery,approvalActor)).state).toBe("not_eligible");expect(posts).toHaveBeenCalledTimes(1);
+    expect(await checked(db.from("vsc_campaign_deliveries").select("status,dispatch_outcome,provider_message_id").eq("tenant_id",tenant).eq("id",delivery).single())).toMatchObject({status:"claimed",dispatch_outcome:"unknown",provider_message_id:null});
+    expect(smtp.send).not.toHaveBeenCalled();
+  });
   it.skipIf(Date.now()>=Date.parse("2026-11-30T23:00:00Z"))("reads the real historical SMS date without writing a campaign or moving J5", async () => {
     await importOwner();
     const groups=groupVscBrevoContacts([normalizeVscBrevoContact({id:11,email:"shop@fixture.invalid",emailBlacklisted:false,smsBlacklisted:false,attributes:{SMS:"0612345678"}})],id=>vscBrevoImportPersonId(tenant,id));

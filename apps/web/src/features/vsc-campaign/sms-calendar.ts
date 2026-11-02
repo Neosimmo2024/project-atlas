@@ -1,4 +1,5 @@
 /** Review-only calendar. No contacts, persistence, provider calls or sending authority. */
+import { isVscSmsDispatchTime } from './sms-dispatch-time';
 import { isVscCalendarDate, VSC_OFFER_END } from './policy';
 import { defaultVscSmsContent, estimateVscSms } from './sms-content';
 function addDays(date: string, days: number) {
@@ -28,7 +29,7 @@ export function buildVscSmsCalendar(input: {today: string; startDate: string; hi
     const promotional = date <= VSC_OFFER_END;
     const key = ['sms-initial','sms-followup-1','sms-followup-2','sms-followup-3'][index];
     const text = index === 4 ? finalNeutral : promotional ? copies.find(c=>c.stepKey===key)!.text : neutral;
-    return {offsetDays:offset,date,count:input.mobileOnly,promotional,text,...estimateVscSms(text)};
+    return {offsetDays:offset,date,providerDayAllowed:isVscSmsDispatchTime(new Date(`${date}T12:00:00Z`)),count:input.mobileOnly,promotional,text,...estimateVscSms(text)};
   });
   return {today:input.today,startDate:input.startDate,emailMobile:input.historicalEmailDates.length,mobileOnly:input.mobileOnly,
     overdueReminders:emailReminders.filter(r=>r.overdue).reduce((n,r)=>n+r.count,0),unknownHistory,emailReminders,mobileOnlySteps,
