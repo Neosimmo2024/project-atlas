@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ context: vi.fn(), verify: vi.fn() }));
 vi.mock("@/repositories/tenant-context", () => ({ getTenantContext: mocks.context }));
-vi.mock("@/services/ionos-connection", async importOriginal => ({
-  ...await importOriginal<typeof import("@/services/ionos-connection")>(), verifyIonosConnection: mocks.verify
+vi.mock("@/services/brevo-smtp", async importOriginal => ({
+  ...await importOriginal<typeof import("@/services/brevo-smtp")>(), verifyBrevoSmtpConnection: mocks.verify
 }));
 import { POST } from "./route";
 const tenantId = "11111111-1111-4111-8111-111111111111";
@@ -16,7 +16,7 @@ beforeEach(() => {
   mocks.verify.mockResolvedValue({ success: true, message: "ok" });
 });
 afterEach(() => vi.unstubAllEnvs());
-describe("IONOS diagnostic API", () => {
+describe("Brevo SMTP diagnostic API", () => {
   it.each([null, "https://attacker.example"])("rejects origin %s before authentication/SMTP", async origin => {
     expect((await POST(request(origin))).status).toBe(403);
     expect(mocks.context).not.toHaveBeenCalled();
