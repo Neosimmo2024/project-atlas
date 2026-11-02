@@ -8,7 +8,6 @@ async function reconcile(tenant:string,actor:string,allowProduction:boolean){
   if(process.env.VERCEL_ENV!=="production"||process.env.VSC_MANUAL_SEND_ENABLED!=="true")throw new Error('Traitement historique réservé à l’envoi manuel explicite');
  }else assertVscBrevoImportEnvironment();
  if(!UUID.test(tenant)||tenant!==process.env.VSC_OVH_TENANT_ID?.trim()||!UUID.test(actor))throw new Error('Entreprise ou administrateur non autorisé');
- assertVscBrevoImportEnvironment();
  const db=createSupabaseServiceRoleClient();
  const init=await db.from('vsc_historical_imap_cursors').upsert({tenant_id:tenant},{onConflict:'tenant_id',ignoreDuplicates:true});
  if(init.error)throw new Error('Point de reprise indisponible');
