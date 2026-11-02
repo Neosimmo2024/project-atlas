@@ -27,6 +27,7 @@ on:
       - 'supabase/tests/vsc-historical-inbound.sql'
       - 'supabase/tests/vsc-last-day-draft.sql'
       - 'supabase/tests/vsc-sms-delivery-claims.sql'
+      - 'supabase/tests/vsc-sms-plan-reviews.sql'
       - 'apps/web/src/app/(app)/admin/vsc-campaigns/**'
       - '.github/workflows/vsc-checks.yml'
   workflow_dispatch:
@@ -128,6 +129,7 @@ jobs:
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-historical-inbound.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-last-day-draft.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-sms-delivery-claims.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-sms-plan-reviews.sql
       - name: Run real VSC reply flow against disposable Supabase
         working-directory: apps/web
         shell: bash

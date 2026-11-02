@@ -11,7 +11,7 @@ function parisDate(value: string) {
   const part=(type:string)=>parts.find(p=>p.type===type)!.value;
   return `${part('year')}-${part('month')}-${part('day')}`;
 }
-export async function previewVscSmsCalendar(tenant:string,startDate?:string) {
+export async function prepareVscSmsCalendar(tenant:string,startDate?:string) {
   if(!UUID.test(tenant)||tenant!==process.env.VSC_OVH_TENANT_ID?.trim())throw new Error('Entreprise non autorisée');
   assertVscBrevoImportEnvironment();
   const today=vscDraftToday();
@@ -35,5 +35,7 @@ export async function previewVscSmsCalendar(tenant:string,startDate?:string) {
       if(!previous||date<previous)sent.set(row.person_id,date);
     }
   }
-  return buildVscSmsCalendar({today,startDate:startDate??today,historicalEmailDates:emailIds.map(id=>sent.get(id)??null),mobileOnly:data.length-emailIds.length});
+  return {contacts:data.filter(c=>!c.has_email).map(c=>({id:c.id,mobile:c.mobile})),calendar:buildVscSmsCalendar({today,startDate:startDate??today,historicalEmailDates:emailIds.map(id=>sent.get(id)??null),mobileOnly:data.length-emailIds.length})};
 }
+
+export async function previewVscSmsCalendar(tenant:string,startDate?:string){return (await prepareVscSmsCalendar(tenant,startDate)).calendar;}

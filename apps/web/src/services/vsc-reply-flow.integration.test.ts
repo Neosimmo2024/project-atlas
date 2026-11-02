@@ -28,6 +28,7 @@ import { normalizeVscBrevoContact, groupVscBrevoContacts } from "@/features/vsc-
 vi.mock("@/features/vsc-campaign/sms-dispatch-time",()=>({isVscSmsDispatchTime:()=>true}));
 import { dispatchReservedVscSms } from "./vsc-reserved-brevo-sms-dispatch";
 import { reserveVscSms } from "./vsc-sms-reservations";
+import { previewVscSmsPlanReview, saveVscSmsPlanReview } from "./vsc-sms-plan-reviews";
 import { previewVscSmsCalendar } from "./vsc-sms-calendar";
 import { previewVscLastDayDraft, saveVscLastDayDraft } from "./vsc-last-day-draft";
 import { reconcileVscHistoricalInboundOnce } from "./vsc-historical-inbound-worker";
@@ -83,6 +84,25 @@ describe.skipIf(!enabled)("VSC real Supabase reply flow", () => {
     const role = await checked(db.from("roles").select("id").eq("slug", "owner").single());
     await checked(db.from("tenant_users").insert({ tenant_id: tenant, user_id: approvalActor, role_id: role!.id }));
   }
+  it.skipIf(promotionExpired)("stores a reviewed mobile-only SMS calendar idempotently without creating delivery rows",async()=>{
+    await importOwner();
+    await checked(db.from("people").update({primary_email:null,primary_phone:"0612345678"}).eq("tenant_id",tenant).eq("id",person));
+    const p=await previewVscSmsPlanReview(tenant);
+    expect(p.mobileOnly).toBe(1);expect(p.emailMobile).toBe(0);
+    expect(JSON.stringify(p)).not.toContain("+33612345678");
+    const first=await saveVscSmsPlanReview(tenant,approvalActor,p.startDate,p.reviewKey);
+    const second=await saveVscSmsPlanReview(tenant,approvalActor,p.startDate,p.reviewKey);
+    expect(first).toMatchObject({recipients:1,reused:false,sendingEnabled:false,readOnly:true});
+    expect(second).toMatchObject({id:first.id,reused:true});
+    const saved=await checked(db.from("vsc_sms_plan_reviews").select("contacts,calendar").eq("tenant_id",tenant));
+    expect(saved).toHaveLength(1);expect(saved![0].calendar.mobileOnlySteps).toHaveLength(5);
+    expect(await checked(db.from("vsc_campaigns").select("id").eq("tenant_id",tenant))).toHaveLength(1);
+    expect(await checked(db.from("vsc_campaign_deliveries").select("id").eq("tenant_id",tenant))).toHaveLength(3);
+    await unsubscribeVscContact(tenant,person,"sms");
+    await expect(saveVscSmsPlanReview(tenant,approvalActor,p.startDate,p.reviewKey)).rejects.toThrow();
+    expect(await checked(db.from("vsc_sms_plan_reviews").select("id").eq("tenant_id",foreignTenant))).toHaveLength(0);
+    expect(smtp.send).not.toHaveBeenCalled();
+  });
   async function smsFixture(providerFails=false) {
     await importOwner();
     const groups=groupVscBrevoContacts([normalizeVscBrevoContact({id:12,email:"shop@fixture.invalid",emailBlacklisted:false,smsBlacklisted:false,attributes:{SMS:"0612345678"}})],id=>vscBrevoImportPersonId(tenant,id));
