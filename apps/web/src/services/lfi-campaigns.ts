@@ -1,7 +1,8 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 import type { TenantContext } from "@/types/domain";
-import { canManageIonos, createIonosTransport, IONOS_SENDER } from "./ionos-connection";
+import { canManageIonos } from "./ionos-connection";
+import { createBrevoSmtpTransport, LFI_BREVO_SENDER } from "./brevo-smtp";
 import { LFI_PROJECT_ID, eligibleLfiContact, isRealEstateContact, escapeEmailHtml } from "./lfi-campaign-policy";
 import { LFI_SIGNATURE_HTML, LFI_SIGNATURE_TEXT, lfiSignatureAttachments } from "./lfi-email-signature";
 
@@ -56,7 +57,7 @@ export async function queueLfiInitialDrafts(context: TenantContext, ids: string[
 export async function dispatchLfiOne(context: TenantContext) {
  if (!canManageIonos(context)) throw new Error("Accès non autorisé.");
  const origin = process.env.LFI_CAMPAIGN_PUBLIC_ORIGIN;
- if (!origin || !/^https:\/\/[^/]+$/.test(origin) || !process.env.LFI_IONOS_SMTP_PASSWORD) throw new Error("Configuration de campagne incomplète.");
+ if (!origin || !/^https:\/\/[^/]+$/.test(origin) || !process.env.LFI_BREVO_SMTP_PASSWORD) throw new Error("Configuration de campagne incomplète.");
  const db = createSupabaseServiceRoleClient();
  const claimed = await db.rpc("lfi_claim_next", { p_tenant: context.tenantId, p_project: LFI_PROJECT_ID });
  if (claimed.error) throw new Error("File d’envoi indisponible.");
@@ -70,11 +71,11 @@ export async function dispatchLfiOne(context: TenantContext) {
   return { success:false, message:"Message bloqué par les exclusions ou un contrôle indisponible." };
  }
  const unsubscribe = `${origin}/lfi/unsubscribe?token=${recipient.data.unsubscribe_token}`;
- const transport = createIonosTransport(process.env.LFI_IONOS_SMTP_PASSWORD);
+ const transport = createBrevoSmtpTransport(process.env.LFI_BREVO_SMTP_PASSWORD);
  let accepted = false;
  let smtpFailure: {code?: string; responseCode?: number; command?: string} | undefined;
  try {
-  const result = await transport.sendMail({ from:{name:"Renato Ponzio — Les Formateurs Immo",address:IONOS_SENDER},to:recipient.data.email,replyTo:IONOS_SENDER,messageId:row.message_id,subject:row.subject,
+  const result = await transport.sendMail({ from:{name:"Renato Ponzio — Les Formateurs Immo",address:LFI_BREVO_SENDER},to:recipient.data.email,replyTo:LFI_BREVO_SENDER,messageId:row.message_id,subject:row.subject,
    text: `${row.body_text}\n\n${LFI_SIGNATURE_TEXT}\n\nNe plus recevoir nos e-mails : ${unsubscribe}`,
    html: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#142345">${escapeEmailHtml(row.body_text).replaceAll("\n","<br>")}</div>${LFI_SIGNATURE_HTML}<p style="font:12px Arial"><a href="${unsubscribe}">Ne plus recevoir les e-mails des Formateurs Immo</a></p>`,
    attachments:lfiSignatureAttachments(),headers:{"List-Unsubscribe":`<${unsubscribe}>`,"List-Unsubscribe-Post":"List-Unsubscribe=One-Click"}
@@ -90,5 +91,5 @@ export async function dispatchLfiOne(context: TenantContext) {
   if(paused.error)throw new Error("Impossible de suspendre la campagne après une erreur SMTP.");
  }
  const saved=await db.from("lfi_outbox").update({status:accepted?"accepted":"uncertain",completed_at:new Date().toISOString()}).eq("id",row.id).eq("status","claimed");
- return {success:accepted&&!saved.error,smtpFailure,message:accepted&&!saved.error?"Message accepté par IONOS.":"Résultat incertain : contrôle manuel requis, aucun renvoi automatique."};
+ return {success:accepted&&!saved.error,smtpFailure,message:accepted&&!saved.error?"Message accepté par Brevo.":"Résultat incertain : contrôle manuel requis, aucun renvoi automatique."};
 }
