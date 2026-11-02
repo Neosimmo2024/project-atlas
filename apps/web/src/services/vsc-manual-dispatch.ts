@@ -1,3 +1,4 @@
+/** Owner/admin-only manual review and one-delivery dispatch. No scheduler calls this service. */
 import { createHash } from "node:crypto";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 import type { TenantContext } from "@/types/domain";
