@@ -10,9 +10,13 @@ export function validateVscHistoryCursor(value:unknown):VscHistoryCursor {
   return {uidValidity:c.uidValidity!,lastUid:c.lastUid};
 }
 export function isVscHistoricalSubject(subject:string){return subject.trim().replace(/^(?:(?:re|rép|aw|sv)(?:\[\d+\])?\s*:\s*)+/i,'').replace(/\s+/g,' ').toLowerCase()==='un projet pour votre commerce, aujourd’hui ou demain ?';}
-export async function auditVscHistoricalReplies(tenant:string,rawCursor?:unknown){
+export async function auditVscHistoricalReplies(tenant:string,rawCursor?:unknown,options:{allowProduction?:boolean}={}){
+  if(options.allowProduction){
+    const url=new URL(process.env.NEXT_PUBLIC_SUPABASE_URL??"http://invalid");
+    if(process.env.VERCEL_ENV!=="production"||url.protocol!=="https:"||!url.hostname.endsWith(".supabase.co")||url.hostname==="mahgxumwucxehsooijag.supabase.co")throw new Error("Audit historique de production indisponible");
+  }else assertVscBrevoImportEnvironment();
   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tenant)||tenant!==process.env.VSC_OVH_TENANT_ID?.trim())throw new Error('Entreprise non autorisée');
-  assertVscBrevoImportEnvironment();const cursor=validateVscHistoryCursor(rawCursor);
+  const cursor=validateVscHistoryCursor(rawCursor);
   const db=createSupabaseServiceRoleClient();
   const data: {person_id:string|null;source_email:string|null;history_campaign_2:{sentAt?:string}|null}[]=[];
   for(let offset=0;offset<=5000;offset+=1000){
@@ -22,6 +26,7 @@ export async function auditVscHistoricalReplies(tenant:string,rawCursor?:unknown
   }
   const known=new Map<string,{personId:string;sentAt:number}[]>();
   for(const row of data){const date=Date.parse(row.history_campaign_2?.sentAt??'');if(row.source_email&&row.person_id&&Number.isFinite(date)){const people=known.get(row.source_email)??[];if(!people.some(p=>p.personId===row.person_id))people.push({personId:row.person_id,sentAt:date});known.set(row.source_email,people);}}
+  if(options.allowProduction&&known.size===0)throw new Error('Correspondances historiques VSC absentes : envoi bloqué');
   const inbox=await inspectVscHistoricalInbox(cursor);
   let ambiguous=0,automated=0;
   const candidates: {personId:string;from:string;subject:string;receivedAt:string;messageId:string;compatibleSubject:boolean;hasThread:boolean}[]=[];
