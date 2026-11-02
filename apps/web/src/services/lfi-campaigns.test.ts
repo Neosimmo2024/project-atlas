@@ -47,6 +47,7 @@ describe("LFI campaign delivery safety",()=>{
   m.send.mockRejectedValue(new Error("private transport detail"));
   const result=await dispatchLfiOne(context);expect(result.success).toBe(false);
   expect(JSON.stringify(result)).not.toContain("private transport detail");expect(m.send).toHaveBeenCalledOnce();
+  expect(m.update).toHaveBeenCalledWith({status:"paused"});
   expect(m.update).toHaveBeenCalledWith(expect.objectContaining({status:"uncertain"}));expect(m.close).toHaveBeenCalledOnce();
  });
  it("does not claim success if acceptance cannot be recorded",async()=>{
