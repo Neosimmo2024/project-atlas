@@ -22,8 +22,8 @@ export function VscManualDispatch() {
       return await response.json() as { campaigns: Campaign[] };
     }).then(data => setCampaigns(data.campaigns)).catch(() => setError("Impossible de charger les campagnes pour la revue manuelle."));
   }, []);
-  async function loadCampaign(id: string) {
-    setSelected(id); setReview(null); setStatus(null); setError(null);
+  async function loadCampaign(id: string, preserveStatus = false) {
+    setSelected(id); setReview(null); if (!preserveStatus) setStatus(null); setError(null);
     if (!id) return;
     setBusy(true);
     try {
@@ -52,7 +52,7 @@ export function VscManualDispatch() {
         result.state === "disabled" ? "Envoi désactivé dans la configuration actuelle." :
         result.state === "blocked" ? "Envoi bloqué : " + (result.reason ?? "contrôle requis") :
         "Email non envoyé : " + result.state + (result.reason ? " (" + result.reason + ")" : ""));
-      await loadCampaign(review.campaign.id);
+      await loadCampaign(review.campaign.id, true);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Envoi manuel indisponible"); }
     finally { setBusy(false); }
   }
