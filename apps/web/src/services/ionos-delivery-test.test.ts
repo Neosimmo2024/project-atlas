@@ -2,14 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TenantContext } from "@/types/domain";
 const mocks = vi.hoisted(() => ({ insert: vi.fn(), update: vi.fn(), eq: vi.fn(), sendMail: vi.fn(), close: vi.fn(), transport: vi.fn(), db: vi.fn() }));
 vi.mock("@/lib/supabase/service-role", () => ({ createSupabaseServiceRoleClient: mocks.db }));
-vi.mock("./ionos-connection", async original => ({ ...await original<typeof import("./ionos-connection")>(), createIonosTransport: mocks.transport }));
+vi.mock("./brevo-smtp", async original => ({ ...await original<typeof import("./brevo-smtp")>(), createBrevoSmtpTransport: mocks.transport }));
 import { sendIonosDeliveryTest, TEST_RECIPIENT } from "./ionos-delivery-test";
 const tenantId = "11111111-1111-4111-8111-111111111111";
 const context = { tenantId, userId: "admin", role: "owner" } as TenantContext;
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv("LFI_IONOS_TENANT_ID", tenantId);
-  vi.stubEnv("LFI_IONOS_SMTP_PASSWORD", " secret ");
+  vi.stubEnv("LFI_BREVO_SMTP_PASSWORD", " secret ");
   mocks.db.mockReturnValue({ from: () => ({ insert: mocks.insert, update: mocks.update }) });
   mocks.insert.mockResolvedValue({ error: null });
   mocks.update.mockReturnValue({ eq: () => ({ eq: mocks.eq }) });
@@ -18,7 +18,7 @@ beforeEach(() => {
   mocks.sendMail.mockResolvedValue({ accepted: [TEST_RECIPIENT] });
 });
 afterEach(() => vi.unstubAllEnvs());
-describe("IONOS delivery test", () => {
+describe("Brevo delivery test", () => {
   it("denies other tenants before touching the journal or SMTP", async () => {
     expect((await sendIonosDeliveryTest({ ...context, tenantId: "other" })).success).toBe(false);
     expect(mocks.db).not.toHaveBeenCalled();
