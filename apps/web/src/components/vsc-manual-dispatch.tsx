@@ -9,6 +9,18 @@ function dateLabel(value: string) {
 function stepLabel(step: string) {
   return step === "consideration" ? "Relance J+20" : step === "last-chance" ? "Dernier jour" : "Présentation de l’offre";
 }
+function blockedReason(reason?: string) {
+  switch (reason) {
+    case "reply_sync_failed": return "La vérification des réponses OVH a échoué. Aucun email envoyé.";
+    case "reply_sync_incomplete": return "La boîte contient encore des messages à contrôler. Relance la vérification; aucun email envoyé.";
+    case "reply_or_delivery_changed": return "Une réponse ou un changement de statut a bloqué cette livraison. Aucun email envoyé.";
+    case "smtp_verification_failed": return "La connexion OVH n’est pas validée. Aucun email envoyé.";
+    case "unsubscribe_verification_failed": return "Le lien de désinscription n’a pas pu être vérifié. Aucun email envoyé.";
+    case "explicit_confirmation_required": return "La confirmation explicite est requise. Aucun email envoyé.";
+    case "production_only": return "L’envoi manuel est réservé à la production configurée. Aucun email envoyé.";
+    default: return (reason ?? "contrôle requis") + ". Aucun email envoyé.";
+  }
+}
 export function VscManualDispatch() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selected, setSelected] = useState("");
@@ -50,7 +62,7 @@ export function VscManualDispatch() {
       setStatus(result.state === "sent" ? "Email envoyé à " + row.recipient + "." :
         result.state === "review_required" ? "Résultat à vérifier manuellement avant toute autre action." :
         result.state === "disabled" ? "Envoi désactivé dans la configuration actuelle." :
-        result.state === "blocked" ? "Envoi bloqué : " + (result.reason ?? "contrôle requis") :
+        result.state === "blocked" ? blockedReason(result.reason) :
         "Email non envoyé : " + result.state + (result.reason ? " (" + result.reason + ")" : ""));
       await loadCampaign(review.campaign.id, true);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Envoi manuel indisponible"); }
