@@ -24,11 +24,11 @@ export async function sendIonosDeliveryTest(context: TenantContext) {
   try {
     const result = await transport.sendMail({
       from: { name: "Les Formateurs Immo", address: LFI_BREVO_SENDER },
-      to: TEST_RECIPIENT, replyTo: IONOS_SENDER,
+      to: TEST_RECIPIENT, replyTo: LFI_BREVO_SENDER,
       messageId: `<atlas-brevo-${context.tenantId}-${TEST_VERSION}@lesformateursimmo.com>`,
       subject: "Test logo et signature validés — Les Formateurs Immo",
       text: "Bonjour Renato,\n\nCe message vérifie l’envoi depuis Atlas avec la boîte contact@lesformateursimmo.com via Brevo.\n\nMerci de vérifier sa réception et de répondre simplement « Bien reçu » pour préparer le contrôle des réponses.\n\nIl s’agit uniquement d’un test technique. Aucune campagne commerciale n’a été activée.\n\n" + LFI_SIGNATURE_TEXT,
-      html: '<div style="font-family:Arial,sans-serif;color:#183248;line-height:1.6"><p>Bonjour Renato,</p><p>Ce message vérifie l’envoi depuis Atlas avec la boîte <strong>contact@lesformateursimmo.com</strong> chez IONOS.</p><p>Merci de vérifier sa réception et de répondre simplement « Bien reçu » pour préparer le contrôle des réponses.</p><p>Il s’agit uniquement d’un test technique. Aucune campagne commerciale n’a été activée.</p></div>' + LFI_SIGNATURE_HTML,
+      html: '<div style="font-family:Arial,sans-serif;color:#183248;line-height:1.6"><p>Bonjour Renato,</p><p>Ce message vérifie l’envoi depuis Atlas avec la boîte <strong>contact@lesformateursimmo.com</strong> via Brevo.</p><p>Merci de vérifier sa réception et de répondre simplement « Bien reçu » pour préparer le contrôle des réponses.</p><p>Il s’agit uniquement d’un test technique. Aucune campagne commerciale n’a été activée.</p></div>' + LFI_SIGNATURE_HTML,
       attachments: lfiSignatureAttachments()
     });
     accepted = result.accepted.some(address => typeof address === "string" && address.toLowerCase() === TEST_RECIPIENT);
