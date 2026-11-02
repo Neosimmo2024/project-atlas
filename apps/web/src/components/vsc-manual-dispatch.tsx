@@ -36,7 +36,7 @@ export function VscManualDispatch() {
   }
   async function send(row: Row) {
     if (!review || !row.canSend) return;
-    const accepted = window.confirm("Confirmer l’envoi d’un seul email à " + row.recipient + " ?\n\nObjet : " + row.subject + "\n\nAucun autre destinataire ne sera traité.");
+    const accepted = window.confirm("Cette action approuve et active la campagne « " + review.campaign.name + " », puis envoie uniquement cet email à " + row.recipient + ".\n\nObjet : " + row.subject + "\n\nVérifie le destinataire, le texte et la date prévue. Aucun autre destinataire ne sera traité.");
     if (!accepted) return;
     setBusy(true); setError(null); setStatus(null);
     try {
@@ -58,7 +58,7 @@ export function VscManualDispatch() {
   }
   return <section className="card stack" aria-label="Revue et envoi manuel VSC">
     <h2>Revue et envoi manuel, un email à la fois</h2>
-    <p>Chaque message affiche son destinataire, son texte et sa date. Le bouton demande une confirmation puis traite uniquement cette livraison. Aucun calendrier d’envoi n’est utilisé.</p>
+    <p>Chaque message affiche son destinataire, son texte et sa date. Après relecture et confirmation explicite, l’action approuve et active cette campagne puis traite uniquement la livraison choisie. L’envoi manuel est réservé à la production configurée. Aucun calendrier d’envoi n’est utilisé.</p>
     <label>Campagne à relire
       <select value={selected} disabled={busy} onChange={event => void loadCampaign(event.target.value)}>
         <option value="">Choisir une campagne</option>
