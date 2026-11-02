@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { VscDraftWorkspace } from "@/components/vsc-draft-workspace";
 import { VscDispatchReview } from "@/components/vsc-dispatch-review";
+import { VscManualDispatch } from "@/components/vsc-manual-dispatch";
 import { VscSmsPreview } from "@/components/vsc-sms-preview";
 import { VscBrevoSmsStatus } from "@/components/vsc-brevo-sms-status";
 import { VscSmsDraftContacts } from "@/components/vsc-sms-draft-contacts";
@@ -31,7 +32,7 @@ export default async function VscCampaignsPage() {
       <h2>Avant tout lancement : points à terminer</h2>
       <ul>
         <li><strong>Approbation manuelle :</strong> les campagnes enregistrées restent en brouillon. Cette page ne permet ni approbation ni activation.</li>
-        <li><strong>Déclenchement email :</strong> l’adaptateur OVH est désactivé par défaut et n’est appelé par aucune route ou planification. Il n’existe pas encore de bouton d’envoi manuel.</li>
+        <li><strong>Déclenchement email :</strong> la revue manuelle est raccordée. En production configurée, chaque clic confirme la campagne et traite une seule livraison. Aucun planificateur d’emails n’est raccordé.</li>
         <li><strong>Validation de campagne :</strong> relire et valider ensemble les textes, les destinataires et la cadence du pilote avant de changer l’état d’une campagne.</li>
         <li><strong>Cas incertains :</strong> prévoir une vérification humaine auditée avant toute décision de renvoi ; aucun renvoi automatique n’est prévu.</li>
         <li><strong>SMS et surveillance :</strong> le transport SMS VSC et les planifications de collecte restent séparés et non activés.</li>
@@ -46,6 +47,7 @@ export default async function VscCampaignsPage() {
     <VscHistoricalFollowup />
     <VscLastDayDraft />
     <VscDraftWorkspace today={vscDraftToday()} />
+    <VscManualDispatch />
     <VscDispatchReview tenantId={context.tenantId} />
     <VscSmsPreview today={vscDraftToday()} />
     <VscSmsDraftContacts tenantId={context.tenantId} />
