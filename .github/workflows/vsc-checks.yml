@@ -83,7 +83,7 @@ jobs:
         run: npm ci
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.122.0
       - name: Install PostgreSQL client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Start disposable local Supabase
