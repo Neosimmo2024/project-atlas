@@ -27,11 +27,22 @@ export default async function VscCampaignsPage() {
     <PageHeader eyebrow="VendreSonCommerce" title="Préparer les campagnes" subtitle="Brouillons email et SMS à relire avant toute activation" />
     <p>79 € HT au lieu de 159 € HT, annonce jusqu’à la vente. Promotion jusqu’au 30 novembre 2026.</p>
     <p>Les dates sont proposées pour relecture. Aucun email ni SMS n’est envoyé ou programmé chez un prestataire.</p>
+    <section className="card stack" aria-label="Blocages avant lancement">
+      <h2>Avant tout lancement : points à terminer</h2>
+      <ul>
+        <li><strong>Approbation manuelle :</strong> les campagnes enregistrées restent en brouillon. Cette page ne permet ni approbation ni activation.</li>
+        <li><strong>Déclenchement email :</strong> l’adaptateur OVH est désactivé par défaut et n’est appelé par aucune route ou planification. Il n’existe pas encore de bouton d’envoi manuel.</li>
+        <li><strong>Validation de campagne :</strong> relire et valider ensemble les textes, les destinataires et la cadence du pilote avant de changer l’état d’une campagne.</li>
+        <li><strong>Cas incertains :</strong> prévoir une vérification humaine auditée avant toute décision de renvoi ; aucun renvoi automatique n’est prévu.</li>
+        <li><strong>SMS et surveillance :</strong> le transport SMS VSC et les planifications de collecte restent séparés et non activés.</li>
+      </ul>
+      <p>Configuration actuelle : aucun envoi commercial automatique, aucun calendrier d’envoi et aucune campagne active. Les brouillons et leurs dates sont conservés pour relecture.</p>
+    </section>
     <Link href="/admin/ovh-connection">Connexion OVH et suivi des réponses</Link>
     <VscBrevoContactImport />
     <VscBrevoHistory />
     <VscHistoricalReplies />
-      <VscHistoricalInboundSync />
+    <VscHistoricalInboundSync />
     <VscHistoricalFollowup />
     <VscLastDayDraft />
     <VscDraftWorkspace today={vscDraftToday()} />
