@@ -36,7 +36,7 @@ export default async function VscCampaignsPage() {
         <li><strong>Cas incertains :</strong> prévoir une vérification humaine auditée avant toute décision de renvoi ; aucun renvoi automatique n’est prévu.</li>
         <li><strong>SMS et surveillance :</strong> le transport SMS VSC et les planifications de collecte restent séparés et non activés.</li>
       </ul>
-      <p>Configuration actuelle : aucun envoi commercial automatique, aucun calendrier d’envoi et aucune campagne active. Les brouillons et leurs dates sont conservés pour relecture.</p>
+      <p>Ce parcours ne déclenche aucun envoi commercial automatique et n’installe aucun calendrier d’envoi. Les brouillons et leurs dates sont conservés pour relecture.</p>
     </section>
     <Link href="/admin/ovh-connection">Connexion OVH et suivi des réponses</Link>
     <VscBrevoContactImport />
