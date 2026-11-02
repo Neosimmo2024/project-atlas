@@ -13,7 +13,7 @@
 
 ## Implémenté dans le code, sans envoi automatique
 
-- Interface `/admin/vsc-campaigns) : sélection explicite de contacts email VSC autorisés, modification des objets/textes proposés, aperçu des dates et messages, sauvegarde atomique et idempotente de brouillons non approuvés, relecture des textes conservés. Un espace de propositions SMS et de simulation des dates est disponible, avec sauvegarde de versions immuables, sans transport SMS.
+- Interface `/admin/vsc-campaigns` : sélection explicite de contacts email VSC autorisés, modification des objets/textes proposés, aperçu des dates et messages, sauvegarde atomique et idempotente de brouillons non approuvés, relecture des textes conservés. Un espace de propositions SMS et de simulation des dates est disponible, avec sauvegarde de versions immuables, sans transport SMS.
 - Revue manuelle email : un administrateur sélectionne une campagne et voit le destinataire, le texte et la date de chaque livraison. En production configurée, un clic confirmé approuve/active la campagne, puis traite uniquement la livraison choisie. Les autres livraisons restent en brouillon. Aucun calendrier email ou scheduler ne déclenche l’adaptateur.
 - Chaque clic revalide la même origine, le rôle owner/admin, l’empreinte de l’aperçu, l’éligibilité fraîche du contact, la date, la promotion, l’authentification SMTP, l’accès IMAP et la génération du lien de désinscription. Une incertitude SMTP reste en revue humaine et n’est jamais renvoyée automatiquement.
 - La revue et le bouton restent désactivés hors production ou sans configuration OVH/désinscription. Les clés dédiées restent privées et aucun repli vers NEOS n’est autorisé.
