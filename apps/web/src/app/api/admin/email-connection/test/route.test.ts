@@ -14,7 +14,7 @@ beforeEach(() => {
   mocks.send.mockResolvedValue({ success: true, message: "ok" });
 });
 afterEach(() => vi.unstubAllEnvs());
-describe("IONOS delivery test API", () => {
+describe("Brevo delivery test API", () => {
   it.each([null, "https://attacker.example"])("rejects origin %s before authentication/SMTP", async origin => {
     expect((await POST(request(origin))).status).toBe(403);
     expect(mocks.context).not.toHaveBeenCalled();
