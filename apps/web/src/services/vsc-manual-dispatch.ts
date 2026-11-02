@@ -50,7 +50,7 @@ export async function getVscManualCampaignReview(tenantId: string, campaignId: s
   const suppressed = new Set((suppressionResult.data ?? []).map(row => row.person_id));
   const replied = new Set((repliesResult.data ?? []).map(row => row.person_id));
   const now = Date.now();
-  const dispatchEnabled = process.env.VSC_EMAIL_DISPATCH_ENABLED === "true";
+  const dispatchEnabled = process.env.VERCEL_ENV === "production" && Boolean(process.env.VSC_OVH_SMTP_PASSWORD) && Boolean(process.env.VSC_UNSUBSCRIBE_SIGNING_KEY && process.env.VSC_UNSUBSCRIBE_SIGNING_KEY.length >= 32) && Boolean(process.env.VSC_PUBLIC_BASE_URL);
   const messages = new Map<string, (typeof content.messages)[number]>(content.messages.map(message => [message.stepKey, message]));
   const reviewedRows = rows.map(delivery => {
     const person = people.get(delivery.person_id);
@@ -81,7 +81,7 @@ export async function getVscManualCampaignReview(tenantId: string, campaignId: s
       !clean ? "Campagne ou livraison déjà traitée / non disponible" : null,
       !due ? "Date prévue pas encore atteinte" : null,
       !isVscOfferCurrent(new Date()) ? "Promotion terminée" : null,
-      !dispatchEnabled ? "Transport manuel désactivé dans la configuration QA" : null
+      !dispatchEnabled ? "Envoi manuel disponible uniquement en production lorsque les identifiants sont configurés" : null
     ].filter((value): value is string => Boolean(value));
     return {
       deliveryId: delivery.id, personId: delivery.person_id, displayName: person?.display_name ?? "Contact",
@@ -102,8 +102,7 @@ export async function sendOneVscEmailManually(input: {
   if (!canManageOvh(context)) return { state: "blocked", reason: "admin_required" };
   if (!confirmed || !UUID.test(campaignId) || !UUID.test(deliveryId) || !/^[a-f0-9]{64}$/.test(reviewKey))
     return { state: "blocked", reason: "explicit_confirmation_required" };
-  if (process.env.VERCEL_ENV !== "preview") return { state: "disabled", reason: "preview_only" };
-  if (process.env.VSC_EMAIL_DISPATCH_ENABLED !== "true") return { state: "disabled", reason: "manual_dispatch_not_enabled" };
+  if (process.env.VERCEL_ENV !== "production") return { state: "disabled", reason: "production_only" };
   const review = await getVscManualCampaignReview(tenantId, campaignId);
   const row = review.rows.find(item => item.deliveryId === deliveryId);
   if (!row || row.reviewKey !== reviewKey || !row.canSend) return { state: "not_eligible", reason: "review_changed_or_delivery_not_due" };
@@ -136,5 +135,5 @@ export async function sendOneVscEmailManually(input: {
   if (deliveryError || !delivery) return { state: "blocked", reason: "delivery_state_changed" };
   if (!isVscOfferCurrent(new Date())) return { state: "blocked", reason: "offer_expired" };
   // One delivery only. No scheduler calls this route or the reserved SMTP adapter.
-  return dispatchReservedVscEmail(tenantId, deliveryId);
+  return dispatchReservedVscEmail(tenantId, deliveryId, "manual");
 }
