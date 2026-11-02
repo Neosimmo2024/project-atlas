@@ -51,10 +51,10 @@ export async function getVscManualCampaignReview(tenantId: string, campaignId: s
   const replied = new Set((repliesResult.data ?? []).map(row => row.person_id));
   const now = Date.now();
   const dispatchEnabled = process.env.VSC_EMAIL_DISPATCH_ENABLED === "true";
-  const messages = new Map(content.messages.map(message => [message.stepKey, message]));
+  const messages = new Map<string, (typeof content.messages)[number]>(content.messages.map(message => [message.stepKey, message]));
   const reviewedRows = rows.map(delivery => {
     const person = people.get(delivery.person_id);
-    const message = messages.get(delivery.step_key as typeof content.messages[number]["stepKey"]);
+    const message = messages.get(delivery.step_key);
     const recipient = person?.primary_email?.trim() ?? "";
     const due = Date.parse(delivery.scheduled_at) <= now;
     const eligible = Boolean(person && person.contact_allowed === true && person.do_not_contact !== true &&
@@ -84,7 +84,7 @@ export async function getVscManualCampaignReview(tenantId: string, campaignId: s
       !dispatchEnabled ? "Transport manuel désactivé dans la configuration QA" : null
     ].filter((value): value is string => Boolean(value));
     return {
-      deliveryId: delivery.id, displayName: person?.display_name ?? "Contact",
+      deliveryId: delivery.id, personId: delivery.person_id, displayName: person?.display_name ?? "Contact",
       recipient, stepKey: delivery.step_key, scheduledAt: delivery.scheduled_at,
       status: delivery.status, subject: message?.subject ?? "", text: message?.text ?? "",
       due, eligible, canSend: clean && eligible && due && dispatchEnabled && isVscOfferCurrent(new Date()),
@@ -111,12 +111,8 @@ export async function sendOneVscEmailManually(input: {
   if (!smtp.success) return { state: "blocked", reason: "smtp_verification_failed" };
   try {
     await getVscInboxCheckpoint();
-    createVscUnsubscribeUrl(tenantId, review.rows.find(item => item.deliveryId === deliveryId)!.deliveryId);
-  } catch {
-    // The recipient token is checked below using the immutable delivery person ID by the database guard.
-    try { await getVscInboxCheckpoint(); }
-    catch { return { state: "blocked", reason: "imap_verification_failed" }; }
-  }
+    createVscUnsubscribeUrl(tenantId, row.personId);
+  } catch { return { state: "blocked", reason: "imap_or_unsubscribe_verification_failed" }; }
   const db = createSupabaseServiceRoleClient();
   const { data: campaign, error: campaignReadError } = await db.from("vsc_campaigns")
     .select("id,state,approved_by,approved_at,enabled_at")
