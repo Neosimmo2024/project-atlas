@@ -4,6 +4,7 @@ import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 import type { TenantContext } from "@/types/domain";
 import { canManageOvh, verifyOvhConnection } from "@/services/ovh-connection";
 import { reconcileVscRepliesOnce } from "@/services/vsc-reply-worker";
+import { reconcileVscHistoricalInboundBeforeManualSend } from "@/services/vsc-historical-inbound-worker";
 import { createVscUnsubscribeUrl } from "@/services/vsc-unsubscribe-token";
 import { dispatchReservedVscEmail, type VscDispatchResult } from "@/services/vsc-reserved-ovh-dispatch";
 import { validateVscEmailContent } from "@/features/vsc-campaign/email-content";
@@ -112,7 +113,8 @@ export async function sendOneVscEmailManually(input: {
   try {
     // Reconcile fresh replies before rechecking the recipient and reserving SMTP.
     const replies = await reconcileVscRepliesOnce(tenantId);
-    if (replies.hasMore) return { state: "blocked", reason: "reply_sync_incomplete" };
+    const historical = await reconcileVscHistoricalInboundBeforeManualSend(tenantId, context.userId);
+    if (replies.hasMore || historical.hasMore) return { state: "blocked", reason: "reply_sync_incomplete" };
   } catch { return { state: "blocked", reason: "reply_sync_failed" }; }
   const review = await getVscManualCampaignReview(tenantId, campaignId);
   const row = review.rows.find(item => item.deliveryId === deliveryId);
