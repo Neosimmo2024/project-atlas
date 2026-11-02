@@ -72,6 +72,7 @@ export async function dispatchLfiOne(context: TenantContext) {
  const unsubscribe = `${origin}/lfi/unsubscribe?token=${recipient.data.unsubscribe_token}`;
  const transport = createIonosTransport(process.env.LFI_IONOS_SMTP_PASSWORD);
  let accepted = false;
+ let smtpFailure: {code?: string; responseCode?: number; command?: string} | undefined;
  try {
   const result = await transport.sendMail({ from:{name:"Renato Ponzio — Les Formateurs Immo",address:IONOS_SENDER},to:recipient.data.email,replyTo:IONOS_SENDER,messageId:row.message_id,subject:row.subject,
    text: `${row.body_text}\n\n${LFI_SIGNATURE_TEXT}\n\nNe plus recevoir nos e-mails : ${unsubscribe}`,
@@ -79,7 +80,15 @@ export async function dispatchLfiOne(context: TenantContext) {
    attachments:lfiSignatureAttachments(),headers:{"List-Unsubscribe":`<${unsubscribe}>`,"List-Unsubscribe-Post":"List-Unsubscribe=One-Click"}
   });
   accepted=result.accepted.some(a=>typeof a==="string" && a.toLowerCase()===recipient.data.email);
- } catch { /* Ambiguous SMTP result: retain claim and never retry. */ } finally { transport.close(); }
+ } catch (error) {
+  const e=error as {code?:string;responseCode?:number;command?:string};
+  smtpFailure={code:typeof e.code==="string"?e.code:"SMTP_ERROR",responseCode:e.responseCode,command:e.command};
+ } finally { transport.close(); }
+ // Stop the campaign after the first failure instead of consuming the remaining queue.
+ if (!accepted) {
+  const paused=await db.from("lfi_campaigns").update({status:"paused"}).eq("tenant_id",context.tenantId).eq("project_id",LFI_PROJECT_ID).eq("status","active");
+  if(paused.error)throw new Error("Impossible de suspendre la campagne après une erreur SMTP.");
+ }
  const saved=await db.from("lfi_outbox").update({status:accepted?"accepted":"uncertain",completed_at:new Date().toISOString()}).eq("id",row.id).eq("status","claimed");
- return {success:accepted&&!saved.error,message:accepted&&!saved.error?"Message accepté par IONOS.":"Résultat incertain : contrôle manuel requis, aucun renvoi automatique."};
+ return {success:accepted&&!saved.error,smtpFailure,message:accepted&&!saved.error?"Message accepté par IONOS.":"Résultat incertain : contrôle manuel requis, aucun renvoi automatique."};
 }
