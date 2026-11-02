@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 import type { TenantContext } from "@/types/domain";
 import { canManageOvh, verifyOvhConnection } from "@/services/ovh-connection";
-import { getVscInboxCheckpoint } from "@/services/vsc-ovh-imap";
+import { reconcileVscRepliesOnce } from "@/services/vsc-reply-worker";
 import { createVscUnsubscribeUrl } from "@/services/vsc-unsubscribe-token";
 import { dispatchReservedVscEmail, type VscDispatchResult } from "@/services/vsc-reserved-ovh-dispatch";
 import { validateVscEmailContent } from "@/features/vsc-campaign/email-content";
@@ -51,7 +51,7 @@ export async function getVscManualCampaignReview(tenantId: string, campaignId: s
   const suppressed = new Set((suppressionResult.data ?? []).map(row => row.person_id));
   const replied = new Set((repliesResult.data ?? []).map(row => row.person_id));
   const now = Date.now();
-  const dispatchEnabled = process.env.VERCEL_ENV === "production" && Boolean(process.env.VSC_OVH_SMTP_PASSWORD) && Boolean(process.env.VSC_UNSUBSCRIBE_SIGNING_KEY && process.env.VSC_UNSUBSCRIBE_SIGNING_KEY.length >= 32) && Boolean(process.env.VSC_PUBLIC_BASE_URL);
+  const dispatchEnabled = process.env.VERCEL_ENV === "production" && process.env.VSC_MANUAL_SEND_ENABLED === "true" && Boolean(process.env.VSC_OVH_SMTP_PASSWORD) && Boolean(process.env.VSC_UNSUBSCRIBE_SIGNING_KEY && process.env.VSC_UNSUBSCRIBE_SIGNING_KEY.length >= 32) && Boolean(process.env.VSC_PUBLIC_BASE_URL);
   const messages = new Map<string, (typeof content.messages)[number]>(content.messages.map(message => [message.stepKey, message]));
   const reviewedRows = rows.map(delivery => {
     const person = people.get(delivery.person_id);
@@ -82,7 +82,7 @@ export async function getVscManualCampaignReview(tenantId: string, campaignId: s
       !clean ? "Campagne ou livraison déjà traitée / non disponible" : null,
       !due ? "Date prévue pas encore atteinte" : null,
       !isVscOfferCurrent(new Date()) ? "Promotion terminée" : null,
-      !dispatchEnabled ? "Envoi manuel disponible uniquement en production lorsque les identifiants sont configurés" : null
+      !dispatchEnabled ? "Envoi manuel désactivé ou configuration de production incomplète" : null
     ].filter((value): value is string => Boolean(value));
     return {
       deliveryId: delivery.id, personId: delivery.person_id, displayName: person?.display_name ?? "Contact",
@@ -104,15 +104,21 @@ export async function sendOneVscEmailManually(input: {
   if (!confirmed || !UUID.test(campaignId) || !UUID.test(deliveryId) || !/^[a-f0-9]{64}$/.test(reviewKey))
     return { state: "blocked", reason: "explicit_confirmation_required" };
   if (process.env.VERCEL_ENV !== "production") return { state: "disabled", reason: "production_only" };
-  const review = await getVscManualCampaignReview(tenantId, campaignId);
-  const row = review.rows.find(item => item.deliveryId === deliveryId);
-  if (!row || row.reviewKey !== reviewKey || !row.canSend) return { state: "not_eligible", reason: "review_changed_or_delivery_not_due" };
+  const initialReview = await getVscManualCampaignReview(tenantId, campaignId);
+  const initialRow = initialReview.rows.find(item => item.deliveryId === deliveryId);
+  if (!initialRow || initialRow.reviewKey !== reviewKey || !initialRow.canSend) return { state: "not_eligible", reason: "review_changed_or_delivery_not_due" };
   const smtp = await verifyOvhConnection(context);
   if (!smtp.success) return { state: "blocked", reason: "smtp_verification_failed" };
   try {
-    await getVscInboxCheckpoint();
-    createVscUnsubscribeUrl(tenantId, row.personId);
-  } catch { return { state: "blocked", reason: "imap_or_unsubscribe_verification_failed" }; }
+    // Reconcile fresh replies before rechecking the recipient and reserving SMTP.
+    const replies = await reconcileVscRepliesOnce(tenantId);
+    if (replies.hasMore) return { state: "blocked", reason: "reply_sync_incomplete" };
+  } catch { return { state: "blocked", reason: "reply_sync_failed" }; }
+  const review = await getVscManualCampaignReview(tenantId, campaignId);
+  const row = review.rows.find(item => item.deliveryId === deliveryId);
+  if (!row || row.reviewKey !== reviewKey || !row.canSend) return { state: "not_eligible", reason: "reply_or_delivery_changed" };
+  try { createVscUnsubscribeUrl(tenantId, row.personId); }
+  catch { return { state: "blocked", reason: "unsubscribe_verification_failed" }; }
   const db = createSupabaseServiceRoleClient();
   const { data: campaign, error: campaignReadError } = await db.from("vsc_campaigns")
     .select("id,state,approved_by,approved_at,enabled_at")
