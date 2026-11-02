@@ -28,6 +28,7 @@ on:
       - 'supabase/tests/vsc-last-day-draft.sql'
       - 'supabase/tests/vsc-sms-delivery-claims.sql'
       - 'supabase/tests/vsc-sms-plan-reviews.sql'
+      - 'scripts/vsc-collection-poll*.mjs'
       - 'apps/web/src/app/(app)/admin/vsc-campaigns/**'
       - '.github/workflows/vsc-checks.yml'
   workflow_dispatch:
@@ -53,6 +54,8 @@ jobs:
       - name: Run VSC service tests
         working-directory: apps/web
         run: npx vitest run src/services/vsc-*.test.ts src/lib/supabase/middleware.test.ts --exclude "src/**/*.integration.test.ts"
+      - name: Test external VSC collection runner
+        run: node --test scripts/vsc-collection-poll.test.mjs
       - name: Validate VSC migration SQL syntax (offline)
         run: |
           python3 -m pip install --quiet pglast==7.21
