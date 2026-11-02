@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getTenantContext } from "@/repositories/tenant-context";
-import { canManageIonos, verifyIonosConnection } from "@/services/ionos-connection";
+import { canManageLfiEmail, verifyBrevoSmtpConnection } from "@/services/brevo-smtp";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -14,8 +14,8 @@ export async function POST(request: Request) {
   try {
     const context = await getTenantContext();
     if (!context) return NextResponse.json({ error: "Connexion requise." }, { status: 401, headers });
-    if (!canManageIonos(context)) return NextResponse.json({ error: "Accès non autorisé." }, { status: 403, headers });
-    const result = await verifyIonosConnection(context);
+    if (!canManageLfiEmail(context)) return NextResponse.json({ error: "Accès non autorisé." }, { status: 403, headers });
+    const result = await verifyBrevoSmtpConnection(context);
     return NextResponse.json(result, { status: result.success ? 200 : 503, headers });
   } catch {
     return NextResponse.json({ error: "Vérification temporairement indisponible." }, { status: 503, headers });
