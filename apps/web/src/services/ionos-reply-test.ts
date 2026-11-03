@@ -45,7 +45,7 @@ export async function verifyIonosTestReply(context: TenantContext) {
       : "La lecture de la boîte contact fonctionne. Répondez au dernier mail de test signé depuis Gmail, puis relancez ce contrôle. Aucune réponse correspondante trouvée dans la boîte de réception." };
   } catch (error) {
     const imapError = typeof error === "object" && error !== null
-      ? error as { code?: unknown; name?: unknown }
+      ? error as { code?: unknown; name?: unknown; command?: unknown; responseCode?: unknown; responseText?: unknown; response?: unknown; serverResponse?: unknown }
       : {};
     const code = typeof imapError.code === "string" && /^[A-Z0-9_]{2,40}$/.test(imapError.code)
       ? imapError.code : undefined;
@@ -56,10 +56,26 @@ export async function verifyIonosTestReply(context: TenantContext) {
           .replace(/(password|passwd|token|authorization)[=: ]+[^ ]+/gi, "$1=[masqué]")
           .slice(0, 160)
       : undefined;
+    const command = typeof imapError.command === "string" && /^[A-Z]{2,20}$/.test(imapError.command)
+      ? imapError.command : undefined;
+    const responseCode = typeof imapError.responseCode === "number" ? imapError.responseCode
+      : typeof imapError.responseCode === "string" && /^[A-Z0-9]{2,12}$/.test(imapError.responseCode)
+        ? imapError.responseCode : undefined;
+    const serverTextValue = typeof imapError.responseText === "string" ? imapError.responseText
+      : typeof imapError.serverResponse === "string" ? imapError.serverResponse
+        : typeof imapError.response === "string" ? imapError.response : undefined;
+    const serverText = serverTextValue
+      ?.replace(/[\\r\\n]+/g, " ")
+      .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi, "[adresse]")
+      .replace(/(password|passwd|token|authorization)[=: ]+[^ ]+/gi, "$1=[masqué]")
+      .slice(0, 160);
     console.error("[Atlas LFI] IONOS reply test failed", {
       code,
       name: typeof imapError.name === "string" ? imapError.name : undefined,
-      message
+      command,
+      responseCode,
+      message,
+      serverText
     });
     if (code === "AUTHENTICATIONFAILED" || code === "EAUTH") {
       return { success: false, error: "IONOS refuse l’identification IMAP de la boîte contact." };
@@ -67,11 +83,14 @@ export async function verifyIonosTestReply(context: TenantContext) {
     if (code === "ETIMEDOUT" || code === "ECONNRESET" || code === "ECONNREFUSED") {
       return { success: false, error: "La connexion IMAP à IONOS est indisponible. Le serveur ne répond pas sur le port 993." };
     }
-    return { success: false, error: code
-      ? `Lecture IONOS indisponible (${code}).`
-      : message
-        ? `Lecture IONOS indisponible : ${message}`
-        : "Lecture IONOS indisponible. Vérifiez la connexion IMAP et réessayez." };
+    const details = [command, responseCode, serverText].filter(Boolean).join(" — ");
+    return { success: false, error: details
+      ? `Lecture IONOS indisponible : ${details}`
+      : code
+        ? `Lecture IONOS indisponible (${code}).`
+        : message
+          ? `Lecture IONOS indisponible : ${message}`
+          : "Lecture IONOS indisponible. Vérifiez la connexion IMAP et réessayez." };
   } finally {
     clearTimeout(timeout);
     imap.close();
