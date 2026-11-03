@@ -18,7 +18,7 @@ export function brevoSmtpStatus(context: TenantContext) {
   };
 }
 
-/** Authentication diagnostic only. Never submits an email. */
+/** Authentication diagnostic only. Never submits an email. Redeploy Preview after rotating the Vercel SMTP secret. */
 export async function verifyBrevoSmtpConnection(context: TenantContext) {
   if (!canManageLfiEmail(context)) return { success: false, error: "Accès non autorisé." };
   const password = process.env.LFI_BREVO_SMTP_PASSWORD;
