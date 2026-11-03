@@ -4,7 +4,7 @@ import type { TenantContext } from "@/types/domain";
 import { canManageLfiEmail, createBrevoSmtpTransport, LFI_BREVO_SENDER } from "./brevo-smtp";
 
 export const TEST_RECIPIENT = "renatoponzio@gmail.com";
-const TEST_VERSION = "brevo-delivery-signature-v2";
+const TEST_VERSION = "brevo-delivery-signature-v3-after-domain-auth";
 const pending = "Un test a déjà été demandé. Vérifiez votre boîte Gmail et les indésirables. Aucun nouvel envoi n’a été effectué.";
 
 /** One durable claim per tenant/version. Never automatically retry an ambiguous SMTP result. */
