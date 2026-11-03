@@ -19,7 +19,7 @@ export async function POST(request:Request){
    const password=process.env.LFI_BREVO_SMTP_PASSWORD;
    if(!password)return NextResponse.json({success:false,code:"NOT_CONFIGURED"},{headers});
    const transport=createBrevoSmtpTransport(password);
-   try{await transport.verify();return NextResponse.json({success:true,message:"SMTP vérifié, aucun email envoyé."},{headers});}
+   try{await transport.verify();return NextResponse.json({success:true,message:"SMTP vérifié, aucun email envoyé. Les campagnes restent en pause."},{headers});}
    catch(error){
     const e=error as {code?:string;responseCode?:number;command?:string};
     return NextResponse.json({success:false,code:typeof e.code==="string"?e.code:"SMTP_ERROR",responseCode:e.responseCode,command:e.command},{headers});
