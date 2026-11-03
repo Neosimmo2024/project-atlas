@@ -4,7 +4,15 @@
 
 Recetter d'abord un email OVH vers une boîte de test désignée par Renato et un SMS vers son mobile de test, séparément et sans destinataire commercial. L'adresse d'expédition reste `contact@vendresoncommerce.com`, le SMS utilise exclusivement le compte Brevo VSC et l'expéditeur VDC. Aucun crédit ne sera acheté sans accord. Une acceptation API ne sera pas présentée comme une livraison.
 
-Cette proposition n'autorise aucun envoi. Les coordonnées de test doivent être confirmées avant leur utilisation ; aucune adresse ou aucun numéro de prospect n'est choisi automatiquement. Les deux PR restent en brouillon et la production reste inchangée.
+Cette proposition n'autorise aucun envoi. Les coordonnées personnelles de test ont été confirmées le 3 novembre et conservées exclusivement dans `vsc_private.technical_pilot_targets` en QA. Elles ne figurent ni dans Git ni dans les listes de prospection. La RPC de préparation, réservée au rôle service et au propriétaire/administrateur actif qui les a confirmées, renvoie seulement des coordonnées masquées. Les deux PR restent en brouillon et la production reste inchangée.
+
+### Préparation personnelle disponible dans Atlas
+
+« Vérifier la préparation du test » vérifie uniquement l'authentification SMTP OVH et l'identité du compte Brevo VSC. Aucun SMTP DATA, POST d'envoi Brevo, création de livraison ou achat. Aucun transport d'envoi n'est raccordé à cette action. Les deux copies techniques sont présentées sans prix promotionnel ; un message maximum par canal est proposé pour une future recette explicitement autorisée, sans campagne commerciale.
+
+Objet du test email : **[TEST ATLAS VSC] Verification technique email**. Son texte précise qu'il s'agit d'un contrôle personnel hors campagne et invite à répondre après réception pour la future recette de collecte. SMS proposé : « TEST VendreSonCommerce : verification technique Atlas sur votre mobile de test. Ce message ne fait partie d aucune campagne commerciale. STOP au [STOP_CODE] ».
+
+Les crédits SMS, la réception et le rapprochement d'une réponse au test ne sont pas prouvés par cette préparation. Une connexion ou identité indisponible reste signalée séparément, sans être présentée comme un test d'envoi réussi. Aucun destinataire réel n'est inséré par les migrations et les fixtures SQL utilisent uniquement des coordonnées synthétiques puis rollback.
 
 ## Constat réel en QA
 

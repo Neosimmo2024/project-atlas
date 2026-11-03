@@ -144,7 +144,8 @@ describe("Supabase test reset workflow", () => {
       "20261102153254_vsc_sms_plan_reviews.sql",
       "20261103093109_vsc_collection_scheduler.sql",
       "20261103102439_vsc_collection_vault_verification.sql",
-      "20261103102723_vsc_collection_status.sql"
+      "20261103102723_vsc_collection_status.sql",
+      "20261103123631_vsc_technical_pilot_preparation.sql"
     ]);
     expect(workflow).toContain("Refusing reset: migration set is not exactly 0001 through 0019.");
     expect(workflow).not.toContain("Refusing reset: migration set is not exactly 0001 through 0021.");
