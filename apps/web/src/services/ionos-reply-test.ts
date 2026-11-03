@@ -49,9 +49,17 @@ export async function verifyIonosTestReply(context: TenantContext) {
       : {};
     const code = typeof imapError.code === "string" && /^[A-Z0-9_]{2,40}$/.test(imapError.code)
       ? imapError.code : undefined;
+    const message = typeof error === "object" && error !== null && "message" in error &&
+      typeof error.message === "string"
+      ? error.message.replace(/[\\r\\n]+/g, " ")
+          .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi, "[adresse]")
+          .replace(/(password|passwd|token|authorization)[=: ]+[^ ]+/gi, "$1=[masqué]")
+          .slice(0, 160)
+      : undefined;
     console.error("[Atlas LFI] IONOS reply test failed", {
       code,
-      name: typeof imapError.name === "string" ? imapError.name : undefined
+      name: typeof imapError.name === "string" ? imapError.name : undefined,
+      message
     });
     if (code === "AUTHENTICATIONFAILED" || code === "EAUTH") {
       return { success: false, error: "IONOS refuse l’identification IMAP de la boîte contact." };
@@ -61,7 +69,9 @@ export async function verifyIonosTestReply(context: TenantContext) {
     }
     return { success: false, error: code
       ? `Lecture IONOS indisponible (${code}).`
-      : "Lecture IONOS indisponible. Vérifiez la connexion IMAP et réessayez." };
+      : message
+        ? `Lecture IONOS indisponible : ${message}`
+        : "Lecture IONOS indisponible. Vérifiez la connexion IMAP et réessayez." };
   } finally {
     clearTimeout(timeout);
     imap.close();
