@@ -2,6 +2,7 @@
 import {createHash, timingSafeEqual} from 'node:crypto';
 import {createSupabaseServiceRoleClient} from '@/lib/supabase/service-role';
 import {prepareVscSmsCalendar} from './vsc-sms-calendar';
+import {buildVscSmsCatchupReview} from '@/features/vsc-campaign/sms-catchup-review';
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 async function prepare(tenant:string,startDate?:string){
  const p=await prepareVscSmsCalendar(tenant,startDate);
@@ -12,7 +13,7 @@ export async function previewVscSmsPlanReview(tenant:string,startDate?:string){
  const p=await prepare(tenant,startDate);
  const {data,error}=await createSupabaseServiceRoleClient().from('vsc_sms_plan_reviews').select('id,start_date,recipient_count,created_at,calendar').eq('tenant_id',tenant).order('created_at',{ascending:false}).order('id').limit(11);
  if(error)throw new Error('Versions de relecture indisponibles');
- return {...p.calendar,reviewKey:p.reviewKey,saved:(data??[]).slice(0,10),limited:(data?.length??0)>10};
+ return {...p.calendar,catchupReview:buildVscSmsCatchupReview(p.calendar.today,p.calendar.overdueReminders),reviewKey:p.reviewKey,saved:(data??[]).slice(0,10),limited:(data?.length??0)>10};
 }
 export async function saveVscSmsPlanReview(tenant:string,actor:string,startDate:unknown,key:unknown){
  if(!UUID.test(actor)||typeof startDate!=='string'||typeof key!=='string'||!/^[a-f0-9]{64}$/.test(key))throw new Error('Aperçu invalide');
