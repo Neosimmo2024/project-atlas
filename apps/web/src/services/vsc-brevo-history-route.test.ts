@@ -1,0 +1,12 @@
+import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
+const {context,manage,status,batch}=vi.hoisted(()=>({context:vi.fn(),manage:vi.fn(),status:vi.fn(),batch:vi.fn()}));
+vi.mock('@/repositories/tenant-context',()=>({getTenantContext:context}));vi.mock('@/services/ovh-connection',()=>({canManageOvh:manage}));vi.mock('@/services/vsc-brevo-history',()=>({getVscBrevoHistoryStatus:status,reconcileVscBrevoHistoryBatch:batch}));
+import {GET,POST} from '@/app/api/admin/vsc-brevo-history/route';
+const tenant='20000000-0000-0000-0000-000000000001';
+const req=(origin='https://fixture.invalid')=>new Request('https://fixture.invalid/api/admin/vsc-brevo-history',{method:'POST',headers:{origin}});
+describe('VSC historical route',()=>{beforeEach(()=>{vi.resetAllMocks();vi.stubEnv('VSC_OVH_TENANT_ID',tenant);context.mockResolvedValue({tenantId:tenant,userId:'actor'});manage.mockReturnValue(true);status.mockResolvedValue({sendingEnabled:false});batch.mockResolvedValue({sendingEnabled:false});});afterEach(()=>vi.unstubAllEnvs());
+ it('requires a VSC administrator',async()=>{manage.mockReturnValue(false);expect((await GET()).status).toBe(403);expect((await POST(req())).status).toBe(403);expect(batch).not.toHaveBeenCalled();expect(status).not.toHaveBeenCalled();});
+ it('rejects cross-origin requests before authentication or work',async()=>{expect((await POST(req('https://foreign.invalid'))).status).toBe(403);expect(context).not.toHaveBeenCalled();expect(batch).not.toHaveBeenCalled();});
+ it('uses the configured tenant and session actor, never request-controlled contacts',async()=>{const response=await POST(req());expect(response.status).toBe(200);expect(response.headers.get('cache-control')).toBe('no-store');expect(batch).toHaveBeenCalledExactlyOnceWith(tenant,'actor');});
+ it('masks errors without an automatic retry',async()=>{batch.mockRejectedValue(new Error('private'));const response=await POST(req());expect(response.status).toBe(503);expect(await response.text()).not.toContain('private');expect(batch).toHaveBeenCalledTimes(1);});
+});

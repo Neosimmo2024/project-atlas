@@ -1,0 +1,10 @@
+import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
+const {context,manage,preview}=vi.hoisted(()=>({context:vi.fn(),manage:vi.fn(),preview:vi.fn()}));
+vi.mock('@/repositories/tenant-context',()=>({getTenantContext:context}));vi.mock('@/services/ovh-connection',()=>({canManageOvh:manage}));vi.mock('@/services/vsc-sms-calendar',()=>({previewVscSmsCalendar:preview}));
+import {GET} from '@/app/api/admin/vsc-sms-calendar/route';
+const request=()=>new Request('https://fixture.invalid/api/admin/vsc-sms-calendar?startDate=2026-11-02&tenant=foreign');
+describe('VSC SMS calendar API',()=>{beforeEach(()=>{vi.resetAllMocks();vi.stubEnv('VSC_OVH_TENANT_ID','vsc');context.mockResolvedValue({tenantId:'vsc',userId:'owner'});manage.mockReturnValue(true);preview.mockResolvedValue({sendingEnabled:false,readOnly:true});});afterEach(()=>vi.unstubAllEnvs());
+ it('requires an active administrator',async()=>{manage.mockReturnValue(false);expect((await GET(request())).status).toBe(403);expect(preview).not.toHaveBeenCalled();});
+ it('uses only the session tenant and exposes a noncached read-only preview',async()=>{const r=await GET(request());expect(r.status).toBe(200);expect(r.headers.get('cache-control')).toBe('no-store');expect(preview).toHaveBeenCalledExactlyOnceWith('vsc','2026-11-02');});
+ it('sanitizes failures without retry',async()=>{preview.mockRejectedValue(new Error('private'));const r=await GET(request());expect(r.status).toBe(503);expect(await r.text()).not.toContain('private');expect(preview).toHaveBeenCalledTimes(1);});
+});

@@ -15,6 +15,19 @@ export async function updateSession(request: NextRequest) {
 
   let response = NextResponse.next({ request });
 
+  // Exact machine endpoints verify their own enable flag and bearer/signature.
+  if (request.nextUrl.pathname === "/api/cron/vsc-replies" || request.nextUrl.pathname === "/api/cron/vsc-collection") {
+    applySecurityHeaders(response.headers);
+    return response;
+  }
+
+  // Signed VSC opt-out has its own token and origin checks, with no login required.
+  if (request.nextUrl.pathname === "/vsc-unsubscribe") {
+    applySecurityHeaders(response.headers);
+    response.headers.set("Referrer-Policy", "strict-origin");
+    return response;
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,

@@ -1,5 +1,7 @@
 # Diagnostic OVH VendreSonCommerce
 
+Note historique du premier diagnostic SMTP. Pour l’état actuel (IMAP implémenté, recette réelle, désinscription et limites avant lancement), consulter [la revue avant lancement](../vsc-release-review.md) et [le détail de validation](../vsc-validation.md).
+
 Page /admin/ovh-connection, indépendante du diagnostic LFI IONOS.
 Compte MX Plan confirmé actif dans OVH le 27 octobre 2026 ; compte contact non bloqué pour spam.
 SMTP ssl0.ovh.net:465 TLS, identité contact@vendresoncommerce.com imposée côté serveur.

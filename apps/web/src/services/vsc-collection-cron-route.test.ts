@@ -1,0 +1,14 @@
+import {createHmac} from 'node:crypto';
+import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
+const {run}=vi.hoisted(()=>({run:vi.fn()}));vi.mock('@/services/vsc-scheduled-collection',()=>({runVscScheduledCollection:run}));
+import {GET} from '@/app/api/cron/vsc-collection/route';
+const key='a'.repeat(64),tenant='20000000-0000-0000-0000-000000000001',actor='10000000-0000-0000-0000-000000000001',nonce='30000000-0000-0000-0000-000000000001';
+function request(overrides:Record<string,string>={},query=''){const stamp=String(Math.floor(Date.now()/1000));return new Request('https://fixture.invalid/api/cron/vsc-collection'+query,{headers:{'x-vsc-timestamp':stamp,'x-vsc-nonce':nonce,'x-vsc-signature':createHmac('sha256',key).update(`GET\n/api/cron/vsc-collection\n${stamp}\n${nonce}`).digest('hex'),...overrides}});}
+describe('HMAC collection route',()=>{
+ beforeEach(()=>{vi.resetAllMocks();vi.stubEnv('VSC_OVH_TENANT_ID',tenant);run.mockResolvedValue({state:'complete',sendingEnabled:false});});afterEach(()=>vi.unstubAllEnvs());
+ it('honors disabled Vault configuration without relying on a Vercel signing secret',async()=>{run.mockResolvedValueOnce({state:'disabled',sendingEnabled:false});expect((await GET(request())).status).toBe(503);vi.stubEnv('CRON_SECRET',key);run.mockResolvedValueOnce({state:'unauthorized',sendingEnabled:false});expect((await GET(request())).status).toBe(401);});
+ it('rejects altered, stale, future, malformed and query-bearing signed requests',async()=>{for(const headers of [{'x-vsc-timestamp':String(Math.floor(Date.now()/1000)-301)},{'x-vsc-timestamp':String(Math.floor(Date.now()/1000)+301)},{'x-vsc-signature':'x'},{'x-vsc-nonce':'forged'}] as Record<string,string>[])expect((await GET(request(headers))).status).toBe(401);expect((await GET(request({},'?tenant=foreign'))).status).toBe(401);expect(run).not.toHaveBeenCalled();});
+ it('uses only the server tenant and passes opaque signed input for database verification',async()=>{const r=await GET(request());expect(r.status).toBe(200);expect(r.headers.get('cache-control')).toBe('no-store');expect(run).toHaveBeenCalledExactlyOnceWith(tenant,nonce,expect.any(String),expect.any(String));expect(await r.text()).not.toContain(key);});
+ it('distinguishes incomplete, consumed and failed work without retry',async()=>{for(const [state,status] of [['incomplete',202],['not_eligible',409],['failed',503]] as const){run.mockResolvedValueOnce({state,sendingEnabled:false});expect((await GET(request())).status).toBe(status);}expect(run).toHaveBeenCalledTimes(3);});
+ it('requires configured tenant and sanitizes errors',async()=>{vi.stubEnv('VSC_OVH_TENANT_ID','');expect((await GET(request())).status).toBe(503);expect(run).not.toHaveBeenCalled();vi.stubEnv('VSC_OVH_TENANT_ID',tenant);run.mockRejectedValue(new Error('private'));const r=await GET(request());expect(r.status).toBe(503);expect(await r.text()).not.toContain('private');});
+});

@@ -1,0 +1,2 @@
+create index vsc_sms_audience_created_by_idx on public.vsc_sms_audience_drafts(created_by);
+alter policy vsc_sms_audience_admin_read on public.vsc_sms_audience_drafts using(exists(select 1 from public.tenant_users tu join public.roles r on r.id=tu.role_id where tu.tenant_id=vsc_sms_audience_drafts.tenant_id and tu.user_id=(select auth.uid()) and tu.status='active' and r.slug in ('owner','admin')));
