@@ -1,0 +1,12 @@
+import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
+const {context,manage,send}=vi.hoisted(()=>({context:vi.fn(),manage:vi.fn(),send:vi.fn()}));
+vi.mock('@/repositories/tenant-context',()=>({getTenantContext:context}));vi.mock('@/services/ovh-connection',()=>({canManageOvh:manage}));vi.mock('@/services/vsc-personal-test-send',()=>({sendVscPersonalTest:send}));
+import {POST} from '@/app/api/admin/vsc-personal-test-send/route';
+const url='https://fixture.invalid/api/admin/vsc-personal-test-send';
+const request=(body:unknown,origin='https://fixture.invalid')=>new Request(url,{method:'POST',headers:{origin,'Content-Type':'application/json'},body:JSON.stringify(body)});
+describe('one-time personal test API',()=>{beforeEach(()=>{vi.resetAllMocks();vi.stubEnv('VSC_OVH_TENANT_ID','vsc');context.mockResolvedValue({tenantId:'vsc',userId:'owner'});manage.mockReturnValue(true);send.mockResolvedValue({state:'accepted',commercialSendingEnabled:false});});afterEach(()=>vi.unstubAllEnvs());
+ it('rejects cross-origin requests before loading account context',async()=>{expect((await POST(request({channel:'email',confirmed:true},'https://foreign.invalid'))).status).toBe(403);expect(context).not.toHaveBeenCalled();});
+ it('rejects unauthorized actors, missing confirmation and injected destinations',async()=>{manage.mockReturnValueOnce(false);expect((await POST(request({channel:'email',confirmed:true}))).status).toBe(403);for(const body of [{channel:'email',confirmed:false},{channel:'email',confirmed:true,recipient:'foreign@fixture.invalid'},{channel:'all',confirmed:true}])expect((await POST(request(body))).status).toBe(400);expect(send).not.toHaveBeenCalled();});
+ it('submits only the selected channel and trusted context, never a client target or tenant',async()=>{const r=await POST(request({channel:'sms',confirmed:true}));expect(r.status).toBe(200);expect(r.headers.get('cache-control')).toBe('no-store');expect(send).toHaveBeenCalledExactlyOnceWith({tenantId:'vsc',userId:'owner'},'sms');});
+ it('sanitizes failures and does not imply non-submission',async()=>{send.mockRejectedValue(new Error('private credentials'));const r=await POST(request({channel:'email',confirmed:true}));expect(r.status).toBe(503);expect(await r.text()).not.toContain('private credentials');});
+});

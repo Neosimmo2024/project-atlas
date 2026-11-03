@@ -34,6 +34,7 @@ on:
       - 'supabase/tests/vsc-sms-plan-reviews.sql'
       - 'supabase/tests/vsc-collection-scheduler.sql'
       - 'supabase/tests/vsc-technical-pilot.sql'
+      - 'supabase/tests/vsc-one-time-personal-test.sql'
       - 'scripts/vsc-collection-poll*.mjs'
       - 'scripts/vsc-collection-poll*.php'
       - 'apps/web/src/app/(app)/admin/vsc-campaigns/**'
@@ -150,6 +151,7 @@ jobs:
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-sms-plan-reviews.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-collection-scheduler.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-technical-pilot.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-one-time-personal-test.sql
       - name: Run real VSC reply flow against disposable Supabase
         working-directory: apps/web
         shell: bash

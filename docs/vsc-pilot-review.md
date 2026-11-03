@@ -8,7 +8,11 @@ Cette proposition n'autorise aucun envoi. Les coordonnées personnelles de test 
 
 ### Préparation personnelle disponible dans Atlas
 
-« Vérifier la préparation du test » vérifie uniquement l'authentification SMTP OVH et l'identité du compte Brevo VSC. Aucun SMTP DATA, POST d'envoi Brevo, création de livraison ou achat. Aucun transport d'envoi n'est raccordé à cette action. Les deux copies techniques sont présentées sans prix promotionnel ; un message maximum par canal est proposé pour une future recette explicitement autorisée, sans campagne commerciale.
+« Vérifier la préparation du test » vérifie uniquement l'authentification SMTP OVH et l'identité du compte Brevo VSC. Aucun SMTP DATA, POST d'envoi Brevo, création de livraison ou achat n'est effectué par cette action. Les deux copies techniques sont présentées sans prix promotionnel.
+
+Après l'accord explicite du propriétaire pour un email et un SMS, deux autorisations distinctes sont préparées hors migrations dans `vsc_private.technical_pilot_attempts`, avec expiration, acteur et date de confirmation de la cible. Les boutons d'envoi technique utilisent une route QA séparée : session owner/admin VSC, origine exacte, confirmation explicite et canal unique, aucun destinataire client accepté. La réservation atomique consomme chaque autorisation une seule fois avant SMTP/POST Brevo. Rejet, résultat incertain ou reçu non enregistré n'autorisent aucun renvoi. Aucune campagne commerciale n'est créée, approuvée ou activée.
+
+Le reçu SMTP/API est conservé dans ce journal privé, distinct des campagnes ; acceptation ne vaut pas livraison. Un refus pour crédit SMS insuffisant ne déclenche aucun achat. Aucun scheduler n'appelle cette route et aucun verrou d'envoi commercial n'est activé.
 
 Objet du test email : **[TEST ATLAS VSC] Verification technique email**. Son texte précise qu'il s'agit d'un contrôle personnel hors campagne et invite à répondre après réception pour la future recette de collecte. SMS proposé : « TEST VendreSonCommerce : verification technique Atlas sur votre mobile de test. Ce message ne fait partie d aucune campagne commerciale. STOP au [STOP_CODE] ».
 
