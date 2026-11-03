@@ -1,6 +1,12 @@
 # Revue avant lancement — VendreSonCommerce
 
-État constaté le 29 octobre 2026, PR #88, dépendante de la PR #87. Aucune fusion ni mise en production autorisée. Les campagnes NEOS IMMO restent hors périmètre.
+Dernière revue : 3 novembre 2026, PR #88, dépendante de la PR #87. Aucune fusion ni mise en production autorisée. Les campagnes NEOS IMMO restent hors périmètre.
+
+## Mise à jour du 3 novembre
+
+La collecte QA est maintenant active toutes les dix minutes via Supabase Cron, avec clé dédiée conservée exclusivement dans Vault, signature courte et nonce unique. Deux passages automatiques réels complets sont confirmés à 11 h 40 et 11 h 50 Europe/Paris. Le suivi est visible dans Atlas. Seule la collecte est activée ; les anciens endpoints et les transports commerciaux restent désactivés. La variante OVH/SFTP n'est plus un préalable à la collecte QA.
+
+Le [dossier du pilote](vsc-pilot-review.md) rassemble les textes réellement conservés, les 898 emails draft, les 113 rappels échus, la date passée des 30 mobiles seuls et la recette restant à autoriser. Un bilan consolidé en lecture seule est accessible dans Atlas. Les sections ci-dessous conservent l'historique de développement ; leurs mentions de calendrier de collecte non installé ne décrivent plus la QA actuelle. Les limites de production et des réponses SMS libres restent ouvertes et ne sont pas masquées par une collecte STOP réussie.
 
 ## Fonctionnel et vérifié
 

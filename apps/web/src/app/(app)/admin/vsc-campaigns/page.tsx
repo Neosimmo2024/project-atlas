@@ -1,3 +1,4 @@
+import { VscPilotReview } from '@/components/vsc-pilot-review';
 import { VscCollectionStatus } from '@/components/vsc-collection-status';
 import { VscSmsCalendar } from '@/components/vsc-sms-calendar';
 import { VscLastDayDraft } from '@/components/vsc-last-day-draft';
@@ -43,6 +44,7 @@ export default async function VscCampaignsPage() {
     </section>
     <Link href="/admin/ovh-connection">Connexion OVH et suivi des réponses</Link>
     <VscCollectionStatus />
+    <VscPilotReview />
     <VscBrevoContactImport />
     <VscBrevoHistory />
     <VscHistoricalReplies />
