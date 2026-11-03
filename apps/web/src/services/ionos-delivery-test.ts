@@ -4,7 +4,7 @@ import type { TenantContext } from "@/types/domain";
 import { canManageLfiEmail, createBrevoSmtpTransport, LFI_BREVO_SENDER } from "./brevo-smtp";
 
 export const TEST_RECIPIENT = "renatoponzio@gmail.com";
-const TEST_VERSION = "brevo-delivery-signature-v3-after-domain-auth";
+const TEST_VERSION = "brevo-delivery-signature-v4-smtp-diagnostic";
 const pending = "Un test a déjà été demandé. Vérifiez votre boîte Gmail et les indésirables. Aucun nouvel envoi n’a été effectué.";
 
 /** One durable claim per tenant/version. Never automatically retry an ambiguous SMTP result. */
@@ -32,8 +32,17 @@ export async function sendIonosDeliveryTest(context: TenantContext) {
       attachments: lfiSignatureAttachments()
     });
     accepted = result.accepted.some(address => typeof address === "string" && address.toLowerCase() === TEST_RECIPIENT);
-  } catch {
-    // The server may have accepted DATA before a timeout: do not retry or reveal dialogue.
+  } catch (error) {
+    // Log only safe SMTP metadata, never credentials or the full SMTP dialogue.
+    const smtpError = typeof error === "object" && error !== null
+      ? error as { code?: unknown; command?: unknown; responseCode?: unknown }
+      : {};
+    console.error("[Atlas LFI] Brevo delivery test failed", {
+      code: typeof smtpError.code === "string" ? smtpError.code : undefined,
+      command: typeof smtpError.command === "string" ? smtpError.command : undefined,
+      responseCode: typeof smtpError.responseCode === "number" ? smtpError.responseCode : undefined
+    });
+    // The server may have accepted DATA before a timeout: do not automatically retry.
   } finally {
     transport.close();
   }
