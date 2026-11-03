@@ -14,6 +14,10 @@ Après l'accord explicite du propriétaire pour un email et un SMS, deux autoris
 
 Le reçu SMTP/API est conservé dans ce journal privé, distinct des campagnes ; acceptation ne vaut pas livraison. Un refus pour crédit SMS insuffisant ne déclenche aucun achat. Aucun scheduler n'appelle cette route et aucun verrou d'envoi commercial n'est activé.
 
+« Contrôler la livraison du SMS de test » lit les événements Brevo du seul numéro de test, puis exige le Message-ID exact du reçu et le mobile correspondant. Les événements d'un autre SMS sont ignorés ; source tronquée, identité différente et données incohérentes empêchent une conclusion. Un événement delivered est distinct d'une simple acceptation ; un échec ou une contradiction reste signalé. Aucun contenu de réponse SMS ni coordonnée n'est renvoyé à l'interface. Cette action est un GET en lecture seule et n'utilise jamais la route d'envoi.
+
+Source API : https://developers.brevo.com/reference/get-sms-events
+
 Objet du test email : **[TEST ATLAS VSC] Verification technique email**. Son texte précise qu'il s'agit d'un contrôle personnel hors campagne et invite à répondre après réception pour la future recette de collecte. SMS proposé : « TEST VendreSonCommerce : verification technique Atlas sur votre mobile de test. Ce message ne fait partie d aucune campagne commerciale. STOP au [STOP_CODE] ».
 
 Les crédits SMS, la réception et le rapprochement d'une réponse au test ne sont pas prouvés par cette préparation. Une connexion ou identité indisponible reste signalée séparément, sans être présentée comme un test d'envoi réussi. Aucun destinataire réel n'est inséré par les migrations et les fixtures SQL utilisent uniquement des coordonnées synthétiques puis rollback.
