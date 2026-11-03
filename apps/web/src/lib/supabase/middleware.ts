@@ -6,7 +6,7 @@ import { applySecurityHeaders } from "@/lib/security/headers";
 const AUTH_PAGES = new Set(["/", "/login", "/forgot-password", "/update-password"]);
 
 export function isAuthPage(pathname: string) {
-  return AUTH_PAGES.has(pathname);
+  return AUTH_PAGES.has(pathname) || pathname === "/lfi/unsubscribe";
 }
 
 export async function updateSession(request: NextRequest) {
