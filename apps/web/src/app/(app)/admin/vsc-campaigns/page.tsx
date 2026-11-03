@@ -1,3 +1,4 @@
+import { VscCollectionStatus } from '@/components/vsc-collection-status';
 import { VscSmsCalendar } from '@/components/vsc-sms-calendar';
 import { VscLastDayDraft } from '@/components/vsc-last-day-draft';
 import { VscHistoricalInboundSync } from '@/components/vsc-historical-inbound-sync';
@@ -36,11 +37,12 @@ export default async function VscCampaignsPage() {
         <li><strong>Déclenchement email :</strong> la revue manuelle est raccordée. En production configurée, chaque clic confirme la campagne et traite une seule livraison. Aucun planificateur d’emails n’est raccordé.</li>
         <li><strong>Validation de campagne :</strong> relire et valider ensemble les textes, les destinataires et la cadence du pilote avant de changer l’état d’une campagne.</li>
         <li><strong>Cas incertains :</strong> prévoir une vérification humaine auditée avant toute décision de renvoi ; aucun renvoi automatique n’est prévu.</li>
-        <li><strong>SMS et surveillance :</strong> le transport SMS VSC et les planifications de collecte restent séparés et non activés.</li>
+        <li><strong>SMS et surveillance :</strong> le transport SMS VSC reste désactivé. Consultez le suivi de collecte ci-dessous pour les réponses et STOP.</li>
       </ul>
       <p>Ce parcours ne déclenche aucun envoi commercial automatique et n’installe aucun calendrier d’envoi. Les brouillons et leurs dates sont conservés pour relecture.</p>
     </section>
     <Link href="/admin/ovh-connection">Connexion OVH et suivi des réponses</Link>
+    <VscCollectionStatus />
     <VscBrevoContactImport />
     <VscBrevoHistory />
     <VscHistoricalReplies />

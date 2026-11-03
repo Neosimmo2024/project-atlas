@@ -15,8 +15,8 @@ export async function updateSession(request: NextRequest) {
 
   let response = NextResponse.next({ request });
 
-  // This exact machine endpoint verifies its own bearer secret and enable flag.
-  if (request.nextUrl.pathname === "/api/cron/vsc-replies") {
+  // Exact machine endpoints verify their own enable flag and bearer/signature.
+  if (request.nextUrl.pathname === "/api/cron/vsc-replies" || request.nextUrl.pathname === "/api/cron/vsc-collection") {
     applySecurityHeaders(response.headers);
     return response;
   }

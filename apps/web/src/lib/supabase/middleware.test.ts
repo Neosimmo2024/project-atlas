@@ -73,6 +73,8 @@ describe("Supabase middleware auth pages", () => {
   it("skips session lookup only for the exact machine-authenticated reply endpoint", async () => {
     expect((await updateSession(request("/api/cron/vsc-replies"))).status).toBe(200);
     expect(createServerClientMock).not.toHaveBeenCalled();
+    expect((await updateSession(request("/api/cron/vsc-collection"))).status).toBe(200);
+    expect(createServerClientMock).not.toHaveBeenCalled();
     mockUser(null);
     await updateSession(request("/api/cron/vsc-replies/other"));
     expect(createServerClientMock).toHaveBeenCalledTimes(1);

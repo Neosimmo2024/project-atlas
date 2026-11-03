@@ -7,6 +7,7 @@ on:
       - 'apps/web/src/services/vsc-*.ts'
       - 'apps/web/src/app/api/admin/vsc-*/**'
       - 'apps/web/src/app/api/cron/vsc-replies/**'
+      - 'apps/web/src/app/api/cron/vsc-collection/**'
       - 'apps/web/src/app/api/cron/vsc-sms-stops/**'
       - 'apps/web/src/app/api/cron/vsc-historical-inbound/**'
       - 'apps/web/src/app/vsc-unsubscribe/**'
@@ -31,6 +32,7 @@ on:
       - 'supabase/tests/vsc-last-day-draft.sql'
       - 'supabase/tests/vsc-sms-delivery-claims.sql'
       - 'supabase/tests/vsc-sms-plan-reviews.sql'
+      - 'supabase/tests/vsc-collection-scheduler.sql'
       - 'scripts/vsc-collection-poll*.mjs'
       - 'scripts/vsc-collection-poll*.php'
       - 'apps/web/src/app/(app)/admin/vsc-campaigns/**'
@@ -145,6 +147,7 @@ jobs:
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-last-day-draft.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-sms-delivery-claims.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-sms-plan-reviews.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/vsc-collection-scheduler.sql
       - name: Run real VSC reply flow against disposable Supabase
         working-directory: apps/web
         shell: bash
