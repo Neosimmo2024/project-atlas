@@ -43,3 +43,24 @@ Prévoir une invocation toutes les dix minutes, un répertoire de verrou accessi
 | 64 | Arguments invalides | Utiliser `--check` ou `--run` |
 
 L’absence de nouveau message peut être normale ; l’absence de passage réussi doit être détectée par l’hébergeur. Cette surveillance et la planification restent à installer et à recetter sur l’hébergement retenu. Le script ne prouve pas une collecte continue tant que cela n’a pas été fait.
+
+## Variante PHP pour l’hébergement OVH PRO vérifié
+
+La variante `scripts/vsc-collection-poll.php` remplace le lanceur Node sur cet hébergement. Elle s’exécute **sans argument**, comme l’exige le formulaire Cron OVH. PHP 8.2 ou supérieur et l’extension cURL sont nécessaires. Les cinq tests Node restent distincts des six tests de la variante PHP.
+
+Installation prévue, encore non effectuée :
+
+- Dossier privé `/home/vendrec/atlas-vsc-collection`, hors de `www` et `www/public`, permissions `0700`.
+- Copier uniquement `vsc-collection-poll.php` dans ce dossier. Aucun fichier du site existant n’est remplacé.
+- Créer dans ce même dossier `vsc-collection.config.json`, appartenant au même compte que le script, permissions `0600`. Les liens symboliques, fichiers lisibles par le groupe/autres et configurations trop volumineuses sont refusés.
+- Structure privée : `{"version":1,"enabled":false,"cronSecret":""}`. Le secret existant de l’application QA doit être renseigné par un canal sécurisé ; aucun exemple de secret valide n’est enregistré dans Git. Le booléen `enabled` reste `false` tant que la recette n’est pas validée.
+- Sur l’hébergement, lancer `php vsc-collection-poll.php --check` : contrôle sans réseau de la configuration locale. Tester ensuite l’exécution complète en CLI après configuration et activation des seuls collecteurs QA. Un verrou de fichier intégré refuse les exécutions qui se chevauchent.
+- Le formulaire Cron doit viser `atlas-vsc-collection/vsc-collection-poll.php` depuis le home. Choisir une version PHP compatible, sans modifier la version globale du site. Créer initialement la tâche **désactivée** ; contrôler le chemin et le résultat avant toute activation.
+
+**Limite vérifiée OVH mutualisé : une invocation par heure maximum**, minute non réglable, et non toutes les dix minutes. Le planificateur Linux décrit plus haut concerne un autre type d’hébergement. Il faut choisir et recetter une cadence adaptée avant de déclarer la collecte continue opérationnelle. Ne pas multiplier les crons ni faire tourner une boucle permanente pour contourner cette limite.
+
+Le script PHP refuse les appels HTTP, les dossiers contenant un segment `www` ou `public`, les cibles alternatives, les redirections, les réponses trop grandes et les résultats incomplets. TLS reste vérifié ; aucune erreur brute, coordonnée ou valeur secrète n’est imprimée. Les codes de sortie ont le même sens que le lanceur Node, avec le code 2 également utilisé quand une invocation est déjà en cours. Le script doit rester privé même avec ce refus HTTP.
+
+Si la protection de la prévisualisation Vercel refuse l’appel machine, le bilan est en échec ; ne pas désactiver cette protection pour obtenir artificiellement un succès. L’accès machine autorisé et les flags distants doivent être vérifiés lors de l’installation.
+
+Source des contraintes OVH : https://docs.ovhcloud.com/en/guides/web-cloud/web-hosting/cron-tasks (consulté le 3 novembre 2026).
