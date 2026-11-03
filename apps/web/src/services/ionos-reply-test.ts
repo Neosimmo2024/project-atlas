@@ -23,7 +23,7 @@ export async function verifyIonosTestReply(context: TenantContext) {
   try {
     await imap.connect();
     await imap.mailboxOpen("INBOX", { readOnly: true });
-    const reference = `<atlas-brevo-${context.tenantId}-brevo-delivery-signature-v1@lesformateursimmo.com>`;
+    const reference = `<atlas-brevo-${context.tenantId}-brevo-delivery-signature-v2@lesformateursimmo.com>`;
     const uids = await imap.search({ from: RECIPIENT, header: { "In-Reply-To": reference } }, { uid: true });
     if (!Array.isArray(uids)) throw new Error("SEARCH_FAILED");
     let replyFound = false;
