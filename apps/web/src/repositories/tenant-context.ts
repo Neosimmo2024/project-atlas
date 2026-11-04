@@ -1,17 +1,19 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { TenantContext } from "@/types/domain";
 
-export async function getTenantContext(): Promise<TenantContext | null> {
+export async function getTenantContext(tenantId?: string): Promise<TenantContext | null> {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) return null;
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("tenant_users")
     .select("tenant_id, tenants(id, name), roles(slug)")
     .eq("user_id", user.id)
-    .eq("status", "active")
+    .eq("status", "active");
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+  const { data, error } = await query
     .limit(1)
     .maybeSingle();
 
