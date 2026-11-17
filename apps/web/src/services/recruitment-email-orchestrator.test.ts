@@ -116,12 +116,12 @@ describe("Saint-Maur scheduled initial and pinned follow-ups", () => {
   const personId = "22222222-2222-4222-8222-222222222222";
   const snapshot = { key: "saint-maur-local-20261016", project_id: projectId, content_hash: "a".repeat(64), template_ids: [82,83,84], first_name: "Marie Claire", city: "Créteil", days: [0,10,20] };
   const campaign = { state: "ready", launch_enabled: true, sender_verified: true, recipient_ids: [personId], template_ids: [81,82,83,84], content_hash: snapshot.content_hash };
-  function localSetup(index: number, overrides: Record<string, unknown> = {}, stopped = false) {
+  function localSetup(index: number, overrides: Record<string, unknown> = {}, stopped = false, firstSentAt?: string) {
     const sequence = { ...activeSequence, status: index === 0 ? "pending" : "sent", lifecycle_status: stopped ? "stopped" : "running", tenant_id: "tenant", person_id: personId, sent_at: index === 0 ? null : "2026-10-17T07:30:00Z", campaign_snapshot: snapshot };
     const queued: Record<string, unknown>[] = [];
     mocks.from.mockImplementation((table: string) => {
       const row = table === "people" ? { ...person, id: personId } : table === "projects" ? { status: "open", archived_at: null, metadata: { local_recruitment_campaign: { ...campaign, ...overrides }, recruitment_email_campaign: { launch_enabled: true } } } : sequence;
-      const data = table === "recruitment_email_sequence_steps" ? index === 2 ? [{ step_index: 1, status: "sent" }] : [] : row;
+      const data = table === "recruitment_email_sequence_steps" ? index === 2 ? [{ step_index: 1, status: "sent", sent_at: firstSentAt }] : [] : row;
       const query = { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), is: vi.fn().mockReturnThis(), not: vi.fn().mockReturnThis(), neq: vi.fn().mockReturnThis(), order: vi.fn().mockReturnThis(), in: vi.fn().mockReturnThis(),
         insert: vi.fn((value: Record<string, unknown>) => { queued.push(value); return query; }), update: vi.fn().mockReturnThis(), upsert: vi.fn().mockReturnThis(),
         maybeSingle: vi.fn(async () => ({ data: row, error: null })), limit: vi.fn(async () => ({ data: index === 0 ? [] : [sequence], error: null })), then: (resolve: (value: unknown) => unknown) => Promise.resolve({ data, error: null }).then(resolve) };
@@ -141,6 +141,12 @@ describe("Saint-Maur scheduled initial and pinned follow-ups", () => {
     vi.resetAllMocks(); localSetup(1,overrides);
     expect(await runRecruitmentEmailOrchestration()).toMatchObject({ scheduled: 0, sent: 0, errors: 1 });
     expect(mocks.send).not.toHaveBeenCalled();
+  });
+  it("keeps ten days between a delayed Saint-Maur first follow-up and the second", async () => {
+    vi.resetAllMocks();
+    const queued = localSetup(2, {}, false, "2026-11-17T09:40:00Z");
+    await runRecruitmentEmailOrchestration();
+    expect(queued[0]).toMatchObject({ step_index: 2, scheduled_at: "2026-11-27T08:30:00.000Z" });
   });
   it("sends the nearby variant and atomically records the initial provider result", async () => {
     vi.resetAllMocks(); localSetup(0); mocks.initial.mockResolvedValue({ success: true, messageId: "initial" });

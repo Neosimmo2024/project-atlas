@@ -23,6 +23,23 @@ export async function syncBrevoOutboundHistory(tenantId: string) {
     }
     if ((people.data?.length ?? 0) < 1000) break;
   }
+  // Match only an exact Brevo ID, person and address of a recorded local send.
+  const localSends = new Map<string, { sequence_id: string; step_id: string } | null>();
+  for (let offset = 0; ; offset += 500) {
+    const records = await db.from("recruitment_email_sequences")
+      .select("id,person_id,email,recruitment_email_sequence_steps(id,status,provider_message_id)")
+      .eq("tenant_id", tenantId).eq("campaign_snapshot->>key", "saint-maur-local-20261016")
+      .order("id").range(offset, offset + 499);
+    if (records.error) throw new Error("BREVO_HISTORY_LOCAL_SENDS_FAILED");
+    for (const sequence of records.data ?? []) {
+      for (const step of sequence.recruitment_email_sequence_steps ?? []) {
+        if (step.status !== "sent" || !step.provider_message_id) continue;
+        const key = JSON.stringify([sequence.person_id, sequence.email.trim().toLowerCase(), step.provider_message_id]);
+        localSends.set(key, localSends.has(key) ? null : { sequence_id: sequence.id, step_id: step.id });
+      }
+    }
+    if ((records.data?.length ?? 0) < 500) break;
+  }
   let imported = 0, unmatched = 0;
   for (let offset = 0; ; offset += 1000) {
     const response = await fetch(`https://api.brevo.com/v3/smtp/statistics/events?days=90&event=delivered&limit=1000&offset=${offset}&sort=desc`, {
@@ -40,7 +57,7 @@ export async function syncBrevoOutboundHistory(tenantId: string) {
       writes.push({ tenant_id: tenantId, event_type: "recruitment_email_sent", title: "Email Brevo retrouvé dans l’historique",
         description: evidence.subject ?? evidence.tag ?? "Envoi confirmé par les logs Brevo", occurred_at: evidence.sentAt,
         created_by: null, person_id: personId, source_type: "person", source_id: personId, visibility: "tenant",
-        idempotency_key: `brevo-outbound:${digest}`, metadata: { source: "brevo_outbound_journal", provider_message_id: evidence.messageId,
+        idempotency_key: `brevo-outbound:${digest}`, metadata: { ...localSends.get(JSON.stringify([personId, evidence.email, evidence.messageId])), source: "brevo_outbound_journal", provider_message_id: evidence.messageId,
           recipient_email: evidence.email, sender_email: evidence.sender, campaign_name: evidence.tag ?? (evidence.email.endsWith("@lmdimmobilier.fr") ? "LMD" : "Brevo"), subject: evidence.subject } });
     }
     if (writes.length) {

@@ -66,11 +66,18 @@ export async function reconcileMarketingFollowUps(db: SupabaseClient) {
     const events = await db.from("timeline_events").select("id,person_id,occurred_at,metadata").eq("tenant_id", project.tenant_id)
       .contains("metadata", { source: "brevo_outbound_journal", channel: "brevo_marketing" }).in("metadata->>campaign_id", config.initial_campaign_ids.map(String)).order("occurred_at");
     if (events.error) throw events.error;
-    for (const event of events.data ?? []) {
-      if (!ready.recipient_ids.includes(event.person_id)) continue;
-      const old = await db.from("recruitment_email_sequences").select("id").eq("tenant_id", project.tenant_id).eq("person_id", event.person_id).maybeSingle();
-      if (old.error) throw old.error;
-      if (old.data) continue;
+    const recipients = new Set<string>(ready.recipient_ids);
+    const eligibleEvents = (events.data ?? []).filter(event => recipients.has(event.person_id));
+    const personIds = [...new Set(eligibleEvents.map(event => event.person_id))];
+    const enrolled = new Set<string>();
+    for (let offset = 0; offset < personIds.length; offset += 75) {
+      const existing = await db.from("recruitment_email_sequences").select("person_id")
+        .eq("tenant_id", project.tenant_id).in("person_id", personIds.slice(offset, offset + 75));
+      if (existing.error) throw existing.error;
+      for (const row of existing.data ?? []) enrolled.add(row.person_id);
+    }
+    for (const event of eligibleEvents) {
+      if (enrolled.has(event.person_id)) continue;
       const person = await db.from("people").select("id,primary_email,first_name,contact_allowed,do_not_contact,status").eq("tenant_id", project.tenant_id).eq("id", event.person_id).single();
       if (person.error) throw person.error;
       if (!person.data.contact_allowed || person.data.do_not_contact || person.data.status === "archived" || person.data.primary_email?.trim().toLowerCase() !== event.metadata.recipient_email) continue;
@@ -82,6 +89,7 @@ export async function reconcileMarketingFollowUps(db: SupabaseClient) {
         campaign_snapshot: { key: config.key, project_id: project.id, template_ids: ready.template_ids, days: [0,15,30], first_name: person.data.first_name || "" } }).select("id").single();
       if (created.error?.code === "23505") continue;
       if (created.error) throw created.error;
+      enrolled.add(event.person_id);
       const linked = await db.from("timeline_events").update({ metadata: { ...event.metadata, sequence_id: created.data.id, project_id: project.id } }).eq("id", event.id);
       if (linked.error) throw linked.error;
     }

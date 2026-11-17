@@ -28,6 +28,7 @@ type StepRow = {
   step_key: "initial" | "follow_up_1" | "follow_up_2";
   status: "scheduled" | "processing" | "sent" | "error" | "cancelled";
   scheduled_at: string;
+  sent_at?: string | null;
 };
 
 type PersonRow = {
@@ -175,7 +176,7 @@ async function scheduleStep(sequence: SequenceRow, stepIndex: 1 | 2, dueAt: stri
   return true;
 }
 
-async function prepareFollowUps(limit = 100) {
+async function prepareFollowUps(limit = 100, batchSize = limit) {
   const supabase = createSupabaseServiceRoleClient();
   const { data, error } = await supabase
     .from("recruitment_email_sequences")
@@ -185,13 +186,18 @@ async function prepareFollowUps(limit = 100) {
     .not("sent_at", "is", null)
     .neq("lifecycle_status", "stopped")
     .neq("lifecycle_status", "completed")
-    .order("sent_at", { ascending: true })
+    .order("sent_at", { ascending: true }).order("id", { ascending: true })
     .limit(Math.min(Math.max(limit, 1), 500));
   if (error) throw error;
 
   let scheduled = 0;
   let stopped = 0;
-  for (const sequence of (data ?? []) as SequenceRow[]) {
+  // Rotate preparation across ticks, including when an early candidate remains blocked.
+  const candidates = (data ?? []) as SequenceRow[];
+  const pages = Math.ceil(candidates.length / batchSize);
+  const tick = Math.floor(Date.now() / (15 * 60_000));
+  const offset = pages ? (tick % pages) * batchSize : 0;
+  for (const sequence of candidates.slice(offset, offset + batchSize)) {
     const { data: person, error: personError } = await supabase
       .from("people")
       .select("id,display_name,comments,contact_allowed,do_not_contact")
@@ -226,7 +232,7 @@ async function prepareFollowUps(limit = 100) {
 
     const { data: steps, error: stepsError } = await supabase
       .from("recruitment_email_sequence_steps")
-      .select("id,tenant_id,sequence_id,person_id,step_index,step_key,status,scheduled_at")
+      .select("id,tenant_id,sequence_id,person_id,step_index,step_key,status,scheduled_at,sent_at")
       .eq("sequence_id", sequence.id)
       .in("step_index", [1, 2]);
     if (stepsError) throw stepsError;
@@ -239,7 +245,9 @@ async function prepareFollowUps(limit = 100) {
       continue;
     }
     if (first.status === "sent" && !second) {
-      if (await scheduleStep(sequence, 2, dueAt(anchor, days[2]), days[2])) scheduled += 1;
+      const planned = dueAt(anchor, days[2]);
+      const afterFirst = local && first.sent_at ? localFollowUpAt(first.sent_at, days[2] - days[1]) : planned;
+      if (await scheduleStep(sequence, 2, afterFirst > planned ? afterFirst : planned, days[2])) scheduled += 1;
     }
   }
   return { scheduled, stopped };
@@ -341,10 +349,10 @@ async function processDueSteps(limit = 25, calendarVerified = true) {
   return { claimed: claimed.length, sent, errors, skipped };
 }
 
-export async function runRecruitmentEmailOrchestration(input?: { prepareLimit?: number; claimLimit?: number }) {
+export async function runRecruitmentEmailOrchestration(input?: { prepareLimit?: number; claimLimit?: number; prepareBatchSize?: number }) {
   const calendar = await syncLocalCalendarStops(createSupabaseServiceRoleClient());
-  const prepared = await prepareFollowUps(input?.prepareLimit ?? 100);
   const processed = await processDueSteps(input?.claimLimit ?? 25, calendar.verified);
+  const prepared = await prepareFollowUps(input?.prepareLimit ?? 100, input?.prepareBatchSize);
   return {
     calendarVerified: calendar.verified,
     scheduled: prepared.scheduled,

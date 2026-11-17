@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   try {
     await syncConfiguredMailboxes();
     await reconcileMarketingFollowUps(createSupabaseServiceRoleClient());
-    const summary = await runRecruitmentEmailOrchestration({ prepareLimit: 500, claimLimit: 50 });
+    const summary = await runRecruitmentEmailOrchestration({ prepareLimit: 500, claimLimit: 5, prepareBatchSize: 8 });
     return NextResponse.json({ data: summary });
   } catch {
     logServerError("Recruitment email orchestration failed");
